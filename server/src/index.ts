@@ -15,7 +15,7 @@ import {
   buildFinishConnectionFrame,
   buildChatTextQueryFrame,
   parseBinaryFrame,
-  EVENT_ID,
+  EventId,
 } from "./volcengine-protocol.js";
 
 // 加载环境变量
@@ -1198,12 +1198,33 @@ wss.on('connection', (ws: WebSocket, request) => {
 
         // 发送StartSession事件
         const startSessionFrame = buildStartSessionFrame(sessionId, {
-          bot_name: '豆包',
-          system_role: '你是一位温暖、专业的心理陪伴助手。',
-          model: '1.2.1.1',
+          bot_name: '豆包'
         });
         console.log('Sending StartSession frame, size:', startSessionFrame.length);
         console.log('Session ID:', sessionId);
+        console.log('StartSession frame hex:', startSessionFrame.toString('hex'));
+        console.log('StartSession frame breakdown:', {
+          first4bytes: startSessionFrame.slice(0, 4).toString('hex'),
+          byte0: startSessionFrame[0].toString(16),
+          headerSizeValue: (startSessionFrame[0] & 0x0F) * 4,
+          actualHeaderBytes: 4 + 4 + 4 + startSessionFrame.readUInt32BE(8),
+          byte1: startSessionFrame[1].toString(16),
+          messageType: (startSessionFrame[1] >> 4) & 0x0F,
+          flags: startSessionFrame[1] & 0x0F,
+          byte2: startSessionFrame[2].toString(16),
+          byte3: startSessionFrame[3].toString(16),
+          eventIdOffset: 4,
+          eventId: startSessionFrame.readUInt32BE(4),
+          sessionIdSizeOffset: 8,
+          sessionIdSize: startSessionFrame.readUInt32BE(8),
+          sessionId: startSessionFrame.slice(12, 12 + startSessionFrame.readUInt32BE(8)).toString('utf-8'),
+          // payload size在sessionId之后: header(12) + sessionId(28) = 40
+          payloadSizeOffset: 12 + startSessionFrame.readUInt32BE(8),
+          payloadSizeHexBE: startSessionFrame.slice(40, 44).toString('hex'),
+          payloadSizeBE: startSessionFrame.readUInt32BE(40),
+          actualPayloadLength: startSessionFrame.length - 44,
+          totalLength: startSessionFrame.length,
+        });
         volcWs!.send(startSessionFrame);
         console.log('✅ StartSession sent');
       });
@@ -1226,14 +1247,56 @@ wss.on('connection', (ws: WebSocket, request) => {
         }
 
         console.log('Parsed frame:', {
-          eventType: frame.eventId,
           messageType: frame.messageType,
+          messageTypeHex: '0x' + frame.messageType.toString(16),
+          flags: frame.flags,
+          eventId: frame.eventId,
           payloadSize: frame.payload.length,
+          payloadPreview: frame.payload.slice(0, 100).toString('utf-8'),
         });
+
+        // 处理错误帧
+        if (frame.messageType === 0b1111) {
+          try {
+            // 尝试直接解析JSON（可能没有code字段）
+            const errorInfo = JSON.parse(frame.payload.toString('utf-8'));
+            console.error('❌ Volcengine error:', errorInfo);
+
+            ws.send(JSON.stringify({
+              type: 'error',
+              message: `豆包API错误: ${errorInfo.error || '未知错误'}`,
+              details: errorInfo,
+            }));
+          } catch (e) {
+            // 如果失败，尝试带code字段解析
+            try {
+              let offset = 0;
+              const errorCode = frame.payload.readUInt32BE(offset);
+              offset += 4;
+
+              const errorInfo = JSON.parse(frame.payload.slice(offset).toString('utf-8'));
+              console.error('❌ Volcengine error (with code):', {
+                code: errorCode,
+                error: errorInfo,
+              });
+
+              ws.send(JSON.stringify({
+                type: 'error',
+                message: `豆包API错误 (代码: ${errorCode}): ${errorInfo.error || '未知错误'}`,
+                details: errorInfo,
+              }));
+            } catch (e2) {
+              console.error('Failed to parse error frame:', e2);
+              console.error('Raw payload hex:', frame.payload.toString('hex'));
+              console.error('Raw payload string:', frame.payload.toString('utf-8', 0, 100));
+            }
+          }
+          return;
+        }
 
         // 处理服务端事件
         switch (frame.eventId) {
-          case EVENT_ID.ASR_RESPONSE:
+          case EventId.ASR_RESPONSE:
             // 语音识别结果
             try {
               const asrResult = JSON.parse(frame.payload.toString('utf-8'));
@@ -1247,7 +1310,7 @@ wss.on('connection', (ws: WebSocket, request) => {
             }
             break;
 
-          case EVENT_ID.CHAT_RESPONSE:
+          case EventId.CHAT_RESPONSE:
             // AI回复文本
             try {
               const chatResponse = JSON.parse(frame.payload.toString('utf-8'));
@@ -1261,7 +1324,7 @@ wss.on('connection', (ws: WebSocket, request) => {
             }
             break;
 
-          case EVENT_ID.TTS_RESPONSE:
+          case EventId.TTS_RESPONSE:
             // 音频数据
             ws.send(JSON.stringify({
               type: 'tts_audio',
@@ -1269,7 +1332,7 @@ wss.on('connection', (ws: WebSocket, request) => {
             }));
             break;
 
-          case EVENT_ID.TTS_SENTENCE_START:
+          case EventId.TTS_SENTENCE_START:
             // TTS开始
             try {
               const ttsStart = JSON.parse(frame.payload.toString('utf-8'));
@@ -1282,21 +1345,21 @@ wss.on('connection', (ws: WebSocket, request) => {
             }
             break;
 
-          case EVENT_ID.TTS_ENDED:
+          case EventId.TTS_ENDED:
             // TTS结束
             ws.send(JSON.stringify({
               type: 'tts_ended',
             }));
             break;
 
-          case EVENT_ID.ASR_ENDED:
+          case EventId.ASR_ENDED:
             // 语音识别结束
             ws.send(JSON.stringify({
               type: 'asr_ended',
             }));
             break;
 
-          case EVENT_ID.SESSION_STARTED:
+          case EventId.SESSION_STARTED:
             // 会话开始
             try {
               const sessionInfo = JSON.parse(frame.payload.toString('utf-8'));
