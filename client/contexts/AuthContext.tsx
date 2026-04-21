@@ -1,55 +1,259 @@
-// @ts-nocheck
-/**
- * 通用认证上下文
- *
- * 基于固定的 API 接口实现，可复用到其他项目
- * 其他项目使用时，只需修改 @api 的导入路径指向项目的 api 模块
- *
- * 注意：
- * - 如果需要登录/鉴权场景，请扩展本文件，完善 login/logout、token 管理、用户信息获取与刷新等逻辑
- * - 将示例中的占位实现替换为项目实际的接口调用与状态管理
- */
-import React, { createContext, useContext, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-interface UserOut {
-
+interface User {
+  id: string;
+  username: string;
+  email: string | null;
+  nickname: string;
+  avatar: string | null;
+  cloud_sync_enabled: boolean;
+  created_at: string;
 }
 
 interface AuthContextType {
-  user: UserOut | null;
+  user: User | null;
   token: string | null;
-  isAuthenticated: boolean;
   isLoading: boolean;
-  login: (token: string) => Promise<void>;
+  isAuthenticated: boolean;
+  login: (username: string, password: string) => Promise<void>;
+  register: (username: string, password: string, email?: string, nickname?: string) => Promise<void>;
   logout: () => Promise<void>;
-  updateUser: (userData: Partial<UserOut>) => void;
+  updateProfile: (data: Partial<User>) => Promise<void>;
+  refreshUser: () => Promise<void>;
+  toggleCloudSync: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const value: AuthContextType = {
-    user: null,
-    token: null,
-    isAuthenticated: false,
-    isLoading: false,
-
-    // 登录逻辑，根据项目实际情况实现
-    login: async (token: string) => {}, // eslint-disable-line @typescript-eslint/no-empty-function
-
-    // 登出逻辑，根据项目实际情况实现
-    logout: async () => {}, // eslint-disable-line @typescript-eslint/no-empty-function
-
-    // 更新用户信息，根据项目实际情况实现
-    updateUser: () => {}, // eslint-disable-line @typescript-eslint/no-empty-function
-  };
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+const STORAGE_KEYS = {
+  TOKEN: '@ai_diary_token',
+  USER: '@ai_diary_user',
 };
 
-export const useAuth = (): AuthContextType => {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // 初始化：从本地存储恢复登录状态
+  useEffect(() => {
+    loadAuthData();
+  }, []);
+
+  const loadAuthData = async () => {
+    try {
+      const storedToken = await AsyncStorage.getItem(STORAGE_KEYS.TOKEN);
+      const storedUser = await AsyncStorage.getItem(STORAGE_KEYS.USER);
+
+      if (storedToken && storedUser) {
+        setToken(storedToken);
+        setUser(JSON.parse(storedUser));
+
+        // 验证token是否有效
+        await refreshUserInfo(storedToken);
+      }
+    } catch (error) {
+      console.error('Error loading auth data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const refreshUserInfo = async (authToken: string) => {
+    try {
+      /**
+       * 服务端文件：server/src/index.ts
+       * 接口：GET /api/v1/auth/me
+       * Headers: Authorization: Bearer {token}
+       */
+      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+        await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(data.user));
+      } else {
+        // Token无效，清除登录状态
+        await logout();
+      }
+    } catch (error) {
+      console.error('Error refreshing user info:', error);
+      // 网络错误不自动登出，保留本地状态
+    }
+  };
+
+  const login = async (username: string, password: string) => {
+    try {
+      /**
+       * 服务端文件：server/src/index.ts
+       * 接口：POST /api/v1/auth/login
+       * Body 参数：username: string, password: string
+       */
+      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || '登录失败');
+      }
+
+      const { user, token: newToken } = data;
+
+      // 保存到本地存储
+      await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, newToken);
+      await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+
+      // 更新状态
+      setToken(newToken);
+      setUser(user);
+    } catch (error: any) {
+      console.error('Error logging in:', error);
+      throw error;
+    }
+  };
+
+  const register = async (username: string, password: string, email?: string, nickname?: string) => {
+    try {
+      /**
+       * 服务端文件：server/src/index.ts
+       * 接口：POST /api/v1/auth/register
+       * Body 参数：username: string, password: string, email?: string, nickname?: string
+       */
+      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password, email, nickname }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || '注册失败');
+      }
+
+      const { user, token: newToken } = data;
+
+      // 保存到本地存储
+      await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, newToken);
+      await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+
+      // 更新状态
+      setToken(newToken);
+      setUser(user);
+    } catch (error: any) {
+      console.error('Error registering:', error);
+      throw error;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEYS.TOKEN);
+      await AsyncStorage.removeItem(STORAGE_KEYS.USER);
+      setToken(null);
+      setUser(null);
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
+
+  const updateProfile = async (data: Partial<User>) => {
+    try {
+      if (!token) throw new Error('Not authenticated');
+
+      /**
+       * 服务端文件：server/src/index.ts
+       * 接口：PUT /api/v1/auth/me
+       * Headers: Authorization: Bearer {token}
+       * Body 参数：nickname?: string, email?: string, avatar?: string, cloud_sync_enabled?: boolean
+       */
+      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/auth/me`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      });
+
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(responseData.error || '更新失败');
+      }
+
+      const updatedUser = responseData.user;
+
+      // 更新本地存储
+      await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
+
+      // 更新状态
+      setUser(updatedUser);
+    } catch (error: any) {
+      console.error('Error updating profile:', error);
+      throw error;
+    }
+  };
+
+  const refreshUser = useCallback(async () => {
+    if (token) {
+      await refreshUserInfo(token);
+    }
+  }, [token]);
+
+  const toggleCloudSync = async () => {
+    try {
+      if (!user) throw new Error('Not authenticated');
+
+      const newStatus = !user.cloud_sync_enabled;
+
+      // 显示确认弹窗
+      if (newStatus) {
+        // 用户需要同意开启云端同步
+        await updateProfile({ cloud_sync_enabled: true });
+      } else {
+        // 关闭云端同步
+        await updateProfile({ cloud_sync_enabled: false });
+      }
+    } catch (error: any) {
+      console.error('Error toggling cloud sync:', error);
+      throw error;
+    }
+  };
+
+  const value: AuthContextType = {
+    user,
+    token,
+    isLoading,
+    isAuthenticated: !!user && !!token,
+    login,
+    register,
+    logout,
+    updateProfile,
+    refreshUser,
+    toggleCloudSync,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-};
+}

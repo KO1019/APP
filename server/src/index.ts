@@ -1,10 +1,33 @@
 import express from "express";
 import cors from "cors";
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { HeaderUtils } from "coze-coding-dev-sdk";
 import { getSupabaseClient } from "./storage/database/supabase-client";
 
 const app = express();
 const port = process.env.PORT || 9091;
+
+// JWT密钥配置（生产环境应使用环境变量）
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+
+// 中间件：验证JWT Token
+const authenticateToken = (req: any, res: any, next: any) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+  if (!token) {
+    return res.status(401).json({ error: 'Access denied. No token provided.' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    req.userId = decoded.userId;
+    next();
+  } catch (error) {
+    res.status(403).json({ error: 'Invalid token.' });
+  }
+};
 
 // Middleware
 app.use(cors());
@@ -16,10 +39,175 @@ app.get('/api/v1/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
+// ========== 用户认证 API ==========
+
+// 用户注册
+app.post('/api/v1/auth/register', async (req, res) => {
+  try {
+    const { username, password, email, nickname } = req.body;
+
+    // 参数校验
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+
+    if (username.length < 3 || username.length > 20) {
+      return res.status(400).json({ error: 'Username must be 3-20 characters' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    const client = getSupabaseClient();
+
+    // 检查用户名是否已存在
+    const { data: existingUser } = await client
+      .from('users')
+      .select('*')
+      .eq('username', username)
+      .single();
+
+    if (existingUser) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+
+    // 密码加密
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // 创建用户
+    const { data: newUser, error: insertError } = await client
+      .from('users')
+      .insert({
+        username,
+        password_hash: passwordHash,
+        email: email || null,
+        nickname: nickname || username,
+        cloud_sync_enabled: false,
+      })
+      .select('id, username, email, nickname, created_at')
+      .single();
+
+    if (insertError) throw new Error(`Failed to create user: ${insertError.message}`);
+
+    // 生成JWT Token
+    const token = jwt.sign({ userId: newUser.id }, JWT_SECRET, { expiresIn: '30d' });
+
+    res.status(201).json({
+      user: newUser,
+      token,
+    });
+  } catch (error: any) {
+    console.error('Error registering user:', error);
+    res.status(500).json({ error: error.message || 'Failed to register user' });
+  }
+});
+
+// 用户登录
+app.post('/api/v1/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    // 参数校验
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+
+    const client = getSupabaseClient();
+
+    // 查找用户
+    const { data: user, error: fetchError } = await client
+      .from('users')
+      .select('*')
+      .eq('username', username)
+      .single();
+
+    if (fetchError || !user) {
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
+
+    // 验证密码
+    const isValidPassword = await bcrypt.compare(password, user.password_hash);
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
+
+    // 生成JWT Token
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
+
+    res.json({
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        nickname: user.nickname,
+        avatar: user.avatar,
+        cloud_sync_enabled: user.cloud_sync_enabled,
+        created_at: user.created_at,
+      },
+      token,
+    });
+  } catch (error: any) {
+    console.error('Error logging in:', error);
+    res.status(500).json({ error: error.message || 'Failed to login' });
+  }
+});
+
+// 获取当前用户信息
+app.get('/api/v1/auth/me', authenticateToken, async (req: any, res) => {
+  try {
+    const client = getSupabaseClient();
+
+    const { data: user, error: fetchError } = await client
+      .from('users')
+      .select('id, username, email, nickname, avatar, cloud_sync_enabled, created_at')
+      .eq('id', req.userId)
+      .single();
+
+    if (fetchError || !user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ user });
+  } catch (error: any) {
+    console.error('Error fetching user:', error);
+    res.status(500).json({ error: error.message || 'Failed to fetch user' });
+  }
+});
+
+// 更新用户信息
+app.put('/api/v1/auth/me', authenticateToken, async (req: any, res) => {
+  try {
+    const { nickname, email, avatar, cloud_sync_enabled } = req.body;
+
+    const client = getSupabaseClient();
+
+    const { data: updatedUser, error: updateError } = await client
+      .from('users')
+      .update({
+        ...(nickname !== undefined && { nickname }),
+        ...(email !== undefined && { email }),
+        ...(avatar !== undefined && { avatar }),
+        ...(cloud_sync_enabled !== undefined && { cloud_sync_enabled }),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', req.userId)
+      .select('id, username, email, nickname, avatar, cloud_sync_enabled, created_at, updated_at')
+      .single();
+
+    if (updateError) throw new Error(`Failed to update user: ${updateError.message}`);
+
+    res.json({ user: updatedUser });
+  } catch (error: any) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ error: error.message || 'Failed to update user' });
+  }
+});
+
 // ========== 日记相关 API ==========
 
 // 创建日记（自动进行情绪分析）
-app.post('/api/v1/diaries', async (req, res) => {
+app.post('/api/v1/diaries', authenticateToken, async (req: any, res) => {
   try {
     const { content } = req.body;
 
@@ -29,10 +217,10 @@ app.post('/api/v1/diaries', async (req, res) => {
 
     const client = getSupabaseClient();
 
-    // 插入日记（仅包含内容）
+    // 插入日记（仅包含内容和用户ID）
     const { data: diary, error: insertError } = await client
       .from('diaries')
-      .insert({ content })
+      .insert({ content, user_id: req.userId })
       .select()
       .single();
 
@@ -49,13 +237,14 @@ app.post('/api/v1/diaries', async (req, res) => {
 });
 
 // 获取日记列表
-app.get('/api/v1/diaries', async (req, res) => {
+app.get('/api/v1/diaries', authenticateToken, async (req: any, res) => {
   try {
     const client = getSupabaseClient();
 
     const { data, error } = await client
       .from('diaries')
       .select('*')
+      .eq('user_id', req.userId) // 只返回当前用户的日记
       .order('created_at', { ascending: false })
       .limit(50);
 
@@ -69,7 +258,7 @@ app.get('/api/v1/diaries', async (req, res) => {
 });
 
 // 获取单条日记
-app.get('/api/v1/diaries/:id', async (req, res) => {
+app.get('/api/v1/diaries/:id', authenticateToken, async (req: any, res) => {
   try {
     const { id } = req.params;
     const client = getSupabaseClient();
@@ -78,6 +267,7 @@ app.get('/api/v1/diaries/:id', async (req, res) => {
       .from('diaries')
       .select('*')
       .eq('id', id)
+      .eq('user_id', req.userId) // 只能查看自己的日记
       .maybeSingle();
 
     if (error) throw new Error(`Failed to fetch diary: ${error.message}`);
@@ -91,7 +281,7 @@ app.get('/api/v1/diaries/:id', async (req, res) => {
 });
 
 // 删除日记
-app.delete('/api/v1/diaries/:id', async (req, res) => {
+app.delete('/api/v1/diaries/:id', authenticateToken, async (req: any, res) => {
   try {
     const { id } = req.params;
     const client = getSupabaseClient();
@@ -99,7 +289,8 @@ app.delete('/api/v1/diaries/:id', async (req, res) => {
     const { error } = await client
       .from('diaries')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', req.userId); // 只能删除自己的日记
 
     if (error) throw new Error(`Failed to delete diary: ${error.message}`);
 
@@ -113,14 +304,15 @@ app.delete('/api/v1/diaries/:id', async (req, res) => {
 // ========== 陪伴功能相关 API ==========
 
 // 获取基于最近日记情绪的建议话题
-app.get('/api/v1/chat/topics', async (req, res) => {
+app.get('/api/v1/chat/topics', authenticateToken, async (req: any, res) => {
   try {
     const client = getSupabaseClient();
 
-    // 获取最近的日记（最后 3 篇）
+    // 获取最近的日记（最后 3 篇，仅当前用户的）
     const { data: recentDiaries } = await client
       .from('diaries')
       .select('*')
+      .eq('user_id', req.userId)
       .order('created_at', { ascending: false })
       .limit(3);
 
@@ -202,14 +394,15 @@ app.get('/api/v1/chat/topics', async (req, res) => {
 });
 
 // 获取心理健康建议
-app.get('/api/v1/health-tips', async (req, res) => {
+app.get('/api/v1/health-tips', authenticateToken, async (req: any, res) => {
   try {
     const client = getSupabaseClient();
 
-    // 获取最近的日记（最后 5 篇）来分析情绪趋势
+    // 获取最近的日记（最后 5 篇，仅当前用户的）来分析情绪趋势
     const { data: recentDiaries } = await client
       .from('diaries')
       .select('*')
+      .eq('user_id', req.userId)
       .order('created_at', { ascending: false })
       .limit(5);
 
@@ -299,7 +492,7 @@ app.get('/api/v1/health-tips', async (req, res) => {
 // ========== 对话相关 API（流式） ==========
 
 // AI 对话（流式响应）
-app.post('/api/v1/chat', async (req, res) => {
+app.post('/api/v1/chat', authenticateToken, async (req: any, res) => {
   const { message, diaryId } = req.body;
 
   // SSE 响应头
@@ -386,6 +579,7 @@ app.post('/api/v1/chat', async (req, res) => {
 
     // 保存对话记录
     await client.from('conversations').insert({
+      user_id: req.userId,
       user_message: message,
       ai_message: fullResponse,
       related_diary_id: diaryId || null,
@@ -401,7 +595,7 @@ app.post('/api/v1/chat', async (req, res) => {
 });
 
 // 获取对话列表
-app.get('/api/v1/conversations', async (req, res) => {
+app.get('/api/v1/conversations', authenticateToken, async (req: any, res) => {
   try {
     const client = getSupabaseClient();
     const { diaryId } = req.query;
@@ -409,6 +603,7 @@ app.get('/api/v1/conversations', async (req, res) => {
     let query = client
       .from('conversations')
       .select('*')
+      .eq('user_id', req.userId) // 只返回当前用户的对话
       .order('created_at', { ascending: false })
       .limit(100);
 

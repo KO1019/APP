@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 import { usePassword } from '@/contexts/PasswordContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
@@ -32,6 +34,7 @@ const emotionColors: Record<string, string> = {
 export default function DiariesScreen() {
   const router = useSafeRouter();
   const { isLocked, hasPassword, lockApp, decryptData, offlineMode } = usePassword();
+  const { isAuthenticated, isLoading: authLoading, token } = useAuth();
 
   const [diaries, setDiaries] = useState<Diary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +62,11 @@ export default function DiariesScreen() {
         return;
       }
 
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/diaries`);
+      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/diaries`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
       const data = await response.json();
 
       // 解密日记内容
@@ -78,11 +85,20 @@ export default function DiariesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [decryptData, offlineMode]);
+  }, [decryptData, offlineMode, token]);
 
-  useEffect(() => {
-    fetchDiaries();
-  }, [fetchDiaries]);
+  useFocusEffect(
+    useCallback(() => {
+      // 检查用户是否已登录
+      if (!authLoading && !isAuthenticated) {
+        router.replace('/login');
+        return;
+      }
+
+      // 已登录，加载数据
+      fetchDiaries();
+    }, [isAuthenticated, authLoading, fetchDiaries])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
