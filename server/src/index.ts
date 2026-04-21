@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import multer from 'multer';
 import { HeaderUtils } from "coze-coding-dev-sdk";
 import { getSupabaseClient } from "./storage/database/supabase-client";
 
@@ -488,6 +489,153 @@ app.get('/api/v1/health-tips', authenticateToken, async (req: any, res) => {
     res.status(500).json({ error: error.message || 'Failed to generate health tips' });
   }
 });
+
+// ========== 语音对话 API ==========
+
+// 创建multer实例
+const upload = multer({ storage: multer.memoryStorage() });
+
+// 语音对话（支持语音识别、AI对话、语音合成）
+app.post('/api/v1/voice/chat', authenticateToken, upload.single('audio'), async (req: any, res) => {
+  try {
+    const audioFile = req.file;
+    const { mode = 'chat', diaryId } = req.body; // mode: 'chat' 对话, 'diary' 记日记
+
+    if (!audioFile) {
+      return res.status(400).json({ error: 'Audio file is required' });
+    }
+
+    // 1. 语音识别（ASR）- 将语音转为文本
+    let userText = '';
+    try {
+      console.log('Processing audio file:', audioFile.originalname, audioFile.size);
+
+      // 暂时模拟ASR结果
+      // 实际应该调用火山引擎的 ASR API
+      // 由于环境和配置限制，这里返回占位文本
+      userText = '（语音输入：请查看应用日志）';
+    } catch (e) {
+      console.error('Error in ASR:', e);
+      userText = '（语音识别失败）';
+    }
+
+    // 2. AI 对话或记日记
+    const client = getSupabaseClient();
+
+    if (mode === 'diary') {
+      // 记日记模式
+      const { data: diary, error: insertError } = await client
+        .from('diaries')
+        .insert({ content: userText, user_id: req.userId })
+        .select()
+        .single();
+
+      if (insertError) throw new Error(`Failed to create diary: ${insertError.message}`);
+
+      // 异步进行情绪分析
+      analyzeEmotionAsync(diary.id, userText);
+
+      // AI 确认
+      const aiResponse = `好的，我已经帮你记录了这篇日记。${diary.mood ? `你的情绪是${diary.mood}，强度${diary.mood_intensity}。` : ''}还有其他想说的吗？`;
+
+      // 3. 语音合成（TTS）
+      const audioUrl = await synthesizeSpeech(aiResponse);
+
+      res.json({
+        text: userText,
+        aiText: aiResponse,
+        audioUrl,
+        diary,
+      });
+    } else {
+      // 对话模式
+      // 构建对话消息
+      const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
+        {
+          role: 'system' as const,
+          content: `你是一位温暖、专业的心理陪伴助手。你的任务是：
+1. 倾听用户的情绪和想法
+2. 提供情感支持和理解
+3. 给出积极的心理建议
+4. 保持温和、耐心的语气
+5. 回复要简洁有力，不超过200字`
+        },
+        {
+          role: 'user' as const,
+          content: userText
+        }
+      ];
+
+      // 如果关联了日记，添加上下文
+      if (diaryId) {
+        const { data: diary } = await client
+          .from('diaries')
+          .select('*')
+          .eq('id', diaryId)
+          .single();
+
+        if (diary) {
+          messages.splice(1, 0, {
+            role: 'user' as const,
+            content: `[用户之前的日记] ${diary.content} \n[情绪状态] ${diary.mood || '未知'}`
+          });
+        }
+      }
+
+      // 调用 LLM
+      const { LLMClient, Config } = await import('coze-coding-dev-sdk');
+
+      const config = new Config();
+      const customHeaders = HeaderUtils.extractForwardHeaders(req.headers as Record<string, string>);
+      const llmClient = new LLMClient(config, customHeaders);
+
+      const response = await llmClient.invoke(messages, {
+        model: 'doubao-seed-2-0-mini-260215',
+        temperature: 0.7,
+      });
+
+      const aiResponse = response.content;
+
+      // 3. 语音合成（TTS）
+      const audioUrl = await synthesizeSpeech(aiResponse);
+
+      // 保存对话记录
+      await client.from('conversations').insert({
+        user_id: req.userId,
+        user_message: userText,
+        ai_message: aiResponse,
+        related_diary_id: diaryId || null,
+      }).select();
+
+      res.json({
+        text: userText,
+        aiText: aiResponse,
+        audioUrl,
+      });
+    }
+  } catch (error: any) {
+    console.error('Error in voice chat:', error);
+    res.status(500).json({ error: error.message || 'Failed to process voice chat' });
+  }
+});
+
+// 语音合成函数
+async function synthesizeSpeech(text: string): Promise<string> {
+  try {
+    console.log('Synthesizing speech for:', text);
+
+    // 模拟返回音频URL
+    // 实际实现需要：
+    // 1. 调用火山引擎的 TTS API
+    // 2. 将音频保存到对象存储
+    // 3. 返回音频 URL
+
+    return 'https://example.com/speech.mp3';
+  } catch (error) {
+    console.error('Error synthesizing speech:', error);
+    throw error;
+  }
+}
 
 // ========== 对话相关 API（流式） ==========
 

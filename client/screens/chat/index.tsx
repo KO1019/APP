@@ -5,6 +5,7 @@ import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
 import RNSSE from 'react-native-sse';
+import { useSafeRouter } from '@/hooks/useSafeRouter';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -17,6 +18,8 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(false);
   const [suggestedTopics, setSuggestedTopics] = useState<string[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
+
+  const router = useSafeRouter();
 
   const [background, surface, accent, foreground, muted, border] = useCSSVariable([
     '--color-background',
@@ -168,11 +171,19 @@ export default function ChatScreen() {
       >
         <View style={[styles.container, { backgroundColor: background }]}>
           <View style={styles.header}>
-            <FontAwesome6 name="comments" size={24} color={accent} style={styles.headerIcon} />
-            <View>
-              <Text style={[styles.title, { color: foreground }]}>AI 陪伴</Text>
-              <Text style={[styles.subtitle, { color: muted }]}>温暖倾听，用心陪伴</Text>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <FontAwesome6 name="arrow-left" size={24} color={foreground} />
+            </TouchableOpacity>
+            <View style={styles.headerCenter}>
+              <FontAwesome6 name="comments" size={24} color={accent} style={styles.headerIcon} />
+              <View>
+                <Text style={[styles.title, { color: foreground }]}>AI 陪伴</Text>
+                <Text style={[styles.subtitle, { color: muted }]}>温暖倾听，用心陪伴</Text>
+              </View>
             </View>
+            <TouchableOpacity onPress={() => router.push('/voice-chat')} style={styles.voiceButton}>
+              <FontAwesome6 name="microphone" size={20} color={foreground} />
+            </TouchableOpacity>
           </View>
 
           <ScrollView
@@ -254,9 +265,20 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 16,
+  },
+  backButton: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
   headerIcon: {
@@ -264,6 +286,14 @@ const styles = StyleSheet.create({
     height: 32,
     textAlign: 'center',
     textAlignVertical: 'center',
+  },
+  voiceButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
     fontSize: 20,
