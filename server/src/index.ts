@@ -35,6 +35,7 @@ const ARK_CHAT_MODEL = process.env.ARK_CHAT_MODEL || 'ep-20250212215003-7j9f8';
 // 豆包语音API配置
 const VOLCENGINE_SPEECH_APP_ID = process.env.VOLCENGINE_SPEECH_APP_ID || '';
 const VOLCENGINE_SPEECH_SECRET_KEY = process.env.VOLCENGINE_SPEECH_SECRET_KEY || '';
+const VOLCENGINE_ACCESS_TOKEN = process.env.VOLCENGINE_ACCESS_TOKEN || '';
 const VOLCENGINE_API_KEY = process.env.VOLCENGINE_API_KEY || '';
 
 // LLM API 调用函数（使用豆包ARK OpenAI 兼容接口）
@@ -1113,8 +1114,8 @@ wss.on('connection', (ws: WebSocket, request) => {
   // 连接到豆包实时语音API
   const connectToVolcengine = async () => {
     try {
-      if (!VOLCENGINE_SPEECH_APP_ID || !VOLCENGINE_SPEECH_SECRET_KEY) {
-        const errorMsg = '豆包语音API配置缺失，请在.env文件中配置VOLCENGINE_SPEECH_APP_ID和VOLCENGINE_SPEECH_SECRET_KEY';
+      if (!VOLCENGINE_SPEECH_APP_ID) {
+        const errorMsg = '豆包语音API配置缺失，请在.env文件中配置VOLCENGINE_SPEECH_APP_ID';
         console.error(errorMsg);
         ws.send(JSON.stringify({
           type: 'error',
@@ -1124,9 +1125,35 @@ wss.on('connection', (ws: WebSocket, request) => {
         return;
       }
 
-      // 获取有效的Access Token
-      console.log('🔑 Getting Access Token...');
-      const accessToken = await getAccessToken(VOLCENGINE_SPEECH_APP_ID, VOLCENGINE_SPEECH_SECRET_KEY);
+      // 检查Access Token
+      let accessToken = VOLCENGINE_ACCESS_TOKEN;
+
+      if (!accessToken) {
+        // 如果没有配置Access Token，尝试使用Secret Key获取
+        console.log('⚠️ 未配置Access Token，尝试使用Secret Key获取...');
+        if (!VOLCENGINE_SPEECH_SECRET_KEY) {
+          const errorMsg = '请在.env文件中配置VOLCENGINE_ACCESS_TOKEN或VOLCENGINE_SPEECH_SECRET_KEY';
+          console.error(errorMsg);
+          ws.send(JSON.stringify({
+            type: 'error',
+            message: errorMsg,
+            hint: 'Access Token需要从火山引擎控制台获取，24小时有效期'
+          }));
+          return;
+        }
+
+        try {
+          accessToken = await getAccessToken(VOLCENGINE_SPEECH_APP_ID, VOLCENGINE_SPEECH_SECRET_KEY);
+        } catch (error: any) {
+          console.error('❌ 获取Access Token失败:', error.message);
+          ws.send(JSON.stringify({
+            type: 'error',
+            message: '获取Access Token失败: ' + error.message,
+            hint: '请直接在.env文件中配置VOLCENGINE_ACCESS_TOKEN'
+          }));
+          return;
+        }
+      }
 
       // 连接到豆包实时语音API
       console.log('🔌 Connecting to Volcengine API...');
