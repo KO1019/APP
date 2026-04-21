@@ -195,9 +195,9 @@ export default function VoiceChatRealtimeScreen() {
   // WebSocket连接函数
   const connectWebSocket = useCallback(() => {
     try {
-      // 使用与当前页面相同的协议和主机，避免跨域问题
-      const baseUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
-      const wsUrl = `${baseUrl.replace('http', 'ws')}/api/v1/voice/realtime`;
+      // 直接连接到Express服务器的WebSocket端口，绕过代理
+      // 注意：这需要Express服务器允许CORS和WebSocket连接
+      const wsUrl = 'ws://localhost:9091/api/v1/voice/realtime';
       console.log('Connecting to WebSocket:', wsUrl);
       const ws = new WebSocket(wsUrl) as any;
 
