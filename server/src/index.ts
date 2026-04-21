@@ -42,6 +42,14 @@ async function callLLM(
   model: string = LLM_CHAT_MODEL,
   temperature: number = 0.7
 ): Promise<{ content: string }> {
+  // 检查 API Key 是否配置
+  if (!LLM_API_KEY || LLM_API_KEY.trim() === '') {
+    console.warn('LLM_API_KEY not configured, using fallback response');
+    return {
+      content: 'AI 功能暂时不可用',
+    };
+  }
+
   try {
     const response = await fetch(`${LLM_BASE_URL}/chat/completions`, {
       method: 'POST',
@@ -72,7 +80,10 @@ async function callLLM(
     };
   } catch (error: any) {
     console.error('Error calling LLM:', error);
-    throw new Error(`Failed to call LLM: ${error.message}`);
+    // 返回 fallback 回复
+    return {
+      content: 'AI 服务暂时不可用',
+    };
   }
 }
 
@@ -83,6 +94,19 @@ async function callLLMStream(
   temperature: number = 0.7,
   onChunk: (chunk: string) => void
 ): Promise<void> {
+  // 检查 API Key 是否配置
+  if (!LLM_API_KEY || LLM_API_KEY.trim() === '') {
+    console.warn('LLM_API_KEY not configured, using fallback response');
+    // 使用预设回复
+    const fallbackResponse = '抱歉，AI 功能暂时不可用。请先配置 LLM API Key。我可以帮你记录情绪、写日记，或者通过语音聊天来倾诉你的感受。';
+    // 模拟流式输出，每次返回一个字符
+    for (let i = 0; i < fallbackResponse.length; i++) {
+      onChunk(fallbackResponse[i]);
+      await new Promise(resolve => setTimeout(resolve, 30)); // 模拟打字延迟
+    }
+    return;
+  }
+
   try {
     const response = await fetch(`${LLM_BASE_URL}/chat/completions`, {
       method: 'POST',
@@ -137,7 +161,12 @@ async function callLLMStream(
     }
   } catch (error: any) {
     console.error('Error calling LLM stream:', error);
-    throw new Error(`Failed to call LLM stream: ${error.message}`);
+    // 使用 fallback 回复
+    const fallbackResponse = '抱歉，AI 服务暂时不可用。请稍后再试，或者尝试其他功能。';
+    for (let i = 0; i < fallbackResponse.length; i++) {
+      onChunk(fallbackResponse[i]);
+      await new Promise(resolve => setTimeout(resolve, 30));
+    }
   }
 }
 

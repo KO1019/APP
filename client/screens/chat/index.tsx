@@ -18,6 +18,7 @@ export default function ChatScreen() {
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [suggestedTopics, setSuggestedTopics] = useState<string[]>([]);
+  const [apiConfigured, setApiConfigured] = useState(true);
   const scrollViewRef = useRef<ScrollView>(null);
 
   const router = useSafeRouter();
@@ -222,6 +223,14 @@ export default function ChatScreen() {
             style={styles.messagesContainer}
             contentContainerStyle={styles.messagesContent}
           >
+            {!apiConfigured && (
+              <View style={[styles.configWarning, { backgroundColor: '#FFF3CD', borderColor: '#FFC107', borderWidth: 1 }]}>
+                <FontAwesome6 name="triangle-exclamation" size={16} color="#856404" />
+                <Text style={[styles.configWarningText, { color: '#856404' }]}>
+                  AI 功能需要配置 API Key 才能使用
+                </Text>
+              </View>
+            )}
             {messages.length === 0 ? (
               <View style={styles.welcomeContainer}>
                 <FontAwesome6 name="heart" size={48} color={accent} style={styles.welcomeIcon} />
@@ -342,6 +351,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     gap: 12,
     paddingBottom: 100,
+  },
+  configWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    gap: 8,
+    marginBottom: 8,
+  },
+  configWarningText: {
+    fontSize: 13,
+    flex: 1,
   },
   welcomeContainer: {
     flex: 1,

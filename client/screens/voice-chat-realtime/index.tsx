@@ -206,6 +206,21 @@ export default function VoiceChatRealtimeScreen() {
       ws.onmessage = (event: any) => {
         try {
           const message = JSON.parse(event.data);
+          console.log('WebSocket message:', message);
+
+          // 处理错误消息
+          if (message.type === 'error') {
+            console.error('WebSocket error from server:', message.message);
+            Toast.show({
+              type: 'error',
+              text1: '连接失败',
+              text2: message.message || '语音服务暂时不可用',
+              position: 'bottom',
+            });
+            setIsConnected(false);
+            return;
+          }
+
           if (handleMessageRef.current) {
             handleMessageRef.current(message);
           }
@@ -217,6 +232,12 @@ export default function VoiceChatRealtimeScreen() {
       ws.onerror = (error: any) => {
         console.error('WebSocket error:', error);
         setIsConnected(false);
+        Toast.show({
+          type: 'error',
+          text1: '连接错误',
+          text2: '网络连接出现问题',
+          position: 'bottom',
+        });
       };
 
       ws.onclose = () => {
@@ -227,6 +248,12 @@ export default function VoiceChatRealtimeScreen() {
       wsRef.current = ws;
     } catch (error) {
       console.error('Failed to connect WebSocket:', error);
+      Toast.show({
+        type: 'error',
+        text1: '连接失败',
+        text2: '无法连接到语音服务',
+        position: 'bottom',
+      });
     }
   }, []);
 
@@ -463,6 +490,16 @@ export default function VoiceChatRealtimeScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* 配置提示 */}
+        {!isConnected && (
+          <View style={[styles.configWarning, { backgroundColor: '#FFF3CD', borderColor: '#FFC107', borderWidth: 1 }]}>
+            <FontAwesome6 name="triangle-exclamation" size={16} color="#856404" />
+            <Text style={[styles.configWarningText, { color: '#856404' }]}>
+              语音聊天需要配置豆包 API 才能使用
+            </Text>
+          </View>
+        )}
+
         {/* AI人物头像区域 */}
         <View style={styles.avatarContainer}>
           {/* 声波动画 */}
@@ -605,6 +642,19 @@ const styles = StyleSheet.create({
   },
   recordModeButton: {
     padding: 8,
+  },
+  configWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 12,
+  },
+  configWarningText: {
+    fontSize: 13,
+    flex: 1,
   },
   avatarContainer: {
     flex: 1,
