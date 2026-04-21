@@ -46,25 +46,38 @@ export default function ChatScreen() {
       let aiResponse = '';
 
       sse.addEventListener('message', (event: any) => {
-        const data = JSON.parse(event.data || '{}');
-
-        if (data.content) {
-          aiResponse += data.content;
-          setMessages(prev => {
-            const newMessages = [...prev];
-            const lastMessage = newMessages[newMessages.length - 1];
-            if (lastMessage && lastMessage.role === 'assistant') {
-              lastMessage.content = aiResponse;
-            } else {
-              newMessages.push({ role: 'assistant', content: aiResponse });
-            }
-            return newMessages;
-          });
+        // 检查是否为流结束信号
+        if (event.data === '[DONE]') {
+          sse.close();
+          setLoading(false);
+          return;
         }
 
-        if (data.error) {
-          console.error('Chat error:', data.error);
-          setMessages(prev => [...prev, { role: 'assistant', content: '抱歉，我遇到了一些问题，请稍后再试。' }]);
+        // 尝试解析 JSON
+        try {
+          const data = JSON.parse(event.data);
+
+          if (data.content) {
+            aiResponse += data.content;
+            setMessages(prev => {
+              const newMessages = [...prev];
+              const lastMessage = newMessages[newMessages.length - 1];
+              if (lastMessage && lastMessage.role === 'assistant') {
+                lastMessage.content = aiResponse;
+              } else {
+                newMessages.push({ role: 'assistant', content: aiResponse });
+              }
+              return newMessages;
+            });
+          }
+
+          if (data.error) {
+            console.error('Chat error:', data.error);
+            setMessages(prev => [...prev, { role: 'assistant', content: '抱歉，我遇到了一些问题，请稍后再试。' }]);
+          }
+        } catch (e) {
+          // JSON 解析失败，可能是纯文本内容
+          console.warn('Failed to parse message as JSON:', event.data);
         }
       });
 
