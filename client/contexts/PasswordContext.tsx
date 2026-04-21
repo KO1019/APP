@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import CryptoJS from 'crypto-js';
 
 export type PasswordType = 'pin' | 'pattern' | 'biometric';
@@ -33,42 +35,48 @@ const BIOMETRIC_KEY = 'biometric_enabled';
 const OFFLINE_MODE_KEY = 'offline_mode';
 const ENCRYPTION_KEY = 'encryption_key';
 
+// 检测是否为 Web 环境
+const isWeb = Platform.OS === 'web';
+
+// Web 端兼容的存储函数
+const getSecureItemAsync = async (key: string): Promise<string | null> => {
+  if (isWeb) return await AsyncStorage.getItem(key);
+  return await SecureStore.getItemAsync(key);
+};
+
+const setSecureItemAsync = async (key: string, value: string): Promise<void> => {
+  if (isWeb) {
+    await AsyncStorage.setItem(key, value);
+    return;
+  }
+  await SecureStore.setItemAsync(key, value);
+};
+
+const deleteSecureItemAsync = async (key: string): Promise<void> => {
+  if (isWeb) {
+    await AsyncStorage.removeItem(key);
+    return;
+  }
+  await SecureStore.deleteItemAsync(key);
+};
+
 export function PasswordProvider({ children }: { children: React.ReactNode }) {
-  const [isLocked, setIsLocked] = useState(true);
+  // Web 端不启用锁屏
+  const [isLocked, setIsLocked] = useState(!isWeb);
   const [hasPassword, setHasPassword] = useState(false);
   const [canUseBiometric, setCanUseBiometric] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [offlineMode, setOfflineMode] = useState(false);
   const [encryptionKey, setEncryptionKey] = useState<string | null>(null);
 
-  // 初始化：检查是否已设置密码
-  const initializePassword = async () => {
-    const password = await SecureStore.getItemAsync(PASSWORD_KEY);
-    setHasPassword(!!password);
-  };
-
-  const checkBiometricSupport = async () => {
-    const compatible = await LocalAuthentication.hasHardwareAsync();
-    const enrolled = await LocalAuthentication.isEnrolledAsync();
-    setCanUseBiometric(compatible && enrolled);
-  };
-
-  const loadSettings = async () => {
-    const biometric = await SecureStore.getItemAsync(BIOMETRIC_KEY);
-    setBiometricEnabled(biometric === 'true');
-
-    const offline = await SecureStore.getItemAsync(OFFLINE_MODE_KEY);
-    setOfflineMode(offline === 'true');
-
-    const key = await SecureStore.getItemAsync(ENCRYPTION_KEY);
-    if (key) {
-      setEncryptionKey(key);
-    }
-  };
-
   useEffect(() => {
+    if (isWeb) {
+      setIsLocked(false);
+      return;
+    }
+
     const init = async () => {
-      const password = await SecureStore.getItemAsync(PASSWORD_KEY);
+      const password = await getSecureItemAsync(PASSWORD_KEY);
       setHasPassword(!!password);
     };
     init();
@@ -81,49 +89,42 @@ export function PasswordProvider({ children }: { children: React.ReactNode }) {
     checkBio();
 
     const load = async () => {
-      const biometric = await SecureStore.getItemAsync(BIOMETRIC_KEY);
+      const biometric = await getSecureItemAsync(BIOMETRIC_KEY);
       setBiometricEnabled(biometric === 'true');
 
-      const offline = await SecureStore.getItemAsync(OFFLINE_MODE_KEY);
+      const offline = await getSecureItemAsync(OFFLINE_MODE_KEY);
       setOfflineMode(offline === 'true');
 
-      const key = await SecureStore.getItemAsync(ENCRYPTION_KEY);
-      if (key) {
-        setEncryptionKey(key);
-      }
+      const key = await getSecureItemAsync(ENCRYPTION_KEY);
+      if (key) setEncryptionKey(key);
     };
     load();
   }, []);
 
-  // 锁定应用
   const lockApp = useCallback(() => {
+    if (isWeb) return;
     setIsLocked(true);
   }, []);
 
-  // 解锁应用
   const unlockApp = async (password: string, isGuest: boolean = false): Promise<boolean> => {
+    if (isWeb) return true;
+
     try {
-      const storedPassword = await SecureStore.getItemAsync(PASSWORD_KEY);
+      const storedPassword = await getSecureItemAsync(PASSWORD_KEY);
+      if (!storedPassword) return false;
 
-      if (!storedPassword) {
-        return false;
-      }
-
-      // 验证密码
       const hashedPassword = CryptoJS.SHA256(password).toString();
       const isValid = hashedPassword === storedPassword;
 
       if (isValid) {
         setIsLocked(false);
-        // 如果是主人密码，生成加密密钥
         if (!isGuest) {
           const key = generateEncryptionKey();
           setEncryptionKey(key);
-          await SecureStore.setItemAsync(ENCRYPTION_KEY, key);
+          await setSecureItemAsync(ENCRYPTION_KEY, key);
         }
         return true;
       }
-
       return false;
     } catch (error) {
       console.error('Unlock error:', error);
@@ -131,24 +132,23 @@ export function PasswordProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // 设置密码
   const setupPassword = async (type: PasswordType, password: string): Promise<void> => {
+    if (isWeb) return;
+
     try {
-      // 使用 PBKDF2 派生密钥（加盐哈希）
       const salt = CryptoJS.lib.WordArray.random(128 / 8);
       const hashedPassword = CryptoJS.PBKDF2(password, salt, {
         keySize: 256 / 32,
         iterations: 10000,
       }).toString();
 
-      // 存储盐值和哈希密码
       const passwordData = JSON.stringify({
         salt: CryptoJS.enc.Hex.stringify(salt),
         hash: hashedPassword,
         type,
       });
 
-      await SecureStore.setItemAsync(PASSWORD_KEY, passwordData);
+      await setSecureItemAsync(PASSWORD_KEY, passwordData);
       setHasPassword(true);
     } catch (error) {
       console.error('Setup password error:', error);
@@ -156,14 +156,12 @@ export function PasswordProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // 验证密码
   const verifyPassword = async (password: string): Promise<boolean> => {
-    try {
-      const passwordData = await SecureStore.getItemAsync(PASSWORD_KEY);
+    if (isWeb) return true;
 
-      if (!passwordData) {
-        return false;
-      }
+    try {
+      const passwordData = await getSecureItemAsync(PASSWORD_KEY);
+      if (!passwordData) return false;
 
       const data = JSON.parse(passwordData);
       const salt = CryptoJS.enc.Hex.parse(data.salt);
@@ -180,8 +178,9 @@ export function PasswordProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // 启用生物识别
   const enableBiometric = async (): Promise<boolean> => {
+    if (isWeb) return false;
+
     try {
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: '启用生物识别',
@@ -190,11 +189,10 @@ export function PasswordProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (result.success) {
-        await SecureStore.setItemAsync(BIOMETRIC_KEY, 'true');
+        await setSecureItemAsync(BIOMETRIC_KEY, 'true');
         setBiometricEnabled(true);
         return true;
       }
-
       return false;
     } catch (error) {
       console.error('Enable biometric error:', error);
@@ -202,57 +200,47 @@ export function PasswordProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // 禁用生物识别
   const disableBiometric = async (): Promise<void> => {
     try {
-      await SecureStore.deleteItemAsync(BIOMETRIC_KEY);
+      await deleteSecureItemAsync(BIOMETRIC_KEY);
       setBiometricEnabled(false);
     } catch (error) {
       console.error('Disable biometric error:', error);
     }
   };
 
-  // 切换离线模式
-  const toggleOfflineMode = async (enabled: boolean) => {
+  const toggleOfflineMode = useCallback(async (enabled: boolean) => {
     setOfflineMode(enabled);
-    await SecureStore.setItemAsync(OFFLINE_MODE_KEY, enabled.toString());
-  };
+    await setSecureItemAsync(OFFLINE_MODE_KEY, enabled.toString());
+  }, []);
 
-  // 生成加密密钥
   const generateEncryptionKey = (): string => {
-    const key = CryptoJS.lib.WordArray.random(256 / 8).toString();
-    return key;
+    return CryptoJS.lib.WordArray.random(256 / 8).toString();
   };
 
-  // 加密数据
   const encryptData = (data: string): string => {
     if (!encryptionKey) return data;
     try {
-      const encrypted = CryptoJS.AES.encrypt(data, encryptionKey).toString();
-      return encrypted;
+      return CryptoJS.AES.encrypt(data, encryptionKey).toString();
     } catch (error) {
       console.error('Encrypt error:', error);
       return data;
     }
   };
 
-  // 解密数据
   const decryptData = (encryptedData: string): string | null => {
     if (!encryptionKey) return encryptedData;
     try {
       const decrypted = CryptoJS.AES.decrypt(encryptedData, encryptionKey);
-      const decryptedString = decrypted.toString(CryptoJS.enc.Utf8);
-      return decryptedString || null;
+      return decrypted.toString(CryptoJS.enc.Utf8) || null;
     } catch (error) {
       console.error('Decrypt error:', error);
       return null;
     }
   };
 
-  // 导出所有数据
   const exportAllData = async (): Promise<string> => {
     try {
-      // 获取所有本地数据
       const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/diaries`);
       const diaries = await response.json();
 
@@ -274,10 +262,8 @@ export function PasswordProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // 删除所有数据
   const deleteAllData = async (): Promise<void> => {
     try {
-      // 删除所有日记
       const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/diaries`);
       const diaries = await response.json();
 
@@ -287,13 +273,11 @@ export function PasswordProvider({ children }: { children: React.ReactNode }) {
         });
       }
 
-      // 删除本地密码
-      await SecureStore.deleteItemAsync(PASSWORD_KEY);
-      await SecureStore.deleteItemAsync(BIOMETRIC_KEY);
-      await SecureStore.deleteItemAsync(OFFLINE_MODE_KEY);
-      await SecureStore.deleteItemAsync(ENCRYPTION_KEY);
+      await deleteSecureItemAsync(PASSWORD_KEY);
+      await deleteSecureItemAsync(BIOMETRIC_KEY);
+      await deleteSecureItemAsync(OFFLINE_MODE_KEY);
+      await deleteSecureItemAsync(ENCRYPTION_KEY);
 
-      // 重置状态
       setHasPassword(false);
       setBiometricEnabled(false);
       setOfflineMode(false);
