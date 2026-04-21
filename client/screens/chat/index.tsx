@@ -37,6 +37,13 @@ export default function ChatScreen() {
        * 接口：GET /api/v1/chat/topics
        */
       const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/chat/topics`);
+
+      if (!response.ok) {
+        console.warn(`fetchSuggestedTopics: HTTP ${response.status}, using empty array`);
+        setSuggestedTopics([]);
+        return;
+      }
+
       const data = await response.json();
       setSuggestedTopics(data.topics || []);
     } catch (error) {

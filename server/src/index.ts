@@ -446,71 +446,53 @@ app.get('/api/v1/chat/topics', authenticateToken, async (req: any, res) => {
       .order('created_at', { ascending: false })
       .limit(3);
 
+    let topics: string[] = [];
+
     if (!recentDiaries || recentDiaries.length === 0) {
       // 如果没有日记，返回默认话题
-      return res.json({
-        topics: [
-          '今天过得怎么样？',
-          '有什么让你开心的事情吗？',
-          '最近有什么烦恼想聊聊吗？',
-        ]
-      });
-    }
-
-    // 构建情绪分析摘要
-    const emotionSummary = recentDiaries.map(d => ({
-      mood: d.mood,
-      mood_intensity: d.mood_intensity,
-      summary: d.mood_analysis?.summary || ''
-    })).join('\n');
-
-    // 使用 LLM 生成建议话题
-    const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
-      {
-        role: 'system' as const,
-        content: `你是一位专业的心理陪伴助手。根据用户最近的日记情绪状态，生成3-5个温暖、共情的话题，帮助用户表达和探索他们的感受。
-
-要求：
-1. 话题要简短、温暖、易于回答
-2. 避免重复，涵盖不同维度（积极情绪、负面情绪、未来展望等）
-3. 语言要亲切、自然，像朋友一样
-
-请以 JSON 格式返回，包含一个 topics 数组：
-{
-  "topics": ["话题1", "话题2", "话题3"]
-}`
-      },
-      {
-        role: 'user' as const,
-        content: `用户最近的日记情绪状态如下：\n\n${emotionSummary}\n\n请根据这些情绪状态，生成建议话题。`
-      }
-    ];
-
-    const response = await callLLM(messages, LLM_CHAT_MODEL, 0.7);
-
-    // 解析 JSON
-    let topics: string[] = [];
-    try {
-      const cleanedContent = response.content
-        .replace(/```json\n?/g, '')
-        .replace(/```\n?/g, '')
-        .trim();
-      const result = JSON.parse(cleanedContent);
-      topics = result.topics || [];
-    } catch (e) {
-      console.error('Failed to parse topics JSON:', e);
-      // 解析失败，返回默认话题
       topics = [
         '今天过得怎么样？',
         '有什么让你开心的事情吗？',
         '最近有什么烦恼想聊聊吗？',
       ];
+    } else {
+      // 基于日记情绪生成个性化话题
+      const moods = recentDiaries.map(d => d.mood).filter(Boolean);
+      const hasSad = moods.includes('sad') || moods.includes('anxious');
+      const hasHappy = moods.includes('happy') || moods.includes('excited');
+      const hasCalm = moods.includes('calm') || moods.includes('neutral');
+
+      // 根据情绪生成不同话题
+      if (hasSad) {
+        topics.push('想聊聊是什么让你感到难过吗？', '有没有什么能让你感觉好一点的事情？');
+      }
+      if (hasHappy) {
+        topics.push('能分享一下让你开心的原因吗？', '这个开心的事情对你来说意味着什么？');
+      }
+      if (hasCalm) {
+        topics.push('你有什么保持平静的秘诀吗？', '最近有什么值得感激的事情吗？');
+      }
+
+      // 确保至少有3个话题
+      if (topics.length < 3) {
+        topics.push('今天过得怎么样？', '有什么想和我分享的吗？', '最近有什么变化吗？');
+      }
+
+      // 限制最多5个话题
+      topics = topics.slice(0, 5);
     }
 
     res.json({ topics });
   } catch (error: any) {
     console.error('Error generating chat topics:', error);
-    res.status(500).json({ error: error.message || 'Failed to generate topics' });
+    // 出错时返回默认话题
+    res.json({
+      topics: [
+        '今天过得怎么样？',
+        '有什么让你开心的事情吗？',
+        '最近有什么烦恼想聊聊吗？',
+      ]
+    });
   }
 });
 
@@ -539,65 +521,79 @@ app.get('/api/v1/health-tips', authenticateToken, async (req: any, res) => {
       });
     }
 
-    // 构建情绪分析摘要
-    const emotionSummary = recentDiaries.map(d => ({
-      mood: d.mood,
-      mood_intensity: d.mood_intensity,
-      summary: d.mood_analysis?.summary || ''
-    })).join('\n');
+    // 分析情绪趋势
+    const moods = recentDiaries.map(d => d.mood).filter(Boolean);
+    const hasNegativeEmotion = moods.some(m => ['sad', 'anxious', 'angry'].includes(m));
+    const hasPositiveEmotion = moods.some(m => ['happy', 'excited', 'grateful'].includes(m));
+    const hasMixedEmotions = hasNegativeEmotion && hasPositiveEmotion;
+    const mostlyCalm = moods.filter(m => ['calm', 'neutral'].includes(m)).length > moods.length / 2;
 
-    // 使用 LLM 生成个性化建议
-    const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
-      {
-        role: 'system' as const,
-        content: `你是一位专业的心理咨询师和情绪管理专家。根据用户最近的日记情绪状态，生成3-5条个性化的心理健康建议。
+    // 根据情绪状态生成个性化建议
+    let tips: string[] = [];
+    let message: string = '';
 
-要求：
-1. 建议要具体、可执行，不要空泛
-2. 语气要温暖、鼓励、支持
-3. 避免使用专业术语，用通俗易懂的语言
-4. 针对用户的具体情绪状态给出有针对性的建议
-5. 包含一个简短的鼓励性消息（message字段）
-
-请以 JSON 格式返回：
-{
-  "message": "简短的鼓励性消息",
-  "tips": ["建议1", "建议2", "建议3"]
-}`
-      },
-      {
-        role: 'user' as const,
-        content: `用户最近的日记情绪状态如下：\n\n${emotionSummary}\n\n请根据这些情绪状态，生成个性化的心理健康建议。`
-      }
-    ];
-
-    const response = await callLLM(messages, LLM_HEALTH_MODEL, 0.7);
-
-    // 解析 JSON
-    let healthTips: any = {};
-    try {
-      const cleanedContent = response.content
-        .replace(/```json\n?/g, '')
-        .replace(/```\n?/g, '')
-        .trim();
-      healthTips = JSON.parse(cleanedContent);
-    } catch (e) {
-      console.error('Failed to parse health tips JSON:', e);
-      // 解析失败，返回默认建议
-      healthTips = {
-        message: '保持积极心态，每天都是新的开始',
-        tips: [
-          '保持规律的作息时间，有助于调节情绪',
-          '每天记录一件让你开心的小事，培养积极心态',
-          '适度运动可以释放压力，改善心情',
-        ]
-      };
+    if (hasMixedEmotions) {
+      // 情绪起伏较大
+      tips = [
+        '你的情绪最近波动较大，建议每天花10分钟写日记，了解情绪变化的原因',
+        '尝试深呼吸练习：吸气4秒、屏息7秒、呼气8秒，帮助平复情绪',
+        '建立稳定的作息时间，规律的睡眠有助于情绪稳定',
+      ];
+      message = '情绪有起伏是正常的，通过记录和观察，你会更了解自己';
+    } else if (hasNegativeEmotion) {
+      // 负面情绪较多
+      tips = [
+        '允许自己感受这些情绪，它们都是合理的，不必压抑',
+        '尝试从不同角度看待问题，可能会有新的发现',
+        '和信任的朋友或家人聊聊，分享能减轻心理负担',
+        '适当运动，如散步或瑜伽，可以帮助释放压力',
+      ];
+      message = '这段时间不容易，你已经很勇敢了，慢慢来，会好起来的';
+    } else if (hasPositiveEmotion) {
+      // 正面情绪较多
+      tips = [
+        '继续保持积极的心态，你做得很好！',
+        '尝试记录这些开心的时刻，在需要的时候可以回顾',
+        '分享你的喜悦，积极的情绪是可以传染的',
+        '设定新的小目标，保持前进的动力',
+      ];
+      message = '看到你状态这么好真是太好了！继续保持这份积极';
+    } else if (mostlyCalm) {
+      // 情绪平稳
+      tips = [
+        '保持平静的心态很不错，可以尝试一些新的兴趣爱好',
+        '适度挑战自己，体验不同情绪可以丰富人生',
+        '给自己设定一些小目标，给平淡的生活增添色彩',
+      ];
+      message = '平稳的状态很珍贵，继续保持这种内心的平静';
+    } else {
+      // 默认建议
+      tips = [
+        '保持规律的作息时间，有助于调节情绪',
+        '每天记录一件让你开心的小事，培养积极心态',
+        '适度运动可以释放压力，改善心情',
+      ];
+      message = '记录情绪可以帮助你更好地了解自己';
     }
 
-    res.json(healthTips);
+    // 确保至少有3条建议
+    if (tips.length < 3) {
+      tips.push('保持规律的作息时间，有助于调节情绪');
+      tips.push('适度运动可以释放压力，改善心情');
+    }
+
+    res.json({ tips, message });
   } catch (error: any) {
     console.error('Error generating health tips:', error);
-    res.status(500).json({ error: error.message || 'Failed to generate health tips' });
+    // 出错时返回默认建议
+    res.json({
+      tips: [
+        '保持规律的作息时间，有助于调节情绪',
+        '每天记录一件让你开心的小事，培养积极心态',
+        '适度运动可以释放压力，改善心情',
+      ],
+      message: '保持积极心态，每天都是新的开始'
+    });
   }
 });
 
@@ -660,43 +656,58 @@ app.post('/api/v1/voice/chat', authenticateToken, upload.single('audio'), async 
       });
     } else {
       // 对话模式
-      // 构建对话消息
-      const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
-        {
-          role: 'system' as const,
-          content: `你是一位温暖、专业的心理陪伴助手。你的任务是：
+      // 尝试调用 LLM，如果失败则返回预设回复
+      let aiResponse = '';
+
+      try {
+        // 构建对话消息
+        const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
+          {
+            role: 'system' as const,
+            content: `你是一位温暖、专业的心理陪伴助手。你的任务是：
 1. 倾听用户的情绪和想法
 2. 提供情感支持和理解
 3. 给出积极的心理建议
 4. 保持温和、耐心的语气
 5. 回复要简洁有力，不超过200字`
-        },
-        {
-          role: 'user' as const,
-          content: userText
-        }
-      ];
-
-      // 如果关联了日记，添加上下文
-      if (diaryId) {
-        const { data: diary } = await client
-          .from('diaries')
-          .select('*')
-          .eq('id', diaryId)
-          .single();
-
-        if (diary) {
-          messages.splice(1, 0, {
+          },
+          {
             role: 'user' as const,
-            content: `[用户之前的日记] ${diary.content} \n[情绪状态] ${diary.mood || '未知'}`
-          });
+            content: userText
+          }
+        ];
+
+        // 如果关联了日记，添加上下文
+        if (diaryId) {
+          const { data: diary } = await client
+            .from('diaries')
+            .select('*')
+            .eq('id', diaryId)
+            .eq('user_id', req.userId) // 确保只能访问自己的日记
+            .single();
+
+          if (diary) {
+            messages.splice(1, 0, {
+              role: 'user' as const,
+              content: `[用户之前的日记] ${diary.content} \n[情绪状态] ${diary.mood || '未知'}`
+            });
+          }
         }
+
+        // 调用 LLM（可能会失败）
+        const response = await callLLM(messages, LLM_CHAT_MODEL, 0.7);
+        aiResponse = response.content;
+      } catch (llmError) {
+        console.error('LLM call failed, using fallback response:', llmError);
+        // LLM 调用失败，使用预设回复
+        const fallbackResponses = [
+          '我听到了你的想法。能多和我聊聊这个话题吗？',
+          '嗯，我理解。这种感觉有时候确实不容易。',
+          '谢谢你和我分享这些。你想进一步探讨吗？',
+          '你的感受很重要。有什么我能帮你的吗？',
+        ];
+        aiResponse = fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
       }
-
-      // 调用 LLM
-      const response = await callLLM(messages, LLM_CHAT_MODEL, 0.7);
-
-      const aiResponse = response.content;
 
       // 3. 语音合成（TTS）
       const audioUrl = await synthesizeSpeech(aiResponse);

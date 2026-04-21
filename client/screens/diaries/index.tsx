@@ -53,6 +53,13 @@ export default function DiariesScreen() {
     try {
       setLoading(true);
 
+      // 检查是否已登录
+      if (!isAuthenticated || !token) {
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
       // 如果是离线模式，使用本地存储
       if (offlineMode) {
         // 离线模式下暂不支持数据读取
@@ -100,7 +107,7 @@ export default function DiariesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [decryptData, offlineMode, token]);
+  }, [decryptData, offlineMode, token, isAuthenticated]);
 
   useFocusEffect(
     useCallback(() => {
