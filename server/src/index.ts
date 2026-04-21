@@ -1139,12 +1139,14 @@ wss.on('connection', (ws: WebSocket, request) => {
       volcWs.binaryType = 'nodebuffer';
 
       volcWs.on('open', () => {
-        console.log('✅ Connected to Volcengine');
+        console.log('✅ Connected to Volcengine API');
+        console.log('WebSocket state:', volcWs?.readyState);
 
         // 发送StartConnection事件
         const startConnectionFrame = buildStartConnectionFrame();
+        console.log('Sending StartConnection frame, size:', startConnectionFrame.length);
         volcWs!.send(startConnectionFrame);
-        console.log('✅ Sent StartConnection event');
+        console.log('✅ StartConnection sent');
 
         // 发送StartSession事件
         const startSessionFrame = buildStartSessionFrame(sessionId, {
@@ -1152,8 +1154,10 @@ wss.on('connection', (ws: WebSocket, request) => {
           system_role: '你是一位温暖、专业的心理陪伴助手。',
           model: '1.2.1.1',
         });
+        console.log('Sending StartSession frame, size:', startSessionFrame.length);
+        console.log('Session ID:', sessionId);
         volcWs!.send(startSessionFrame);
-        console.log('✅ Sent StartSession event');
+        console.log('✅ StartSession sent');
       });
 
       volcWs.on('error', (error) => {
@@ -1166,8 +1170,18 @@ wss.on('connection', (ws: WebSocket, request) => {
       });
 
       volcWs.on('message', (data: Buffer) => {
+        console.log('📨 Received message from Volcengine, size:', data.length);
         const frame = parseBinaryFrame(data);
-        if (!frame) return;
+        if (!frame) {
+          console.error('Failed to parse binary frame');
+          return;
+        }
+
+        console.log('Parsed frame:', {
+          eventType: frame.eventId,
+          messageType: frame.messageType,
+          payloadSize: frame.payload.length,
+        });
 
         // 处理服务端事件
         switch (frame.eventId) {
@@ -1175,6 +1189,7 @@ wss.on('connection', (ws: WebSocket, request) => {
             // 语音识别结果
             try {
               const asrResult = JSON.parse(frame.payload.toString('utf-8'));
+              console.log('ASR result:', asrResult);
               ws.send(JSON.stringify({
                 type: 'asr_result',
                 data: asrResult,
@@ -1188,6 +1203,7 @@ wss.on('connection', (ws: WebSocket, request) => {
             // AI回复文本
             try {
               const chatResponse = JSON.parse(frame.payload.toString('utf-8'));
+              console.log('Chat response:', chatResponse);
               ws.send(JSON.stringify({
                 type: 'chat_response',
                 data: chatResponse,
@@ -1250,9 +1266,17 @@ wss.on('connection', (ws: WebSocket, request) => {
         ws.send(JSON.stringify({ type: 'error', message: '豆包连接错误' }));
       });
 
-      volcWs.on('close', () => {
-        console.log('Volcengine connection closed');
-        ws.send(JSON.stringify({ type: 'connection_closed' }));
+      volcWs.on('close', (code, reason) => {
+        console.log('❌ Volcengine connection closed:', {
+          code,
+          reason: reason?.toString() || 'No reason provided',
+          wasClean: code === 1000,
+        });
+        ws.send(JSON.stringify({
+          type: 'connection_closed',
+          code,
+          reason: reason?.toString() || 'Unknown',
+        }));
       });
     } catch (error: any) {
       console.error('Failed to connect to Volcengine:', error);
