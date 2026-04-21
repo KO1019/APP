@@ -12,6 +12,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePassword } from '@/contexts/PasswordContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Screen } from '@/components/Screen';
@@ -32,6 +33,7 @@ const MOODS = [
 
 export default function WriteDiaryScreen() {
   const router = useSafeRouter();
+  const insets = useSafeAreaInsets();
   const { encryptData, offlineMode } = usePassword();
   const { token } = useAuth();
 
@@ -134,25 +136,31 @@ export default function WriteDiaryScreen() {
   };
 
   return (
-    <Screen>
+    <Screen safeAreaEdges={['left', 'right', 'bottom']}>
       <View style={[styles.container, { backgroundColor: background }]}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.keyboardContainer}
         >
-          <View style={styles.header}>
+          <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => {
+                console.log('Back button pressed');
                 if (title.trim() || content.trim() || selectedMood) {
                   Alert.alert('提示', '确定要离开吗？内容将不会保存', [
                     { text: '取消', style: 'cancel' },
-                    { text: '确定', onPress: () => router.back() },
+                    { text: '确定', onPress: () => {
+                      console.log('Going back');
+                      router.back();
+                    }},
                   ]);
                 } else {
+                  console.log('Going back directly');
                   router.back();
                 }
               }}
+              activeOpacity={0.6}
             >
               <FontAwesome6 name="xmark" size={24} color={foreground} />
             </TouchableOpacity>
@@ -161,6 +169,7 @@ export default function WriteDiaryScreen() {
               style={[styles.saveButton, submitting && styles.saveButtonDisabled]}
               onPress={handleSubmit}
               disabled={submitting}
+              activeOpacity={0.6}
             >
               <Text style={[styles.saveButtonText, { color: submitting ? '#999' : accent }]}>
                 {submitting ? '保存中...' : '保存'}
@@ -299,7 +308,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 20,
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,0,0,0.05)',

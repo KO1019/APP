@@ -215,10 +215,10 @@ export function PasswordProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const toggleOfflineMode = useCallback(async (enabled: boolean) => {
+  const toggleOfflineMode = async (enabled: boolean) => {
     setOfflineMode(enabled);
     await setSecureItemAsync(OFFLINE_MODE_KEY, enabled.toString());
-  }, []);
+  };
 
   const generateEncryptionKey = (): string => {
     return CryptoJS.lib.WordArray.random(256 / 8).toString();
