@@ -1,7 +1,9 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
+import { useSafeRouter } from '@/hooks/useSafeRouter';
+import { usePassword } from '@/contexts/PasswordContext';
 import { useCSSVariable } from 'uniwind';
 import Toast from 'react-native-toast-message';
 
@@ -12,7 +14,27 @@ interface MenuItem {
   action?: () => void;
 }
 
+interface MenuItem {
+  icon: string;
+  title: string;
+  subtitle?: string;
+  action?: () => void;
+}
+
 export default function ProfileScreen() {
+  const router = useSafeRouter();
+  const {
+    hasPassword,
+    canUseBiometric,
+    biometricEnabled,
+    offlineMode,
+    enableBiometric,
+    disableBiometric,
+    toggleOfflineMode,
+    exportAllData,
+    deleteAllData,
+  } = usePassword();
+
   const [background, surface, accent, foreground, muted, border] = useCSSVariable([
     '--color-background',
     '--color-surface',
@@ -24,22 +46,118 @@ export default function ProfileScreen() {
 
   const menuItems: MenuItem[] = [
     {
+      icon: hasPassword ? 'key' : 'lock',
+      title: hasPassword ? '修改密码' : '设置密码',
+      subtitle: hasPassword ? '更改您的安全密码' : '设置密码以保护隐私',
+      action: () => {
+        if (hasPassword) {
+          Toast.show({ type: 'info', text1: '修改密码功能开发中' });
+        } else {
+          router.push('/setup-password');
+        }
+      },
+    },
+    {
+      icon: 'fingerprint',
+      title: '生物识别',
+      subtitle: canUseBiometric ? (biometricEnabled ? '已启用' : '未启用') : '设备不支持',
+      action: () => {
+        if (!canUseBiometric) {
+          Toast.show({ type: 'info', text1: '您的设备不支持生物识别' });
+          return;
+        }
+        if (biometricEnabled) {
+          Alert.alert('禁用生物识别', '确定要禁用生物识别吗？', [
+            { text: '取消', style: 'cancel' },
+            {
+              text: '确定',
+              onPress: () => {
+                disableBiometric();
+                Toast.show({ type: 'success', text1: '已禁用生物识别' });
+              },
+            },
+          ]);
+        } else {
+          enableBiometric().then(success => {
+            if (success) {
+              Toast.show({ type: 'success', text1: '已启用生物识别' });
+            }
+          });
+        }
+      },
+    },
+    {
+      icon: offlineMode ? 'wifi' : 'wifi-slash',
+      title: '离线模式',
+      subtitle: offlineMode ? '已开启' : '已关闭',
+      action: () => {
+        Alert.alert(
+          offlineMode ? '关闭离线模式' : '开启离线模式',
+          offlineMode
+            ? '关闭后将需要网络连接'
+            : '开启后将完全断网，所有数据保存在本地',
+          [
+            { text: '取消', style: 'cancel' },
+            {
+              text: '确定',
+              onPress: () => {
+                toggleOfflineMode(!offlineMode);
+                Toast.show({
+                  type: 'success',
+                  text1: offlineMode ? '已关闭离线模式' : '已开启离线模式',
+                });
+              },
+            },
+          ]
+        );
+      },
+    },
+    {
       icon: 'shield-halved',
       title: '隐私设置',
-      subtitle: '密码保护、数据加密',
+      subtitle: '数据加密、安全防护',
       action: () => Toast.show({ type: 'info', text1: '功能开发中' }),
     },
     {
       icon: 'download',
       title: '导出数据',
       subtitle: '备份你的日记数据',
-      action: () => Toast.show({ type: 'info', text1: '功能开发中' }),
+      action: async () => {
+        try {
+          const data = await exportAllData();
+          Alert.alert('数据导出', `成功导出 ${JSON.parse(data).totalDiaries} 篇日记`);
+          Toast.show({ type: 'success', text1: '数据导出成功' });
+        } catch (error) {
+          Alert.alert('错误', '导出失败');
+        }
+      },
     },
     {
-      icon: 'palette',
-      title: '主题设置',
-      subtitle: '跟随系统/亮色/暗色',
-      action: () => Toast.show({ type: 'info', text1: '功能开发中' }),
+      icon: 'trash-can',
+      title: '删除所有数据',
+      subtitle: '永久删除，无法恢复',
+      action: () => {
+        Alert.alert(
+          '删除所有数据',
+          '此操作将永久删除所有日记和设置，无法恢复。确定要继续吗？',
+          [
+            { text: '取消', style: 'cancel' },
+            {
+              text: '确定删除',
+              style: 'destructive',
+              onPress: async () => {
+                try {
+                  await deleteAllData();
+                  Alert.alert('成功', '所有数据已删除');
+                  router.replace('/');
+                } catch (error) {
+                  Alert.alert('错误', '删除失败');
+                }
+              },
+            },
+          ]
+        );
+      },
     },
     {
       icon: 'info-circle',

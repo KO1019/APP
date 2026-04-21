@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
+import { usePassword } from '@/contexts/PasswordContext';
 import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
 
 export default function WriteDiaryScreen() {
   const router = useSafeRouter();
+  const { encryptData, offlineMode } = usePassword();
+
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -25,8 +28,17 @@ export default function WriteDiaryScreen() {
       return;
     }
 
+    // 如果是离线模式，保存到本地
+    if (offlineMode) {
+      Alert.alert('提示', '离线模式下暂不支持保存日记');
+      return;
+    }
+
     try {
       setSubmitting(true);
+
+      // 加密日记内容
+      const encryptedContent = encryptData(content.trim());
 
       /**
        * 服务端文件：server/src/index.ts
@@ -36,7 +48,7 @@ export default function WriteDiaryScreen() {
       const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/diaries`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: content.trim() }),
+        body: JSON.stringify({ content: encryptedContent }),
       });
 
       if (!response.ok) {

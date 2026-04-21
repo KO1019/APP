@@ -3,6 +3,8 @@ import { StatusBar } from 'expo-status-bar';
 import { LogBox } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { Provider } from '@/components/Provider';
+import { PasswordProvider } from '@/contexts/PasswordContext';
+import { AppLockProvider } from '@/components/AppLockProvider';
 
 import '../global.css';
 
@@ -13,20 +15,26 @@ LogBox.ignoreLogs([
 
 export default function RootLayout() {
   return (
-    <Provider>
-      <Stack
-        screenOptions={{
-          animation: 'slide_from_right',
-          gestureEnabled: true,
-          gestureDirection: 'horizontal',
-          headerShown: false
-        }}
-      >
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="write-diary" options={{ headerShown: false }} />
-        <Stack.Screen name="diary-detail" options={{ headerShown: false }} />
-      </Stack>
-      <Toast />
-    </Provider>
+    <PasswordProvider>
+      <AppLockProvider>
+        <Provider>
+          <Stack
+            screenOptions={{
+              animation: 'slide_from_right',
+              gestureEnabled: true,
+              gestureDirection: 'horizontal',
+              headerShown: false
+            }}
+          >
+            <Stack.Screen name="lock-screen" options={{ headerShown: false, gestureEnabled: false }} />
+            <Stack.Screen name="setup-password" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="write-diary" options={{ headerShown: false }} />
+            <Stack.Screen name="diary-detail" options={{ headerShown: false }} />
+          </Stack>
+          <Toast />
+        </Provider>
+      </AppLockProvider>
+    </PasswordProvider>
   );
 }

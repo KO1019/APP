@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
+import { usePassword } from '@/contexts/PasswordContext';
 import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
@@ -30,6 +31,8 @@ const emotionColors: Record<string, string> = {
 
 export default function DiariesScreen() {
   const router = useSafeRouter();
+  const { isLocked, hasPassword, lockApp, decryptData, offlineMode } = usePassword();
+
   const [diaries, setDiaries] = useState<Diary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -46,16 +49,36 @@ export default function DiariesScreen() {
   const fetchDiaries = useCallback(async () => {
     try {
       setLoading(true);
+
+      // 如果是离线模式，使用本地存储
+      if (offlineMode) {
+        // 离线模式下暂不支持数据读取
+        setDiaries([]);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
       const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/diaries`);
       const data = await response.json();
-      setDiaries(data);
+
+      // 解密日记内容
+      const decryptedDiaries = data.map((diary: Diary) => ({
+        ...diary,
+        content: decryptData(diary.content) || diary.content,
+      }));
+
+      setDiaries(decryptedDiaries);
     } catch (error) {
       console.error('Error fetching diaries:', error);
+      if (!offlineMode) {
+        Alert.alert('错误', '获取日记失败，请检查网络连接');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [decryptData, offlineMode]);
 
   useEffect(() => {
     fetchDiaries();
