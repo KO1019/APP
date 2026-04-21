@@ -8,6 +8,7 @@ import { useCSSVariable } from 'uniwind';
 
 interface DiaryDetail {
   id: string;
+  title: string | null;
   content: string;
   mood: string | null;
   mood_intensity: number | null;
@@ -139,6 +140,12 @@ export default function DiaryDetailScreen() {
   const emotionColor = diary.mood ? emotionColors[diary.mood] || emotionColors['未识别'] : emotionColors['未识别'];
   const emotionLabel = diary.mood ? emotionLabels[diary.mood] || diary.mood : '';
 
+  // 标题直接使用，不需要解密
+  const displayTitle = diary.title || '';
+
+  // 内容需要解密
+  const displayContent = diary.content;
+
   return (
     <Screen>
       <ScrollView style={[styles.container, { backgroundColor: background }]}>
@@ -189,7 +196,10 @@ export default function DiaryDetailScreen() {
 
           <View style={[styles.contentCard, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
             <Text style={[styles.contentLabel, { color: muted }]}>日记内容</Text>
-            <Text style={[styles.contentText, { color: foreground }]}>{diary.content}</Text>
+            {displayTitle && (
+              <Text style={[styles.diaryTitle, { color: foreground }]}>{displayTitle}</Text>
+            )}
+            <Text style={[styles.contentText, { color: foreground }]}>{displayContent}</Text>
           </View>
 
           {/* 用户标签 */}
@@ -333,6 +343,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'uppercase',
     marginBottom: 12,
+  },
+  diaryTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 16,
   },
   contentText: {
     fontSize: 16,

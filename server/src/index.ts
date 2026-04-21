@@ -339,7 +339,7 @@ app.put('/api/v1/auth/me', authenticateToken, async (req: any, res) => {
 // 创建日记（自动进行情绪分析）
 app.post('/api/v1/diaries', authenticateToken, async (req: any, res) => {
   try {
-    const { content, mood, tags } = req.body;
+    const { content, mood, tags, title } = req.body;
 
     if (!content || typeof content !== 'string') {
       return res.status(400).json({ error: 'Content is required and must be a string' });
@@ -349,6 +349,11 @@ app.post('/api/v1/diaries', authenticateToken, async (req: any, res) => {
 
     // 构建插入数据对象
     const insertData: any = { content, user_id: req.userId };
+
+    // 标题不加密，可以直接显示在列表中
+    if (title && typeof title === 'string' && title.trim()) {
+      insertData.title = title.trim();
+    }
 
     // 如果提供了 mood，则保存
     if (mood && typeof mood === 'string') {

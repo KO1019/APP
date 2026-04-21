@@ -34,6 +34,7 @@ export const diaries = pgTable(
   {
     id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
     user_id: varchar("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }), // 关联用户
+    title: text("title"), // 日记标题
     content: text("content").notNull(), // 日记内容
     mood: varchar("mood", { length: 50 }), // 情绪类型（愉悦、悲伤、焦虑等）
     mood_intensity: integer("mood_intensity"), // 情绪强度 0-100

@@ -10,6 +10,7 @@ import { useCSSVariable } from 'uniwind';
 
 interface Diary {
   id: string;
+  title: string | null;
   content: string;
   mood: string | null;
   mood_intensity: number | null;
@@ -109,10 +110,19 @@ export default function DiariesScreen() {
       }
 
       // 解密日记内容
-      const decryptedDiaries = data.map((diary: Diary) => ({
-        ...diary,
-        content: decryptData(diary.content) || diary.content,
-      }));
+      const decryptedDiaries = data.map((diary: Diary) => {
+        // 标题直接使用，不需要解密
+        const displayTitle = diary.title || '';
+
+        // 内容需要解密
+        const decryptedContent = decryptData(diary.content) || diary.content;
+
+        return {
+          ...diary,
+          title: displayTitle,
+          content: decryptedContent,
+        };
+      });
 
       setDiaries(decryptedDiaries);
     } catch (error) {
@@ -178,7 +188,12 @@ export default function DiariesScreen() {
             </View>
           )}
         </View>
-        <Text style={[styles.diaryContent, { color: foreground }]} numberOfLines={3}>
+        {item.title && (
+          <Text style={[styles.diaryTitle, { color: foreground }]} numberOfLines={1}>
+            {item.title}
+          </Text>
+        )}
+        <Text style={[styles.diaryContent, { color: foreground }]} numberOfLines={item.title ? 2 : 3}>
           {item.content}
         </Text>
         {item.tags && item.tags.length > 0 && (
@@ -313,6 +328,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     marginBottom: 8,
+  },
+  diaryTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 6,
   },
   tagsContainer: {
     flexDirection: 'row',

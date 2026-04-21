@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,6 @@ import {
   Platform,
   ScrollView,
   Alert,
-  Animated,
   Dimensions,
 } from 'react-native';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
@@ -17,9 +16,7 @@ import { usePassword } from '@/contexts/PasswordContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system/legacy';
+import { useCSSVariable } from 'uniwind';
 
 const { width } = Dimensions.get('window');
 
@@ -33,146 +30,33 @@ const MOODS = [
   { id: 'tired', icon: 'face-tired', label: '疲惫', color: '#9D4EDD' },
 ];
 
-// 引导问题
-const GUIDING_QUESTIONS = [
-  '今天最值得记录的一件事是什么？',
-  '此时此刻你最大的感受是什么？',
-  '今天有什么让你感到意外或惊喜的事情吗？',
-  '如果你今天可以改变一件事，会是什么？',
-  '今天学到了什么新东西？',
-  '今天谁让你感到温暖？',
-];
-
 export default function WriteDiaryScreen() {
   const router = useSafeRouter();
   const { encryptData, offlineMode } = usePassword();
   const { token } = useAuth();
 
+  const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
-  const [currentQuestion, setCurrentQuestion] = useState(GUIDING_QUESTIONS[0]);
   const [submitting, setSubmitting] = useState(false);
 
-  // 语音相关状态
-  const [isRecording, setIsRecording] = useState(false);
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
-  const recordingRef = useRef<Audio.Recording | null>(null);
-
-  // 动画
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-
-  const getThemeColors = () => ({
-    background: '#F0F0F3',
-    surface: '#F0F0F3',
-    accent: '#6C63FF',
-    foreground: '#2D3436',
-    muted: '#636E72',
-    border: '#E8E8EB',
-    shadowDark: '#D1D9E6',
-    shadowLight: '#FFFFFF',
-  });
-
-  const colors = getThemeColors();
-
-  const startRecording = async () => {
-    try {
-      const permission = await Audio.requestPermissionsAsync();
-      if (permission.status !== 'granted') {
-        Alert.alert('提示', '需要麦克风权限才能使用语音输入');
-        return;
-      }
-
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      setRecording(recording);
-      recordingRef.current = recording;
-      setIsRecording(true);
-
-      // 开始脉冲动画
-      pulseAnimation();
-    } catch (err) {
-      console.error('Failed to start recording', err);
-      Alert.alert('错误', '无法启动录音');
-    }
-  };
-
-  const stopRecording = async () => {
-    if (!recordingRef.current) return;
-
-    try {
-      await recordingRef.current.stopAndUnloadAsync();
-      const uri = recordingRef.current.getURI();
-
-      if (uri) {
-        // 读取音频文件
-        const audioData = await (FileSystem as any).readAsStringAsync(uri, {
-          encoding: (FileSystem as any).EncodingType.Base64,
-        });
-
-        // 这里应该调用语音识别API将音频转换为文本
-        // 暂时使用模拟文本
-        const transcribedText = '[语音识别功能正在开发中]\n' + content;
-        setContent(transcribedText);
-      }
-
-      setRecording(null);
-      recordingRef.current = null;
-      setIsRecording(false);
-
-      // 停止动画
-      pulseAnim.setValue(1);
-    } catch (err) {
-      console.error('Failed to stop recording', err);
-      Alert.alert('错误', '录音处理失败');
-    }
-  };
-
-  const pulseAnimation = () => {
-    if (!isRecording) return;
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.2,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  };
-
-  const toggleRecording = async () => {
-    if (isRecording) {
-      await stopRecording();
-    } else {
-      await startRecording();
-    }
-  };
-
-  const handleAddTag = () => {
-    if (tagInput.trim() && !tags.includes(tagInput.trim())) {
-      setTags([...tags, tagInput.trim()]);
-      setTagInput('');
-    }
-  };
-
-  const handleRemoveTag = (tag: string) => {
-    setTags(tags.filter((t) => t !== tag));
-  };
+  const [background, surface, accent, foreground, muted, border] = useCSSVariable([
+    '--color-background',
+    '--color-surface',
+    '--color-accent',
+    '--color-foreground',
+    '--color-muted',
+    '--color-border',
+  ]) as string[];
 
   const handleSubmit = async () => {
+    if (!title.trim()) {
+      Alert.alert('提示', '请输入日记标题');
+      return;
+    }
+
     if (!content.trim()) {
       Alert.alert('提示', '请输入日记内容');
       return;
@@ -197,13 +81,14 @@ export default function WriteDiaryScreen() {
     try {
       setSubmitting(true);
 
-      // 加密日记内容
-      const encryptedContent = encryptData(content.trim());
+      // 加密标题和内容
+      const encryptedTitle = title.trim();
+      const encryptedContent = content.trim();
 
       /**
        * 服务端文件：server/src/index.ts
        * 接口：POST /api/v1/diaries
-       * Body 参数：content: string, mood: string, tags: string[]
+       * Body 参数：title: string, content: string, mood: string, tags: string[]
        */
       const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/diaries`, {
         method: 'POST',
@@ -212,6 +97,7 @@ export default function WriteDiaryScreen() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
+          title: encryptedTitle,
           content: encryptedContent,
           mood: selectedMood,
           tags: tags,
@@ -236,14 +122,20 @@ export default function WriteDiaryScreen() {
     }
   };
 
-  const refreshQuestion = () => {
-    const randomIndex = Math.floor(Math.random() * GUIDING_QUESTIONS.length);
-    setCurrentQuestion(GUIDING_QUESTIONS[randomIndex]);
+  const handleAddTag = () => {
+    if (tagInput.trim() && !tags.includes(tagInput.trim())) {
+      setTags([...tags, tagInput.trim()]);
+      setTagInput('');
+    }
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    setTags(tags.filter((t) => t !== tag));
   };
 
   return (
     <Screen>
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.container, { backgroundColor: background }]}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.keyboardContainer}
@@ -252,7 +144,7 @@ export default function WriteDiaryScreen() {
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => {
-                if (content.trim() || selectedMood) {
+                if (title.trim() || content.trim() || selectedMood) {
                   Alert.alert('提示', '确定要离开吗？内容将不会保存', [
                     { text: '取消', style: 'cancel' },
                     { text: '确定', onPress: () => router.back() },
@@ -262,160 +154,133 @@ export default function WriteDiaryScreen() {
                 }
               }}
             >
-              <FontAwesome6 name="xmark" size={24} color={colors.foreground} />
+              <FontAwesome6 name="xmark" size={24} color={foreground} />
             </TouchableOpacity>
-            <Text style={[styles.title, { color: colors.foreground }]}>写日记</Text>
-            <View style={{ width: 24 }} />
+            <Text style={[styles.title, { color: foreground }]}>写日记</Text>
+            <TouchableOpacity
+              style={[styles.saveButton, submitting && styles.saveButtonDisabled]}
+              onPress={handleSubmit}
+              disabled={submitting}
+            >
+              <Text style={[styles.saveButtonText, { color: submitting ? '#999' : accent }]}>
+                {submitting ? '保存中...' : '保存'}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.contentContainer} contentContainerStyle={styles.scrollContent}>
-            {/* 引导问题卡片 */}
-            <View style={styles.shadowDark}>
-              <View style={styles.shadowLight}>
-                <View style={styles.questionHeader}>
-                  <View style={[styles.iconContainer, { backgroundColor: 'rgba(108,99,255,0.12)' }]}>
-                    <FontAwesome6 name="lightbulb" size={20} color="#6C63FF" />
-                  </View>
-                  <TouchableOpacity onPress={refreshQuestion}>
-                    <FontAwesome6 name="rotate" size={16} color="#6C63FF" />
-                  </TouchableOpacity>
-                </View>
-                <Text style={styles.questionText}>{currentQuestion}</Text>
+            {/* 标题输入 */}
+            <View style={[styles.titleContainer, { borderBottomColor: border }]}>
+              <TextInput
+                style={[styles.titleInput, { color: foreground }]}
+                placeholder="给这篇日记起个标题..."
+                placeholderTextColor={muted}
+                value={title}
+                onChangeText={setTitle}
+                textAlignVertical="top"
+              />
+            </View>
+
+            {/* 时间和情绪 */}
+            <View style={styles.metaContainer}>
+              <View style={[styles.metaItem, { backgroundColor: surface }]}>
+                <FontAwesome6 name="calendar" size={16} color={muted} style={styles.metaIcon} />
+                <Text style={[styles.metaText, { color: muted }]}>
+                  {new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </Text>
+              </View>
+              <View style={[styles.metaItem, { backgroundColor: surface }]}>
+                <FontAwesome6 name="clock" size={16} color={muted} style={styles.metaIcon} />
+                <Text style={[styles.metaText, { color: muted }]}>
+                  {new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                </Text>
               </View>
             </View>
 
             {/* 情绪选择 */}
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>今天的心情</Text>
-            </View>
-
-            <View style={styles.moodGrid}>
-              {MOODS.map((mood) => (
-                <TouchableOpacity
-                  key={mood.id}
-                  onPress={() => setSelectedMood(mood.id)}
-                  style={[
-                    styles.moodItem,
-                    selectedMood === mood.id && styles.moodItemSelected,
-                    { backgroundColor: selectedMood === mood.id ? mood.color : '#F0F0F3' },
-                  ]}
-                >
-                  <FontAwesome6 name={mood.icon as any} size={28} color={selectedMood === mood.id ? '#FFFFFF' : '#636E72'} />
-                  <Text
+            <View style={styles.section}>
+              <Text style={[styles.sectionLabel, { color: foreground }]}>今天的心情</Text>
+              <View style={styles.moodGrid}>
+                {MOODS.map((mood) => (
+                  <TouchableOpacity
+                    key={mood.id}
+                    onPress={() => setSelectedMood(mood.id)}
                     style={[
-                      styles.moodLabel,
-                      { color: selectedMood === mood.id ? '#FFFFFF' : colors.muted },
+                      styles.moodItem,
+                      selectedMood === mood.id && styles.moodItemSelected,
+                      {
+                        backgroundColor: selectedMood === mood.id ? mood.color : surface,
+                        borderColor: selectedMood === mood.id ? mood.color : border,
+                      },
                     ]}
                   >
-                    {mood.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <FontAwesome6
+                      name={mood.icon as any}
+                      size={28}
+                      color={selectedMood === mood.id ? '#FFFFFF' : muted}
+                    />
+                    <Text
+                      style={[
+                        styles.moodLabel,
+                        { color: selectedMood === mood.id ? '#FFFFFF' : muted },
+                      ]}
+                    >
+                      {mood.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
-            {/* 标签输入 */}
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>标签</Text>
-            </View>
-
-            <View style={[styles.shadowDark, { marginBottom: 8 }]}>
-              <View style={[styles.shadowLight, styles.tagInputContainer]}>
+            {/* 内容输入 */}
+            <View style={styles.section}>
+              <View style={[styles.contentContainerInner, { backgroundColor: surface }]}>
                 <TextInput
-                  style={[styles.tagInput, { color: colors.foreground }]}
+                  style={[styles.contentInput, { color: foreground }]}
+                  placeholder="写下你的想法..."
+                  placeholderTextColor={muted}
+                  value={content}
+                  onChangeText={setContent}
+                  multiline
+                  textAlignVertical="top"
+                />
+                <Text style={[styles.charCount, { color: muted }]}>
+                  {content.length} 字
+                </Text>
+              </View>
+            </View>
+
+            {/* 标签 */}
+            <View style={styles.section}>
+              <Text style={[styles.sectionLabel, { color: foreground }]}>标签</Text>
+              <View style={[styles.tagInputContainer, { backgroundColor: surface, borderColor: border }]}>
+                <TextInput
+                  style={[styles.tagInput, { color: foreground }]}
                   placeholder="添加标签..."
-                  placeholderTextColor="#B2BEC3"
+                  placeholderTextColor={muted}
                   value={tagInput}
                   onChangeText={setTagInput}
                   onSubmitEditing={handleAddTag}
                 />
                 <TouchableOpacity onPress={handleAddTag} style={styles.addTagButton}>
-                  <FontAwesome6 name="plus" size={18} color="#6C63FF" />
+                  <FontAwesome6 name="plus" size={18} color={accent} />
                 </TouchableOpacity>
               </View>
-            </View>
 
-            {tags.length > 0 && (
-              <View style={styles.tagsContainer}>
-                {tags.map((tag, index) => (
-                  <View key={index} style={styles.tag}>
-                    <Text style={styles.tagText}>{tag}</Text>
-                    <TouchableOpacity onPress={() => handleRemoveTag(tag)} style={styles.removeTag}>
-                      <FontAwesome6 name="xmark" size={12} color="#6C63FF" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            {/* 日记内容输入 */}
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>写下你的想法</Text>
-              <Text style={[styles.charCount, { color: colors.muted }]}>{content.length} 字</Text>
-            </View>
-
-            <View style={[styles.shadowDark]}>
-              <View style={[styles.shadowLight, styles.textareaContainer]}>
-                <TextInput
-                  style={[styles.textarea, { color: colors.foreground }]}
-                  placeholder="开始写吧..."
-                  placeholderTextColor="#B2BEC3"
-                  value={content}
-                  onChangeText={setContent}
-                  multiline
-                  textAlignVertical="top"
-                  autoFocus
-                />
-
-                {/* 语音输入按钮 */}
-                <TouchableOpacity
-                  onPress={toggleRecording}
-                  style={styles.voiceButton}
-                  activeOpacity={0.8}
-                >
-                  <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-                    <FontAwesome6
-                      name={isRecording ? 'microphone-lines' : 'microphone'}
-                      size={22}
-                      color={isRecording ? '#FF6B6B' : '#6C63FF'}
-                    />
-                  </Animated.View>
-                </TouchableOpacity>
-
-                {isRecording && (
-                  <View style={styles.recordingIndicator}>
-                    <FontAwesome6 name="circle" size={8} color="#FF6B6B" />
-                    <Text style={styles.recordingText}>录音中...</Text>
-                  </View>
-                )}
-              </View>
+              {tags.length > 0 && (
+                <View style={styles.tagsContainer}>
+                  {tags.map((tag, index) => (
+                    <View key={index} style={[styles.tag, { backgroundColor: surface, borderColor: accent }]}>
+                      <Text style={[styles.tagText, { color: accent }]}>{tag}</Text>
+                      <TouchableOpacity onPress={() => handleRemoveTag(tag)} style={styles.removeTag}>
+                        <FontAwesome6 name="xmark" size={12} color={accent} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           </ScrollView>
-
-          {/* 底部保存按钮 */}
-          <View style={styles.footer}>
-            <TouchableOpacity
-              onPress={handleSubmit}
-              disabled={submitting}
-              activeOpacity={0.8}
-              style={{ opacity: submitting ? 0.6 : 1 }}
-            >
-              <LinearGradient
-                colors={['#6C63FF', '#896BFF']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.submitButton}
-              >
-                {submitting ? (
-                  <Text style={styles.submitButtonText}>保存中...</Text>
-                ) : (
-                  <>
-                    <FontAwesome6 name="paper-plane" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-                    <Text style={styles.submitButtonText}>保存日记</Text>
-                  </>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
         </KeyboardAvoidingView>
       </View>
     </Screen>
@@ -433,167 +298,154 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 20,
-    paddingBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   backButton: {
-    width: 24,
-    height: 24,
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
   title: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#2D3436',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  saveButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  saveButtonDisabled: {
+    opacity: 0.5,
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   contentContainer: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 140,
+    paddingHorizontal: 16,
+    paddingBottom: 40,
   },
-
-  // 双层阴影样式
-  shadowDark: {
-    shadowColor: '#D1D9E6',
-    shadowOffset: { width: 6, height: 6 },
-    shadowOpacity: 0.7,
-    shadowRadius: 8,
-    borderRadius: 24,
-    marginBottom: 16,
-    ...Platform.select({
-      android: {
-        elevation: 6,
-        borderWidth: 0.5,
-        borderColor: 'rgba(255,255,255,0.5)',
-      },
-    }),
+  titleContainer: {
+    paddingVertical: 16,
+    borderBottomWidth: 1,
   },
-  shadowLight: {
-    shadowColor: '#FFFFFF',
-    shadowOffset: { width: -6, height: -6 },
-    shadowOpacity: 0.9,
-    shadowRadius: 8,
-    backgroundColor: '#F0F0F3',
-    borderRadius: 24,
-    padding: 20,
-    ...Platform.select({
-      android: {
-        elevation: 6,
-      },
-    }),
-  },
-
-  // 引导问题
-  questionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  questionText: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#2D3436',
-    fontWeight: '500',
-  },
-
-  // 区块标题
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
+  titleInput: {
+    fontSize: 24,
     fontWeight: '700',
-    color: '#2D3436',
   },
-  charCount: {
+  metaContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  metaIcon: {
+    marginRight: 6,
+  },
+  metaText: {
     fontSize: 13,
-    color: '#636E72',
   },
-
-  // 情绪选择网格
+  section: {
+    marginTop: 24,
+  },
+  sectionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
   moodGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -6,
+    gap: 10,
   },
   moodItem: {
-    width: (width - 48 - 24) / 3,
-    marginHorizontal: 6,
-    marginBottom: 12,
-    borderRadius: 20,
-    paddingVertical: 16,
+    width: (width - 32 - 50) / 3,
+    flexDirection: 'column',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.6)',
   },
   moodItemSelected: {
-    shadowColor: '#6C63FF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   moodLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#636E72',
     marginTop: 6,
   },
-
-  // 标签
+  contentContainerInner: {
+    borderRadius: 16,
+    padding: 16,
+    minHeight: 200,
+    position: 'relative',
+  },
+  contentInput: {
+    fontSize: 16,
+    lineHeight: 24,
+    flex: 1,
+  },
+  charCount: {
+    fontSize: 12,
+    textAlign: 'right',
+    marginTop: 8,
+  },
   tagInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    borderRadius: 12,
     padding: 0,
+    borderWidth: 1,
+    overflow: 'hidden',
   },
   tagInput: {
     flex: 1,
     fontSize: 15,
     color: '#2D3436',
-    paddingVertical: 16,
     paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   addTagButton: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
   },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 8,
+    marginTop: 12,
+    gap: 8,
   },
   tag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(108,99,255,0.10)',
-    borderRadius: 9999,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 6,
-    marginRight: 8,
-    marginBottom: 8,
+    borderRadius: 12,
+    borderWidth: 1,
   },
   tagText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#6C63FF',
+    fontWeight: '500',
     marginRight: 6,
   },
   removeTag: {
@@ -601,79 +453,5 @@ const styles = StyleSheet.create({
     height: 16,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-
-  // 文本输入框
-  textareaContainer: {
-    minHeight: 200,
-    padding: 0,
-    position: 'relative',
-  },
-  textarea: {
-    flex: 1,
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#2D3436',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 60,
-  },
-  voiceButton: {
-    position: 'absolute',
-    bottom: 16,
-    right: 16,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  recordingIndicator: {
-    position: 'absolute',
-    bottom: 16,
-    left: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  recordingText: {
-    fontSize: 13,
-    color: '#FF6B6B',
-    marginLeft: 6,
-    fontWeight: '600',
-  },
-
-  // 底部按钮
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#F0F0F3',
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    shadowColor: '#D1D9E6',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
-    ...Platform.select({
-      android: {
-        elevation: 6,
-      },
-    }),
-  },
-  submitButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 9999,
-    paddingVertical: 16,
-  },
-  submitButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
   },
 });
