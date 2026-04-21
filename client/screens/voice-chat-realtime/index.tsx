@@ -198,18 +198,25 @@ export default function VoiceChatRealtimeScreen() {
       // 直接连接到Express服务器的WebSocket端口，绕过代理
       // 注意：这需要Express服务器允许CORS和WebSocket连接
       const wsUrl = 'ws://localhost:9091/api/v1/voice/realtime';
-      console.log('Connecting to WebSocket:', wsUrl);
+      console.log('========================================');
+      console.log('🔌 Attempting to connect to WebSocket...');
+      console.log('WebSocket URL:', wsUrl);
+      console.log('Current time:', new Date().toISOString());
+      console.log('========================================');
+
       const ws = new WebSocket(wsUrl) as any;
 
       ws.onopen = () => {
-        console.log('WebSocket connected');
+        console.log('✅ WebSocket connected successfully!');
+        console.log('✅ WebSocket readyState:', ws.readyState);
+        console.log('✅ Connection time:', new Date().toISOString());
         setIsConnected(true);
       };
 
       ws.onmessage = (event: any) => {
         try {
           const message = JSON.parse(event.data);
-          console.log('WebSocket message:', message);
+          console.log('📨 WebSocket message received:', message);
 
           // 处理错误消息
           if (message.type === 'error') {
