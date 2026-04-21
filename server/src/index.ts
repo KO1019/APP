@@ -3,7 +3,18 @@ import cors from "cors";
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import multer from 'multer';
+import { WebSocketServer, WebSocket } from 'ws';
 import { getSupabaseClient } from "./storage/database/supabase-client";
+import {
+  buildStartConnectionFrame,
+  buildStartSessionFrame,
+  buildTaskRequestFrame,
+  buildFinishSessionFrame,
+  buildFinishConnectionFrame,
+  buildChatTextQueryFrame,
+  parseBinaryFrame,
+  EVENT_ID,
+} from "./volcengine-protocol.js";
 
 const app = express();
 const port = process.env.PORT || 9091;
@@ -1004,6 +1015,216 @@ async function analyzeEmotionAsync(diaryId: string, content: string) {
   }
 }
 
-app.listen(port, () => {
+// ========== WebSocket 实时语音对话 ==========
+
+const wss = new WebSocketServer({ noServer: true });
+
+// 处理HTTP升级请求
+const server = app.listen(port, () => {
   console.log(`Server listening at http://localhost:${port}/`);
 });
+
+server.on('upgrade', (request, socket, head) => {
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    wss.emit('connection', ws, request);
+  });
+});
+
+wss.on('connection', (ws: WebSocket, request) => {
+  console.log('WebSocket client connected');
+
+  let volcWs: WebSocket | null = null;
+  let sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+  // 连接到豆包实时语音API
+  const connectToVolcengine = async () => {
+    try {
+      if (!VOLCENGINE_APP_ID || !VOLCENGINE_ACCESS_TOKEN) {
+        ws.send(JSON.stringify({ type: 'error', message: '豆包API配置缺失' }));
+        ws.close();
+        return;
+      }
+
+      volcWs = new WebSocket(
+        'wss://openspeech.bytedance.com/api/v3/realtime/dialogue',
+        {
+          headers: {
+            'X-Api-App-ID': VOLCENGINE_APP_ID,
+            'X-Api-Access-Key': VOLCENGINE_ACCESS_TOKEN,
+            'X-Api-Resource-Id': 'volc.speech.dialog',
+            'X-Api-App-Key': 'PlgvMymc7f3tQnJ6',
+          },
+        }
+      );
+
+      volcWs.binaryType = 'nodebuffer';
+
+      volcWs.on('open', () => {
+        console.log('Connected to Volcengine');
+
+        // 发送StartConnection事件
+        const startConnectionFrame = buildStartConnectionFrame();
+        volcWs!.send(startConnectionFrame);
+
+        // 发送StartSession事件
+        const startSessionFrame = buildStartSessionFrame(sessionId, {
+          bot_name: '豆包',
+          system_role: '你是一位温暖、专业的心理陪伴助手。',
+          model: '1.2.1.1',
+        });
+        volcWs!.send(startSessionFrame);
+      });
+
+      volcWs.on('message', (data: Buffer) => {
+        const frame = parseBinaryFrame(data);
+        if (!frame) return;
+
+        // 处理服务端事件
+        switch (frame.eventId) {
+          case EVENT_ID.ASR_RESPONSE:
+            // 语音识别结果
+            try {
+              const asrResult = JSON.parse(frame.payload.toString('utf-8'));
+              ws.send(JSON.stringify({
+                type: 'asr_result',
+                data: asrResult,
+              }));
+            } catch (e) {
+              console.error('Failed to parse ASR response:', e);
+            }
+            break;
+
+          case EVENT_ID.CHAT_RESPONSE:
+            // AI回复文本
+            try {
+              const chatResponse = JSON.parse(frame.payload.toString('utf-8'));
+              ws.send(JSON.stringify({
+                type: 'chat_response',
+                data: chatResponse,
+              }));
+            } catch (e) {
+              console.error('Failed to parse chat response:', e);
+            }
+            break;
+
+          case EVENT_ID.TTS_RESPONSE:
+            // 音频数据
+            ws.send(JSON.stringify({
+              type: 'tts_audio',
+              data: frame.payload.toString('base64'),
+            }));
+            break;
+
+          case EVENT_ID.TTS_SENTENCE_START:
+            // TTS开始
+            try {
+              const ttsStart = JSON.parse(frame.payload.toString('utf-8'));
+              ws.send(JSON.stringify({
+                type: 'tts_start',
+                data: ttsStart,
+              }));
+            } catch (e) {
+              console.error('Failed to parse TTS start:', e);
+            }
+            break;
+
+          case EVENT_ID.TTS_ENDED:
+            // TTS结束
+            ws.send(JSON.stringify({
+              type: 'tts_ended',
+            }));
+            break;
+
+          case EVENT_ID.ASR_ENDED:
+            // 语音识别结束
+            ws.send(JSON.stringify({
+              type: 'asr_ended',
+            }));
+            break;
+
+          case EVENT_ID.SESSION_STARTED:
+            // 会话开始
+            try {
+              const sessionInfo = JSON.parse(frame.payload.toString('utf-8'));
+              sessionId = sessionInfo.dialog_id || sessionId;
+              console.log('Session started:', sessionId);
+            } catch (e) {
+              console.error('Failed to parse session start:', e);
+            }
+            break;
+        }
+      });
+
+      volcWs.on('error', (error) => {
+        console.error('Volcengine WebSocket error:', error);
+        ws.send(JSON.stringify({ type: 'error', message: '豆包连接错误' }));
+      });
+
+      volcWs.on('close', () => {
+        console.log('Volcengine connection closed');
+        ws.send(JSON.stringify({ type: 'connection_closed' }));
+      });
+    } catch (error: any) {
+      console.error('Failed to connect to Volcengine:', error);
+      ws.send(JSON.stringify({ type: 'error', message: error.message }));
+    }
+  };
+
+  connectToVolcengine();
+
+  // 处理客户端消息
+  ws.on('message', (data: Buffer | string) => {
+    try {
+      // 支持文本和二进制消息
+      if (Buffer.isBuffer(data)) {
+        // 二进制音频数据
+        if (volcWs && volcWs.readyState === WebSocket.OPEN) {
+          const taskRequestFrame = buildTaskRequestFrame(sessionId, data);
+          volcWs.send(taskRequestFrame);
+        }
+      } else {
+        // JSON消息
+        const message = JSON.parse(data as string);
+
+        switch (message.type) {
+          case 'text_input':
+            // 文本输入
+            if (volcWs && volcWs.readyState === WebSocket.OPEN) {
+              const chatTextQueryFrame = buildChatTextQueryFrame(sessionId, message.text);
+              volcWs.send(chatTextQueryFrame);
+            }
+            break;
+
+          case 'end_session':
+            // 结束会话
+            if (volcWs && volcWs.readyState === WebSocket.OPEN) {
+              const finishSessionFrame = buildFinishSessionFrame(sessionId);
+              volcWs.send(finishSessionFrame);
+            }
+            break;
+        }
+      }
+    } catch (error: any) {
+      console.error('Error processing client message:', error);
+      ws.send(JSON.stringify({ type: 'error', message: error.message }));
+    }
+  });
+
+  ws.on('close', () => {
+    console.log('WebSocket client disconnected');
+
+    // 关闭豆包连接
+    if (volcWs && volcWs.readyState === WebSocket.OPEN) {
+      const finishSessionFrame = buildFinishSessionFrame(sessionId);
+      const finishConnectionFrame = buildFinishConnectionFrame();
+      volcWs.send(finishSessionFrame);
+      volcWs.send(finishConnectionFrame);
+      setTimeout(() => volcWs?.close(), 100);
+    }
+  });
+
+  ws.on('error', (error) => {
+    console.error('WebSocket client error:', error);
+  });
+});
+

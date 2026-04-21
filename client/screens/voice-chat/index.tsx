@@ -203,7 +203,13 @@ export default function VoiceChatScreen() {
             <FontAwesome6 name="arrow-left" size={24} color={foreground} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: foreground }]}>语音陪伴</Text>
-          <View style={{ width: 24 }} />
+          <TouchableOpacity
+            onPress={() => router.push('/voice-chat-realtime')}
+            style={styles.realtimeButton}
+            activeOpacity={0.8}
+          >
+            <FontAwesome6 name="bolt" size={20} color={accent} />
+          </TouchableOpacity>
         </View>
 
         {/* 对话内容 */}
@@ -320,6 +326,14 @@ const styles = StyleSheet.create({
     height: 32,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  realtimeButton: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 16,
   },
   headerTitle: {
     fontSize: 18,
