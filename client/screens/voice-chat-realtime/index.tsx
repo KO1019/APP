@@ -396,7 +396,7 @@ export default function VoiceChatRealtimeScreen() {
                 {isConnected ? '开始与AI对话' : '连接中...'}
               </Text>
               <Text style={[styles.welcomeSubtext, { color: muted }]}>
-                按住下方按钮录音，松开发送
+                点击下方按钮开始录音，再次点击停止
               </Text>
             </View>
           )}

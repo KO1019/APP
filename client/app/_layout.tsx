@@ -36,7 +36,6 @@ export default function RootLayout() {
               <Stack.Screen name="write-diary" options={{ headerShown: false }} />
               <Stack.Screen name="diary-detail" options={{ headerShown: false }} />
               <Stack.Screen name="conversation-history" options={{ headerShown: false }} />
-              <Stack.Screen name="voice-chat" options={{ headerShown: false }} />
               <Stack.Screen name="voice-chat-realtime" options={{ headerShown: false }} />
             </Stack>
             <Toast />
