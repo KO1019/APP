@@ -1,3 +1,4 @@
+import dotenv from 'dotenv';
 import express from "express";
 import cors from "cors";
 import bcrypt from 'bcryptjs';
@@ -15,6 +16,9 @@ import {
   parseBinaryFrame,
   EVENT_ID,
 } from "./volcengine-protocol.js";
+
+// 加载环境变量
+dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 9091;
@@ -108,6 +112,10 @@ async function callLLMStream(
   }
 
   try {
+    console.log('Calling LLM API:', LLM_BASE_URL, 'Model:', model);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000); // 10秒超时
+
     const response = await fetch(`${LLM_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -120,10 +128,14 @@ async function callLLMStream(
         temperature,
         stream: true,
       }),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeout);
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error('LLM API error:', response.status, errorText);
       throw new Error(`LLM API error: ${response.status} - ${errorText}`);
     }
 
@@ -160,7 +172,7 @@ async function callLLMStream(
       }
     }
   } catch (error: any) {
-    console.error('Error calling LLM stream:', error);
+    console.error('Error calling LLM stream:', error.message);
     // 使用 fallback 回复
     const fallbackResponse = '抱歉，AI 服务暂时不可用。请稍后再试，或者尝试其他功能。';
     for (let i = 0; i < fallbackResponse.length; i++) {
