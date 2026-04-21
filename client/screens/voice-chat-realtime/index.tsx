@@ -33,7 +33,8 @@ export default function VoiceChatRealtimeScreen() {
   const audioBufferRef = useRef<Buffer[] | null>(null);
   const audioIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioFileNameCounterRef = useRef(0);
-  const handleMessageRef = useRef<(message: any) => void | Promise<void>>(() => {});
+  const handleMessageRef = useRef<(message: any) => void | Promise<void>>();
+  // handleMessageRef 将在 useEffect 中初始化，避免 WebSocket onmessage 依赖问题
 
   const [background, surface, accent, foreground, muted, border] = useCSSVariable([
     '--color-background',

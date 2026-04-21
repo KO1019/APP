@@ -212,7 +212,7 @@ export default function ChatScreen() {
                 <Text style={[styles.subtitle, { color: muted }]}>温暖倾听，用心陪伴</Text>
               </View>
             </View>
-            <TouchableOpacity onPress={() => router.push('/voice-chat')} style={styles.voiceButton}>
+            <TouchableOpacity onPress={() => router.push('/voice-chat-realtime')} style={styles.voiceButton}>
               <FontAwesome6 name="microphone" size={20} color={foreground} />
             </TouchableOpacity>
           </View>
