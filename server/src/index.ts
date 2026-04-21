@@ -1091,6 +1091,13 @@ const server = app.listen(port, () => {
 });
 
 server.on('upgrade', (request, socket, head) => {
+  // 只处理 /api/v1/voice/realtime 路径的WebSocket请求
+  const pathname = request.url ? new URL(request.url, `http://${request.headers.host}`).pathname : '';
+  if (pathname !== '/api/v1/voice/realtime') {
+    socket.destroy();
+    return;
+  }
+
   wss.handleUpgrade(request, socket, head, (ws) => {
     wss.emit('connection', ws, request);
   });

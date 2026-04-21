@@ -195,7 +195,12 @@ export default function VoiceChatRealtimeScreen() {
   // WebSocket连接函数
   const connectWebSocket = useCallback(() => {
     try {
-      const wsUrl = `${process.env.EXPO_PUBLIC_BACKEND_BASE_URL.replace('http', 'ws')}/api/v1/voice/realtime`;
+      // 在开发环境下使用localhost而不是代理URL，因为代理不支持WebSocket
+      const baseUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL.includes('dev.coze.site')
+        ? 'http://localhost:9091'
+        : process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
+      const wsUrl = `${baseUrl.replace('http', 'ws')}/api/v1/voice/realtime`;
+      console.log('Connecting to WebSocket:', wsUrl);
       const ws = new WebSocket(wsUrl) as any;
 
       ws.onopen = () => {
