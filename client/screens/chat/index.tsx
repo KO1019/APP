@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Screen } from '@/components/Screen';
@@ -6,6 +6,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
 import RNSSE from 'react-native-sse';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -20,6 +21,7 @@ export default function ChatScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
 
   const router = useSafeRouter();
+  const { token } = useAuth();
 
   const [background, surface, accent, foreground, muted, border] = useCSSVariable([
     '--color-background',
@@ -30,13 +32,24 @@ export default function ChatScreen() {
     '--color-border',
   ]) as string[];
 
-  const fetchSuggestedTopics = async () => {
+  const fetchSuggestedTopics = useCallback(async () => {
     try {
+      // 检查是否已登录
+      if (!token) {
+        setSuggestedTopics([]);
+        return;
+      }
+
       /**
        * 服务端文件：server/src/index.ts
        * 接口：GET /api/v1/chat/topics
+       * Headers: Authorization: Bearer {token}
        */
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/chat/topics`);
+      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/chat/topics`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
 
       if (!response.ok) {
         console.warn(`fetchSuggestedTopics: HTTP ${response.status}, using empty array`);
@@ -50,7 +63,7 @@ export default function ChatScreen() {
       console.error('Error fetching suggested topics:', error);
       setSuggestedTopics([]);
     }
-  };
+  }, [token]);
 
   const sendMessage = async () => {
     if (!inputText.trim() || loading) return;
@@ -63,9 +76,18 @@ export default function ChatScreen() {
     setLoading(true);
 
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      // 添加 token（如果存在）
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const sse = new RNSSE(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ message: userMessage }),
       });
 
@@ -129,11 +151,13 @@ export default function ChatScreen() {
     scrollViewRef.current?.scrollToEnd({ animated: true });
   }, [messages]);
 
-  useFocusEffect(() => {
-    // 页面聚焦时加载建议话题
-    setMessages([]);
-    fetchSuggestedTopics();
-  });
+  useFocusEffect(
+    useCallback(() => {
+      // 页面聚焦时加载建议话题
+      setMessages([]);
+      fetchSuggestedTopics();
+    }, [fetchSuggestedTopics])
+  );
 
   const renderMessage = (message: Message, index: number) => {
     const isUser = message.role === 'user';
