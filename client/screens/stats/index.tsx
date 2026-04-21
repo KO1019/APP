@@ -28,11 +28,32 @@ export default function StatsScreen() {
   const fetchDiaries = async () => {
     try {
       setLoading(true);
+      /**
+       * 服务端文件：server/src/index.ts
+       * 接口：GET /api/v1/diaries
+       */
       const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/diaries`);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error(`fetchDiaries: HTTP ${response.status}`, errorData);
+        setDiaries([]);
+        return;
+      }
+
       const data = await response.json();
+
+      // 检查返回的数据是否是数组
+      if (!Array.isArray(data)) {
+        console.error('fetchDiaries: Expected array but got:', typeof data, data);
+        setDiaries([]);
+        return;
+      }
+
       setDiaries(data);
     } catch (error) {
       console.error('Error fetching diaries:', error);
+      setDiaries([]);
     } finally {
       setLoading(false);
     }
@@ -48,6 +69,12 @@ export default function StatsScreen() {
     const moodCount: Record<string, number> = {};
     let totalIntensity = 0;
     let intensityCount = 0;
+
+    // 确保 diaries 是数组
+    if (!Array.isArray(diaries)) {
+      console.warn('getMoodStats: diaries is not an array', diaries);
+      return { moodCount, avgIntensity: 0, topMood: undefined };
+    }
 
     diaries.forEach(diary => {
       if (diary.mood) {
@@ -104,7 +131,7 @@ export default function StatsScreen() {
         </View>
 
         <View style={styles.statsContainer}>
-          {renderStatCard('book-open', '日记总数', `${diaries.length}`, '篇')}
+          {renderStatCard('book-open', '日记总数', `${Array.isArray(diaries) ? diaries.length : 0}`, '篇')}
           {renderStatCard('face-smile', '平均情绪强度', `${avgIntensity}`, topMood ? `/ ${topMood[0]}` : '')}
         </View>
 
