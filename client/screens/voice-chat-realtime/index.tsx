@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Animated, Dimensions, StatusBar, Alert } from 'react-native';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
@@ -8,11 +8,14 @@ import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
 import Toast from 'react-native-toast-message';
+import * as KeepAwake from 'expo-keep-awake';
 
 interface ConversationMessage {
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'user_interim';
   content: string;
 }
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function VoiceChatRealtimeScreen() {
   const router = useSafeRouter();
@@ -22,10 +25,13 @@ export default function VoiceChatRealtimeScreen() {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
-  const [recordMode, setRecordMode] = useState(false); // 记录模式开关
+  const [recordMode, setRecordMode] = useState(false);
+  const [isAiSpeaking, setIsAiSpeaking] = useState(false);
 
   // 对话历史
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
+  const [currentInterimText, setCurrentInterimText] = useState('');
+  const [latestAiMessage, setLatestAiMessage] = useState('');
 
   const recordingRef = useRef<Audio.Recording | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
@@ -33,8 +39,7 @@ export default function VoiceChatRealtimeScreen() {
   const audioBufferRef = useRef<Buffer[] | null>(null);
   const audioIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioFileNameCounterRef = useRef(0);
-  const handleMessageRef = useRef<(message: any) => void | Promise<void>>();
-  // handleMessageRef 将在 useEffect 中初始化，避免 WebSocket onmessage 依赖问题
+  const handleMessageRef = useRef<((message: any) => void | Promise<void>) | undefined>(() => undefined);
 
   const [background, surface, accent, foreground, muted, border] = useCSSVariable([
     '--color-background',
@@ -45,10 +50,50 @@ export default function VoiceChatRealtimeScreen() {
     '--color-border',
   ]) as string[];
 
+  // 声波动画值
+  const waveAnimations = useMemo(() => [
+    new Animated.Value(1),
+    new Animated.Value(1),
+    new Animated.Value(1),
+  ], []);
+
+  // 声波动画循环
+  useEffect(() => {
+    if (isAiSpeaking) {
+      const animate = () => {
+        Animated.parallel([
+          Animated.sequence([
+            Animated.timing(waveAnimations[0], { toValue: 1.5, duration: 1000, useNativeDriver: true }),
+            Animated.timing(waveAnimations[0], { toValue: 1, duration: 1000, useNativeDriver: true }),
+          ]),
+          Animated.sequence([
+            Animated.timing(waveAnimations[1], { toValue: 1.3, duration: 800, useNativeDriver: true, delay: 200 }),
+            Animated.timing(waveAnimations[1], { toValue: 1, duration: 800, useNativeDriver: true }),
+          ]),
+          Animated.sequence([
+            Animated.timing(waveAnimations[2], { toValue: 1.7, duration: 1200, useNativeDriver: true, delay: 400 }),
+            Animated.timing(waveAnimations[2], { toValue: 1, duration: 1200, useNativeDriver: true }),
+          ]),
+        ]).start(() => {
+          if (isAiSpeaking) {
+            animate();
+          }
+        });
+      };
+      animate();
+    } else {
+      waveAnimations.forEach(anim => anim.setValue(1));
+    }
+  }, [isAiSpeaking, waveAnimations]);
+
+  // 保持屏幕常亮
+  useEffect(() => {
+    KeepAwake.activateKeepAwakeAsync('tag-voice-chat');
+  }, []);
+
   // 保存对话为日记
   const saveConversationAsDiary = useCallback(async () => {
     try {
-      // 获取最近的用户和AI对话
       const userMessages = messages.filter(m => m.role === 'user');
       const aiMessages = messages.filter(m => m.role === 'assistant');
 
@@ -57,8 +102,7 @@ export default function VoiceChatRealtimeScreen() {
       const lastUserMessage = userMessages[userMessages.length - 1];
       const lastAiMessage = aiMessages[aiMessages.length - 1];
 
-      // 组合对话内容作为日记
-      const diaryContent = `对话记录：\n\n我：${lastUserMessage.content}\n\nAI：${lastAiMessage?.content || ''}`;
+      const diaryContent = `语音对话记录：\n\n我：${lastUserMessage.content}\n\nAI：${lastAiMessage?.content || ''}`;
 
       /**
        * 服务端文件：server/src/index.ts
@@ -134,14 +178,17 @@ export default function VoiceChatRealtimeScreen() {
         (status) => {
           if (status.isLoaded && status.didJustFinish) {
             console.log('Audio playback finished');
+            setIsAiSpeaking(false);
           }
         }
       );
 
       soundRef.current = sound;
+      setIsAiSpeaking(true);
       await sound.playAsync();
     } catch (error) {
       console.error('Error playing audio:', error);
+      setIsAiSpeaking(false);
     }
   };
 
@@ -192,8 +239,13 @@ export default function VoiceChatRealtimeScreen() {
         // 语音识别结果
         if (message.data && message.data.results && message.data.results.length > 0) {
           const result = message.data.results[0];
-          if (result.text && !result.is_interim) {
-            setMessages(prev => [...prev, { role: 'user', content: result.text }]);
+          if (result.text) {
+            if (result.is_interim) {
+              setCurrentInterimText(result.text);
+            } else {
+              setCurrentInterimText('');
+              setMessages(prev => [...prev, { role: 'user', content: result.text }]);
+            }
           }
         }
         break;
@@ -201,6 +253,7 @@ export default function VoiceChatRealtimeScreen() {
       case 'chat_response': {
         // AI回复
         const aiContent = message.data.content;
+        setLatestAiMessage(aiContent);
         setMessages(prev => [...prev, { role: 'assistant', content: aiContent }]);
 
         // 如果开启记录模式，自动保存日记
@@ -309,10 +362,6 @@ export default function VoiceChatRealtimeScreen() {
 
       setIsRecording(true);
       setIsProcessing(true);
-
-      audioIntervalRef.current = setInterval(() => {
-        sendAudioData();
-      }, 200);
     } catch (error) {
       console.error('Failed to start recording:', error);
       Toast.show({ type: 'error', text1: '录音失败' });
@@ -333,8 +382,6 @@ export default function VoiceChatRealtimeScreen() {
       recordingRef.current = null;
 
       setIsRecording(false);
-
-      await sendAudioData();
     } catch (error) {
       console.error('Failed to stop recording:', error);
       setIsRecording(false);
@@ -372,73 +419,33 @@ export default function VoiceChatRealtimeScreen() {
     }
   };
 
+  // 关闭通话（显示浮悬窗）
+  const handleEndCall = () => {
+    if (wsRef.current) {
+      wsRef.current.close();
+    }
+    router.back();
+    Toast.show({
+      type: 'info',
+      text1: '通话已结束',
+      text2: '浮悬窗已开启',
+    });
+  };
+
   return (
     <Screen>
+      <StatusBar hidden />
       <View style={[styles.container, { backgroundColor: background }]}>
-        {/* 顶部标题栏 */}
-        <View style={styles.header}>
+        {/* 顶部状态栏 */}
+        <View style={styles.topBar}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <FontAwesome6 name="arrow-left" size={24} color={foreground} />
+            <FontAwesome6 name="chevron-down" size={24} color={foreground} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: foreground }]}>语音陪伴</Text>
-          <View style={{ width: 24 }} />
-        </View>
-
-        {/* 对话内容区 */}
-        <ScrollView
-          style={styles.content}
-          contentContainerStyle={styles.contentContainer}
-          showsVerticalScrollIndicator={false}
-        >
-          {messages.length === 0 && !isProcessing && (
-            <View style={styles.centerContainer}>
-              <FontAwesome6 name="microphone-lines" size={80} color={muted} style={styles.icon} />
-              <Text style={[styles.welcomeText, { color: foreground }]}>
-                {isConnected ? '开始与AI对话' : '连接中...'}
-              </Text>
-              <Text style={[styles.welcomeSubtext, { color: muted }]}>
-                点击下方按钮开始录音，再次点击停止
-              </Text>
-            </View>
-          )}
-
-          {messages.map((message, index) => (
-            <View
-              key={index}
-              style={[
-                styles.messageBubble,
-                message.role === 'user'
-                  ? { backgroundColor: accent, alignSelf: 'flex-end' }
-                  : { backgroundColor: surface, alignSelf: 'flex-start', borderWidth: 1, borderColor: border }
-              ]}
-            >
-              {message.role === 'assistant' && (
-                <FontAwesome6 name="robot" size={16} color={accent} style={styles.aiIcon} />
-              )}
-              <Text
-                style={[
-                  styles.messageText,
-                  { color: message.role === 'user' ? '#FFFFFF' : foreground }
-                ]}
-              >
-                {message.content}
-              </Text>
-            </View>
-          ))}
-
-          {isProcessing && (
-            <View style={[styles.messageBubble, { backgroundColor: surface, alignSelf: 'flex-start', borderWidth: 1, borderColor: border }]}>
-              <ActivityIndicator size="small" color={accent} />
-              <Text style={[styles.processingText, { color: muted }]}>正在处理...</Text>
-            </View>
-          )}
-        </ScrollView>
-
-        {/* 底部操作区 */}
-        <View style={[styles.footer, { backgroundColor: surface, borderTopColor: border, borderTopWidth: 1 }]}>
-          {/* 记录模式开关 */}
+          <Text style={[styles.statusText, { color: foreground }]}>
+            {isConnected ? '通话中' : '连接中...'}
+          </Text>
           <TouchableOpacity
-            style={[styles.recordModeButton, { backgroundColor: recordMode ? `${accent}20` : `${surface}`, borderColor: recordMode ? accent : border }]}
+            style={styles.recordModeButton}
             onPress={() => {
               setRecordMode(!recordMode);
               Toast.show({
@@ -453,9 +460,67 @@ export default function VoiceChatRealtimeScreen() {
               size={20}
               color={recordMode ? accent : muted}
             />
-            <Text style={[styles.recordModeText, { color: recordMode ? accent : muted }]}>
-              {recordMode ? '记录中' : '记录'}
+          </TouchableOpacity>
+        </View>
+
+        {/* AI人物头像区域 */}
+        <View style={styles.avatarContainer}>
+          {/* 声波动画 */}
+          {waveAnimations.map((anim, index) => (
+            <Animated.View
+              key={index}
+              style={[
+                styles.wave,
+                {
+                  borderColor: accent,
+                  transform: [{ scale: anim }],
+                  opacity: isAiSpeaking ? 0.3 : 0,
+                },
+              ]}
+            />
+          ))}
+
+          {/* AI头像 */}
+          <View style={[styles.avatar, { backgroundColor: `${accent}20` }]}>
+            <FontAwesome6 name="robot" size={100} color={accent} />
+            {isRecording && (
+              <View style={[styles.recordingIndicator, { backgroundColor: '#EF4444' }]} />
+            )}
+          </View>
+        </View>
+
+        {/* 实时文字显示 */}
+        <View style={styles.textContainer}>
+          {currentInterimText ? (
+            <View style={[styles.messageBubble, { backgroundColor: `${accent}20`, borderColor: accent, borderWidth: 1 }]}>
+              <FontAwesome6 name="user" size={16} color={accent} style={styles.icon} />
+              <Text style={[styles.messageText, { color: foreground }]}>{currentInterimText}</Text>
+            </View>
+          ) : isProcessing ? (
+            <View style={[styles.messageBubble, { backgroundColor: `${surface}`, borderColor: border, borderWidth: 1 }]}>
+              <ActivityIndicator size="small" color={accent} />
+              <Text style={[styles.messageText, { color: muted }]}>正在识别...</Text>
+            </View>
+          ) : latestAiMessage ? (
+            <View style={[styles.messageBubble, { backgroundColor: `${surface}`, borderColor: border, borderWidth: 1 }]}>
+              <FontAwesome6 name="robot" size={16} color={accent} style={styles.icon} />
+              <Text style={[styles.messageText, { color: foreground }]}>{latestAiMessage}</Text>
+            </View>
+          ) : (
+            <Text style={[styles.hintText, { color: muted }]}>
+              {isConnected ? '点击下方按钮开始说话' : '正在连接...'}
             </Text>
+          )}
+        </View>
+
+        {/* 底部控制栏 */}
+        <View style={[styles.footer, { backgroundColor: surface, borderTopColor: border, borderTopWidth: 1 }]}>
+          {/* 挂断按钮 */}
+          <TouchableOpacity
+            style={[styles.endButton, { backgroundColor: '#EF4444' }]}
+            onPress={handleEndCall}
+          >
+            <FontAwesome6 name="phone-slash" size={24} color="#FFFFFF" />
           </TouchableOpacity>
 
           {/* 录音按钮 */}
@@ -469,14 +534,16 @@ export default function VoiceChatRealtimeScreen() {
             activeOpacity={0.8}
           >
             {isRecording ? (
-              <FontAwesome6 name="stop" size={36} color="#FFFFFF" />
+              <FontAwesome6 name="stop" size={40} color="#FFFFFF" />
             ) : (
-              <FontAwesome6 name="microphone" size={36} color="#FFFFFF" />
+              <FontAwesome6 name="microphone" size={40} color="#FFFFFF" />
             )}
           </TouchableOpacity>
 
-          {/* 占位，保持布局平衡 */}
-          <View style={{ width: 80 }} />
+          {/* 麦克风静音按钮 */}
+          <TouchableOpacity style={[styles.muteButton, { backgroundColor: `${surface}`, borderColor: border, borderWidth: 1 }]}>
+            <FontAwesome6 name="microphone-slash" size={24} color={muted} />
+          </TouchableOpacity>
         </View>
       </View>
     </Screen>
@@ -487,99 +554,113 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
+    paddingTop: 60,
+    paddingBottom: 20,
   },
   backButton: {
     padding: 8,
   },
-  headerTitle: {
-    fontSize: 20,
+  statusText: {
+    fontSize: 18,
     fontWeight: '600',
   },
-  content: {
-    flex: 1,
+  recordModeButton: {
+    padding: 8,
   },
-  contentContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 10,
-  },
-  centerContainer: {
+  avatarContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 80,
+    position: 'relative',
   },
-  icon: {
-    marginBottom: 20,
+  wave: {
+    position: 'absolute',
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    borderWidth: 2,
   },
-  welcomeText: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 10,
+  avatar: {
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
   },
-  welcomeSubtext: {
-    fontSize: 14,
-    marginBottom: 20,
+  recordingIndicator: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  textContainer: {
+    paddingHorizontal: 40,
+    paddingVertical: 40,
+    alignItems: 'center',
+    minHeight: 120,
   },
   messageBubble: {
-    maxWidth: '80%',
-    padding: 14,
-    borderRadius: 20,
-    marginBottom: 12,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 20,
+    maxWidth: '100%',
   },
-  aiIcon: {
-    marginRight: 8,
-    marginTop: 2,
+  icon: {
+    marginRight: 12,
   },
   messageText: {
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 18,
+    lineHeight: 26,
     flex: 1,
+    textAlign: 'center',
   },
-  processingText: {
-    fontSize: 14,
-    marginLeft: 8,
+  hintText: {
+    fontSize: 16,
+    textAlign: 'center',
   },
   footer: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 24,
+    paddingHorizontal: 30,
+    paddingTop: 30,
+    paddingBottom: 50,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  recordModeButton: {
-    flexDirection: 'row',
+  endButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    gap: 6,
-  },
-  recordModeText: {
-    fontSize: 13,
-    fontWeight: '500',
   },
   recordButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  muteButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
