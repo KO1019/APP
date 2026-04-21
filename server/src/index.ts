@@ -1093,13 +1093,21 @@ const server = app.listen(port, () => {
 });
 
 server.on('upgrade', (request, socket, head) => {
+  console.log('🔌 WebSocket upgrade request received');
+  console.log('Request URL:', request.url);
+  console.log('Request headers:', JSON.stringify(request.headers, null, 2));
+
   // 只处理 /api/v1/voice/realtime 路径的WebSocket请求
   const pathname = request.url ? new URL(request.url, `http://${request.headers.host}`).pathname : '';
+  console.log('Parsed pathname:', pathname);
+
   if (pathname !== '/api/v1/voice/realtime') {
+    console.log('❌ Rejecting WebSocket upgrade: invalid path');
     socket.destroy();
     return;
   }
 
+  console.log('✅ Accepting WebSocket upgrade for path:', pathname);
   wss.handleUpgrade(request, socket, head, (ws) => {
     wss.emit('connection', ws, request);
   });
