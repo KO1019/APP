@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
@@ -35,6 +35,10 @@ export default function ProfileScreen() {
     deleteAllData,
   } = usePassword();
 
+  const [showHealthTips, setShowHealthTips] = useState(false);
+  const [healthTips, setHealthTips] = useState<any>(null);
+  const [loadingTips, setLoadingTips] = useState(false);
+
   const [background, surface, accent, foreground, muted, border] = useCSSVariable([
     '--color-background',
     '--color-surface',
@@ -43,6 +47,25 @@ export default function ProfileScreen() {
     '--color-muted',
     '--color-border',
   ]) as string[];
+
+  const fetchHealthTips = async () => {
+    try {
+      setLoadingTips(true);
+      /**
+       * 服务端文件：server/src/index.ts
+       * 接口：GET /api/v1/health-tips
+       */
+      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/health-tips`);
+      const data = await response.json();
+      setHealthTips(data);
+      setShowHealthTips(true);
+    } catch (error) {
+      console.error('Error fetching health tips:', error);
+      Toast.show({ type: 'error', text1: '获取建议失败' });
+    } finally {
+      setLoadingTips(false);
+    }
+  };
 
   const menuItems: MenuItem[] = [
     {
@@ -110,6 +133,14 @@ export default function ProfileScreen() {
             },
           ]
         );
+      },
+    },
+    {
+      icon: 'heart-pulse',
+      title: '心理健康建议',
+      subtitle: '基于你的情绪状态',
+      action: () => {
+        fetchHealthTips();
       },
     },
     {
@@ -220,6 +251,56 @@ export default function ProfileScreen() {
           <Text style={[styles.footerVersion, { color: muted }]}>Version 1.0.0</Text>
         </View>
       </ScrollView>
+
+      {/* 健康建议弹窗 */}
+      {showHealthTips && (
+        <TouchableOpacity
+          style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}
+          activeOpacity={1}
+          onPress={() => setShowHealthTips(false)}
+        >
+          <View style={[styles.modalContent, { backgroundColor: surface }]}>
+            <View style={styles.modalHeader}>
+              <FontAwesome6 name="heart-pulse" size={24} color={accent} />
+              <Text style={[styles.modalTitle, { color: foreground }]}>心理健康建议</Text>
+              <TouchableOpacity onPress={() => setShowHealthTips(false)}>
+                <FontAwesome6 name="xmark" size={24} color={muted} />
+              </TouchableOpacity>
+            </View>
+
+            {loadingTips ? (
+              <View style={styles.modalLoading}>
+                <ActivityIndicator size="large" color={accent} />
+                <Text style={[styles.modalLoadingText, { color: muted }]}>正在生成建议...</Text>
+              </View>
+            ) : healthTips ? (
+              <ScrollView style={styles.modalBody}>
+                {healthTips.message && (
+                  <View style={[styles.messageBox, { backgroundColor: `${accent}10`, borderColor: accent, borderWidth: 1 }]}>
+                    <FontAwesome6 name="lightbulb" size={20} color={accent} style={styles.messageBoxIcon} />
+                    <Text style={[styles.messageBoxText, { color: foreground }]}>{healthTips.message}</Text>
+                  </View>
+                )}
+
+                <Text style={[styles.tipsTitle, { color: foreground }]}>建议</Text>
+                {healthTips.tips && healthTips.tips.map((tip: string, index: number) => (
+                  <View key={index} style={[styles.tipItem, { backgroundColor: background, borderColor: border, borderWidth: 1 }]}>
+                    <FontAwesome6 name="circle-check" size={20} color={accent} style={styles.tipIcon} />
+                    <Text style={[styles.tipText, { color: foreground }]}>{tip}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            ) : null}
+
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: accent }]}
+              onPress={() => setShowHealthTips(false)}
+            >
+              <Text style={styles.modalButtonText}>知道了</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      )}
     </Screen>
   );
 }
@@ -307,5 +388,98 @@ const styles = StyleSheet.create({
   },
   footerVersion: {
     fontSize: 12,
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 20,
+    maxHeight: '80%',
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+    gap: 12,
+  },
+  modalTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  modalLoading: {
+    padding: 40,
+    alignItems: 'center',
+    gap: 16,
+  },
+  modalLoadingText: {
+    fontSize: 14,
+  },
+  modalBody: {
+    maxHeight: 400,
+    padding: 20,
+  },
+  messageBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+    gap: 10,
+  },
+  messageBoxIcon: {
+    marginTop: 2,
+  },
+  messageBoxText: {
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  tipsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  tipItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+    gap: 10,
+  },
+  tipIcon: {
+    marginTop: 2,
+  },
+  tipText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  modalButton: {
+    padding: 16,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.1)',
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

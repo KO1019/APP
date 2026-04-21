@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
+import { useFocusEffect } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
@@ -70,9 +71,11 @@ export default function DiaryDetailScreen() {
     }
   }, [id]);
 
-  useEffect(() => {
-    fetchDiaryDetail();
-  }, [fetchDiaryDetail]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchDiaryDetail();
+    }, [fetchDiaryDetail])
+  );
 
   if (loading) {
     return (
@@ -170,6 +173,17 @@ export default function DiaryDetailScreen() {
             <Text style={[styles.contentLabel, { color: muted }]}>日记内容</Text>
             <Text style={[styles.contentText, { color: foreground }]}>{diary.content}</Text>
           </View>
+
+          {/* 与AI聊聊按钮 */}
+          <TouchableOpacity
+            style={[styles.chatButton, { backgroundColor: accent }]}
+            onPress={() => router.push('/chat', { diaryId: diary.id })}
+            activeOpacity={0.8}
+          >
+            <FontAwesome6 name="comments" size={20} color="#FFFFFF" style={styles.chatButtonIcon} />
+            <Text style={styles.chatButtonText}>与AI聊聊</Text>
+            <Text style={[styles.chatButtonSubtitle, { color: `${accent}90` }]}>让AI陪伴你聊聊这篇日记</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </Screen>
@@ -290,5 +304,24 @@ const styles = StyleSheet.create({
   contentText: {
     fontSize: 16,
     lineHeight: 24,
+  },
+  chatButton: {
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    gap: 8,
+  },
+  chatButtonIcon: {
+    marginBottom: 4,
+  },
+  chatButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  chatButtonSubtitle: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });

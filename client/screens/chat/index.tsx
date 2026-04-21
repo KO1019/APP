@@ -15,6 +15,7 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
+  const [suggestedTopics, setSuggestedTopics] = useState<string[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
 
   const [background, surface, accent, foreground, muted, border] = useCSSVariable([
@@ -25,6 +26,21 @@ export default function ChatScreen() {
     '--color-muted',
     '--color-border',
   ]) as string[];
+
+  const fetchSuggestedTopics = async () => {
+    try {
+      /**
+       * 服务端文件：server/src/index.ts
+       * 接口：GET /api/v1/chat/topics
+       */
+      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/chat/topics`);
+      const data = await response.json();
+      setSuggestedTopics(data.topics || []);
+    } catch (error) {
+      console.error('Error fetching suggested topics:', error);
+      setSuggestedTopics([]);
+    }
+  };
 
   const sendMessage = async () => {
     if (!inputText.trim() || loading) return;
@@ -104,8 +120,9 @@ export default function ChatScreen() {
   }, [messages]);
 
   useFocusEffect(() => {
-    // 页面聚焦时加载历史对话
+    // 页面聚焦时加载建议话题
     setMessages([]);
+    fetchSuggestedTopics();
   });
 
   const renderMessage = (message: Message, index: number) => {
@@ -171,15 +188,28 @@ export default function ChatScreen() {
                   随时和我聊聊你的心情，我会在这里倾听和陪伴你
                 </Text>
                 <View style={styles.quickPrompts}>
-                  {['今天感觉很累', '有点焦虑', '分享一件开心的事'].map((prompt, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={[styles.quickPrompt, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}
-                      onPress={() => setInputText(prompt)}
-                    >
-                      <Text style={[styles.quickPromptText, { color: foreground }]}>{prompt}</Text>
-                    </TouchableOpacity>
-                  ))}
+                  {suggestedTopics.length > 0 ? (
+                    suggestedTopics.map((prompt, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={[styles.quickPrompt, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}
+                        onPress={() => setInputText(prompt)}
+                      >
+                        <Text style={[styles.quickPromptText, { color: foreground }]}>{prompt}</Text>
+                      </TouchableOpacity>
+                    ))
+                  ) : (
+                    // 默认提示
+                    ['今天感觉很累', '有点焦虑', '分享一件开心的事'].map((prompt, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={[styles.quickPrompt, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}
+                        onPress={() => setInputText(prompt)}
+                      >
+                        <Text style={[styles.quickPromptText, { color: foreground }]}>{prompt}</Text>
+                      </TouchableOpacity>
+                    ))
+                  )}
                 </View>
               </View>
             ) : (
