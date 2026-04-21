@@ -26,40 +26,36 @@ const port = process.env.PORT || 9091;
 // JWT密钥配置（生产环境应使用环境变量）
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
-// LLM API 配置
-const LLM_BASE_URL = process.env.LLM_BASE_URL || 'https://apis.iflow.cn/v1';
-const LLM_API_KEY = process.env.LLM_API_KEY || '';
+// 豆包ARK API配置（语言模型）
+const ARK_BASE_URL = process.env.ARK_BASE_URL || 'https://ark.cn-beijing.volces.com/api/v3';
+const ARK_API_KEY = process.env.ARK_API_KEY || '';
+const ARK_CHAT_MODEL = process.env.ARK_CHAT_MODEL || 'ep-20250212215003-7j9f8';
 
 // 豆包语音API配置
 const VOLCENGINE_APP_ID = process.env.VOLCENGINE_APP_ID || '';
 const VOLCENGINE_ACCESS_TOKEN = process.env.VOLCENGINE_ACCESS_TOKEN || '';
 const VOLCENGINE_API_KEY = process.env.VOLCENGINE_API_KEY || '';
 
-// 模型配置
-const LLM_CHAT_MODEL = process.env.LLM_CHAT_MODEL || 'Qwen3-Max';
-const LLM_EMOTION_MODEL = process.env.LLM_EMOTION_MODEL || 'Qwen3-Max';
-const LLM_HEALTH_MODEL = process.env.LLM_HEALTH_MODEL || 'Qwen3-Max';
-
-// LLM API 调用函数（使用 iFlow OpenAI 兼容接口）
+// LLM API 调用函数（使用豆包ARK OpenAI 兼容接口）
 async function callLLM(
   messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
-  model: string = LLM_CHAT_MODEL,
+  model: string = ARK_CHAT_MODEL,
   temperature: number = 0.7
 ): Promise<{ content: string }> {
   // 检查 API Key 是否配置
-  if (!LLM_API_KEY || LLM_API_KEY.trim() === '') {
-    console.warn('LLM_API_KEY not configured, using fallback response');
+  if (!ARK_API_KEY || ARK_API_KEY.trim() === '') {
+    console.warn('ARK_API_KEY not configured, using fallback response');
     return {
       content: 'AI 功能暂时不可用',
     };
   }
 
   try {
-    const response = await fetch(`${LLM_BASE_URL}/chat/completions`, {
+    const response = await fetch(`${ARK_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${LLM_API_KEY}`,
+        'Authorization': `Bearer ${ARK_API_KEY}`,
       },
       body: JSON.stringify({
         model,
@@ -70,20 +66,20 @@ async function callLLM(
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`LLM API error: ${response.status} - ${errorText}`);
+      throw new Error(`ARK API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json() as any;
 
     if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      throw new Error('Invalid LLM response format');
+      throw new Error('Invalid ARK response format');
     }
 
     return {
       content: data.choices[0].message.content,
     };
   } catch (error: any) {
-    console.error('Error calling LLM:', error);
+    console.error('Error calling ARK:', error);
     // 返回 fallback 回复
     return {
       content: 'AI 服务暂时不可用',
@@ -91,18 +87,18 @@ async function callLLM(
   }
 }
 
-// 流式 LLM API 调用函数
+// 流式 LLM API 调用函数（使用豆包ARK）
 async function callLLMStream(
   messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
-  model: string = LLM_CHAT_MODEL,
+  model: string = ARK_CHAT_MODEL,
   temperature: number = 0.7,
   onChunk: (chunk: string) => void
 ): Promise<void> {
   // 检查 API Key 是否配置
-  if (!LLM_API_KEY || LLM_API_KEY.trim() === '') {
-    console.warn('LLM_API_KEY not configured, using fallback response');
+  if (!ARK_API_KEY || ARK_API_KEY.trim() === '') {
+    console.warn('ARK_API_KEY not configured, using fallback response');
     // 使用预设回复
-    const fallbackResponse = '抱歉，AI 功能暂时不可用。请先配置 LLM API Key。我可以帮你记录情绪、写日记，或者通过语音聊天来倾诉你的感受。';
+    const fallbackResponse = '抱歉，AI 功能暂时不可用。请先配置豆包 ARK API Key。我可以帮你记录情绪、写日记，或者通过语音聊天来倾诉你的感受。';
     // 模拟流式输出，每次返回一个字符
     for (let i = 0; i < fallbackResponse.length; i++) {
       onChunk(fallbackResponse[i]);
@@ -112,15 +108,15 @@ async function callLLMStream(
   }
 
   try {
-    console.log('Calling LLM API:', LLM_BASE_URL, 'Model:', model);
+    console.log('Calling ARK API:', ARK_BASE_URL, 'Model:', model);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000); // 10秒超时
 
-    const response = await fetch(`${LLM_BASE_URL}/chat/completions`, {
+    const response = await fetch(`${ARK_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${LLM_API_KEY}`,
+        'Authorization': `Bearer ${ARK_API_KEY}`,
       },
       body: JSON.stringify({
         model,
@@ -135,8 +131,8 @@ async function callLLMStream(
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('LLM API error:', response.status, errorText);
-      throw new Error(`LLM API error: ${response.status} - ${errorText}`);
+      console.error('ARK API error:', response.status, errorText);
+      throw new Error(`ARK API error: ${response.status} - ${errorText}`);
     }
 
     const reader = response.body?.getReader();
@@ -172,7 +168,7 @@ async function callLLMStream(
       }
     }
   } catch (error: any) {
-    console.error('Error calling LLM stream:', error.message);
+    console.error('Error calling ARK stream:', error.message);
     // 使用 fallback 回复
     const fallbackResponse = '抱歉，AI 服务暂时不可用。请稍后再试，或者尝试其他功能。';
     for (let i = 0; i < fallbackResponse.length; i++) {
@@ -962,7 +958,7 @@ app.post('/api/v1/chat', authenticateToken, async (req: any, res) => {
     // 调用 LLM 进行流式响应
     let fullResponse = '';
 
-    await callLLMStream(messages, LLM_CHAT_MODEL, 0.8, (chunk) => {
+    await callLLMStream(messages, ARK_CHAT_MODEL, 0.8, (chunk) => {
       fullResponse += chunk;
       res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
     });
@@ -1044,7 +1040,7 @@ async function analyzeEmotionAsync(diaryId: string, content: string) {
       }
     ];
 
-    const response = await callLLM(messages, LLM_EMOTION_MODEL, 0.3);
+    const response = await callLLM(messages, ARK_CHAT_MODEL, 0.3);
 
     // 尝试解析 JSON
     let moodAnalysis = null;
