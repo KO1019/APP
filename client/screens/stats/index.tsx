@@ -4,6 +4,7 @@ import { useFocusEffect } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Diary {
   id: string;
@@ -15,6 +16,7 @@ interface Diary {
 export default function StatsScreen() {
   const [diaries, setDiaries] = useState<Diary[]>([]);
   const [loading, setLoading] = useState(true);
+  const { token } = useAuth();
 
   const [background, surface, accent, foreground, muted, border] = useCSSVariable([
     '--color-background',
@@ -25,14 +27,27 @@ export default function StatsScreen() {
     '--color-border',
   ]) as string[];
 
-  const fetchDiaries = async () => {
+  const fetchDiaries = useCallback(async () => {
     try {
+      // 检查是否已登录
+      if (!token) {
+        console.warn('fetchDiaries: No token, skipping request');
+        setDiaries([]);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       /**
        * 服务端文件：server/src/index.ts
        * 接口：GET /api/v1/diaries
+       * Headers: Authorization: Bearer {token}
        */
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/diaries`);
+      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/diaries`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -57,12 +72,12 @@ export default function StatsScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   useFocusEffect(
     useCallback(() => {
       fetchDiaries();
-    }, [])
+    }, [fetchDiaries])
   );
 
   const getMoodStats = () => {
