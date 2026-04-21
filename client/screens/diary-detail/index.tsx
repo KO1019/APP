@@ -220,7 +220,7 @@ export default function DiaryDetailScreen() {
           {/* 与AI聊聊按钮 */}
           <TouchableOpacity
             style={[styles.chatButton, { backgroundColor: accent }]}
-            onPress={() => router.push('/chat', { diaryId: diary.id })}
+            onPress={() => router.push('/ai-companion', { diaryId: diary.id })}
             activeOpacity={0.8}
           >
             <FontAwesome6 name="comments" size={20} color="#FFFFFF" style={styles.chatButtonIcon} />

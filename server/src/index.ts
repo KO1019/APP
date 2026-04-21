@@ -558,6 +558,140 @@ app.get('/api/v1/chat/topics', authenticateToken, async (req: any, res) => {
   }
 });
 
+// AI陪伴聊天
+app.post('/api/v1/ai-companion/chat', authenticateToken, async (req: any, res) => {
+  try {
+    const { message, relatedDiaryId, conversationHistory } = req.body;
+
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ error: '消息不能为空' });
+    }
+
+    const client = getSupabaseClient();
+
+    // 获取相关日记内容（如果提供了relatedDiaryId）
+    let diaryContext = '';
+    if (relatedDiaryId) {
+      const { data: diary } = await client
+        .from('diaries')
+        .select('*')
+        .eq('id', relatedDiaryId)
+        .eq('user_id', req.userId)
+        .single();
+
+      if (diary) {
+        diaryContext = `\n相关日记信息：\n标题：${diary.title}\n心情：${diary.mood}\n内容：${diary.content}\n时间：${diary.created_at}\n`;
+      }
+    }
+
+    // 如果没有提供对话历史，从数据库加载最近的对话记录
+    let historyContext = '';
+    if (!conversationHistory || conversationHistory.length === 0) {
+      const { data: conversations } = await client
+        .from('conversations')
+        .select('*')
+        .eq('user_id', req.userId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (conversations && conversations.length > 0) {
+        historyContext = '\n最近对话记录：\n' + conversations.map((conv: any) =>
+          `用户：${conv.user_message}\nAI：${conv.ai_message}\n`
+        ).join('\n');
+      }
+    } else {
+      // 使用提供的对话历史
+      historyContext = '\n对话历史：\n' + conversationHistory.map((msg: any) =>
+        `${msg.role === 'user' ? '用户' : 'AI'}：${msg.content}\n`
+      ).join('\n');
+    }
+
+    // 构建系统提示词
+    const systemPrompt = `你是一个温暖、专业、富有同理心的AI心理陪伴助手。你的核心价值是：
+1. 认真倾听用户的心声，理解用户的情绪状态
+2. 提供专业、实用的心理健康建议
+3. 帮助用户建立积极的自我认知和情绪管理能力
+4. 始终保持温暖、耐心的态度，不做评判
+
+当前时间：${new Date().toLocaleString('zh-CN')}
+
+请以温暖、专业的语气回复用户。回复要简洁、真诚，避免过于生硬的建议。
+
+${diaryContext}${historyContext}`;
+
+    // 调用豆包ARK API
+    const arkResponse = await fetch('https://ark.cn-beijing.volces.com/api/v3/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.ARK_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: process.env.ARK_CHAT_MODEL || 'ep-20260422021537-l7jth',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: message }
+        ],
+        temperature: 0.7,
+        max_tokens: 1000
+      })
+    });
+
+    if (!arkResponse.ok) {
+      throw new Error('豆包API调用失败');
+    }
+
+    const arkData = await arkResponse.json() as { choices: [{ message: { content: string } }] };
+    const aiMessage = arkData.choices[0].message.content;
+
+    // 保存对话到数据库
+    await client.from('conversations').insert({
+      user_id: req.userId,
+      user_message: message,
+      ai_message: aiMessage,
+      related_diary_id: relatedDiaryId || null
+    });
+
+    res.json({
+      message: aiMessage,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('Error in AI companion chat:', error);
+    res.status(500).json({ error: 'AI回复失败，请稍后重试' });
+  }
+});
+
+// 获取对话历史
+app.get('/api/v1/conversations', authenticateToken, async (req: any, res) => {
+  try {
+    const client = getSupabaseClient();
+    const { data: conversations } = await client
+      .from('conversations')
+      .select('*')
+      .eq('user_id', req.userId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    res.json(conversations || []);
+  } catch (error: any) {
+    console.error('Error fetching conversations:', error);
+    res.status(500).json({ error: '获取对话历史失败' });
+  }
+});
+
+// 新建对话（清空历史，实际上是创建新的对话组）
+app.post('/api/v1/conversations/new', authenticateToken, async (req: any, res) => {
+  try {
+    // 实际上不需要做太多，因为前端会清空本地状态
+    // 我们可以在这里记录一次新建对话的操作
+    res.json({ success: true, message: '新建对话成功' });
+  } catch (error: any) {
+    console.error('Error creating new conversation:', error);
+    res.status(500).json({ error: '新建对话失败' });
+  }
+});
+
 // 获取心理健康建议
 app.get('/api/v1/health-tips', authenticateToken, async (req: any, res) => {
   try {
@@ -757,7 +891,7 @@ app.post('/api/v1/voice/chat', authenticateToken, upload.single('audio'), async 
         }
 
         // 调用 LLM（可能会失败）
-        const response = await callLLM(messages, LLM_CHAT_MODEL, 0.7);
+        const response = await callLLM(messages, ARK_CHAT_MODEL, 0.7);
         aiResponse = response.content;
       } catch (llmError) {
         console.error('LLM call failed, using fallback response:', llmError);
@@ -829,7 +963,7 @@ async function synthesizeSpeech(text: string): Promise<string> {
   try {
     console.log('Synthesizing speech for:', text);
 
-    if (!VOLCENGINE_APP_ID || !VOLCENGINE_ACCESS_TOKEN) {
+    if (!VOLCENGINE_SPEECH_APP_ID || !VOLCENGINE_ACCESS_TOKEN) {
       console.warn('豆包语音API配置缺失，返回模拟URL');
       return 'https://example.com/speech.mp3';
     }
@@ -838,7 +972,7 @@ async function synthesizeSpeech(text: string): Promise<string> {
 
     const requestBody = {
       app: {
-        appid: VOLCENGINE_APP_ID,
+        appid: VOLCENGINE_SPEECH_APP_ID,
         token: VOLCENGINE_ACCESS_TOKEN,
         cluster: 'volcano_tts',
       },
@@ -1343,7 +1477,7 @@ wss.on('connection', (ws: WebSocket, request) => {
           console.log('✅ Connection ready message sent');
         } else {
           switch (frame.eventId) {
-            case EventId.ASR_RESPONSE:
+            case EventId.ASRResponse:
               // 语音识别结果
               try {
                 const asrResult = JSON.parse(frame.payload.toString('utf-8'));
@@ -1357,7 +1491,7 @@ wss.on('connection', (ws: WebSocket, request) => {
               }
               break;
 
-          case EventId.CHAT_RESPONSE:
+          case EventId.ChatResponse:
             // AI回复文本
             try {
               const chatResponse = JSON.parse(frame.payload.toString('utf-8'));
@@ -1371,7 +1505,7 @@ wss.on('connection', (ws: WebSocket, request) => {
             }
             break;
 
-          case EventId.TTS_RESPONSE:
+          case EventId.TTSResponse:
             // 音频数据
             ws.send(JSON.stringify({
               type: 'tts_audio',
@@ -1379,18 +1513,8 @@ wss.on('connection', (ws: WebSocket, request) => {
             }));
             break;
 
-          case EventId.TTS_SENTENCE_START:
-            // TTS开始
-            try {
-              const ttsStart = JSON.parse(frame.payload.toString('utf-8'));
-              ws.send(JSON.stringify({
-                type: 'tts_start',
-                data: ttsStart,
-              }));
-            } catch (e) {
-              console.error('Failed to parse TTS start:', e);
-            }
-            break;
+          // TTS_SENTENCE_START event does not exist in the official protocol
+          // Skip this case
 
           case 550:
             // ChatResponse - 聊天回复文本
@@ -1406,7 +1530,7 @@ wss.on('connection', (ws: WebSocket, request) => {
             }
             break;
 
-          case EventId.CHAT_ENDED:
+          case EventId.ChatEnded:
             // 聊天结束
             try {
               const chatEnded = JSON.parse(frame.payload.toString('utf-8'));

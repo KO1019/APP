@@ -48,7 +48,7 @@ export default function WriteDiaryScreen() {
 
   // AI 小精灵相关 state
   const [aiAssistantVisible, setAiAssistantVisible] = useState(false);
-  const [emotionResult, setEmotionResult] = useState<{ summary?: string } | null>(null);
+  const [aiSuggestion, setAiSuggestion] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiPan] = useState(new Animated.ValueXY({ x: 0, y: 0 }));
 
@@ -153,8 +153,8 @@ export default function WriteDiaryScreen() {
   };
 
   // 实时情绪分析
-  const analyzeEmotion = (text: string): (() => void) | undefined => {
-    if (!text.trim() || text.length < 10 || offlineMode) return undefined;
+  const analyzeEmotion = async (text: string) => {
+    if (!text.trim() || text.length < 10 || offlineMode) return;
 
     // 防抖，避免频繁请求
     const delay = 1500;
@@ -179,7 +179,7 @@ export default function WriteDiaryScreen() {
 
         if (response.ok) {
           const data = await response.json();
-          setEmotionResult({ summary: data.message });
+          setAiSuggestion(data.message);
           setAiAssistantVisible(true);
         }
       } catch (error) {
@@ -195,9 +195,7 @@ export default function WriteDiaryScreen() {
   // 监听内容变化，触发情绪分析
   useEffect(() => {
     const cleanup = analyzeEmotion(content);
-    if (cleanup) {
-      return cleanup;
-    }
+    return cleanup;
   }, [content, token, offlineMode]);
 
   return (
@@ -352,7 +350,7 @@ export default function WriteDiaryScreen() {
                     </View>
                   ))}
                 </View>
-              )}
+              </View>
             </View>
 
             {/* AI小精灵助手 */}
@@ -532,9 +530,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     marginRight: 6,
-  },
-  removeTag: {
-    marginLeft: 4,
   },
   aiAssistant: {
     marginTop: 20,

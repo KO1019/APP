@@ -144,6 +144,14 @@ export default function ProfileScreen() {
       },
     },
     {
+      icon: 'robot',
+      title: 'AI 陪伴',
+      subtitle: '与AI助手深度对话',
+      action: () => {
+        router.push('/ai-companion');
+      },
+    },
+    {
       icon: 'shield-halved',
       title: '隐私设置',
       subtitle: '数据加密、安全防护',

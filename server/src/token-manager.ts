@@ -87,7 +87,10 @@ async function fetchAccessToken(
       throw new Error(`Failed to get Access Token: ${response.status} - ${errorText}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as {
+      Error?: { Code: string; Message: string };
+      Result?: { AccessToken: string };
+    };
 
     // 解析返回的 Token
     if (data.Error) {

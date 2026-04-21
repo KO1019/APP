@@ -32,33 +32,30 @@ const GZIP = 0b0001;
 const CUSTOM_COMPRESSION = 0b1111;
 
 // 事件ID
-export enum EventId {
-  // 客户端事件
-  StartConnection = 1,
-  StartSession = 100,
-  FinishSession = 102,
-  TaskRequest = 200,
-  SayHello = 300,
-  EndASR = 400,
-  ChatTTSText = 500,
-  ChatTextQuery = 501,
-  ChatRAGText = 502,
-  UpdateConfig = 201,
-
-  // 服务端事件
-  ConnectionStarted = 50,
-  ConnectionFailed = 51,
-  SessionStarted = 150,
-  SessionFailed = 153,
-  UsageResponse = 154,
-  TTSResponse = 352,
-  ASRInfo = 450,
-  ASRResponse = 451,
-  ASREnded = 459,
-  ChatResponse = 550,
-  ChatEnded = 559,
-  DialogCommonError = 599,
-}
+export const EventId = {
+  StartConnection: 1,
+  StartSession: 100,
+  FinishSession: 102,
+  TaskRequest: 200,
+  SayHello: 300,
+  EndASR: 400,
+  ChatTTSText: 500,
+  ChatTextQuery: 501,
+  ChatRAGText: 502,
+  UpdateConfig: 201,
+  ConnectionStarted: 50,
+  ConnectionFailed: 51,
+  SessionStarted: 150,
+  SessionFailed: 153,
+  UsageResponse: 154,
+  TTSResponse: 352,
+  ASRInfo: 450,
+  ASRResponse: 451,
+  ASREnded: 459,
+  ChatResponse: 550,
+  ChatEnded: 559,
+  DialogCommonError: 599,
+} as const;
 
 /**
  * 构建二进制header（参考Python示例的generate_header函数）
@@ -115,7 +112,7 @@ export function buildStartConnectionFrame(): Buffer {
   eventBuffer.writeUInt32BE(EventId.StartConnection, 0);
 
   // payload (empty JSON: {})
-  let payload = JSON.stringify({});
+  let payload: Buffer | string = JSON.stringify({});
   if (useCompression) {
     payload = zlib.gzipSync(Buffer.from(payload, 'utf-8'));
   } else {
@@ -154,7 +151,7 @@ export function buildStartSessionFrame(sessionId: string, dialogConfig: Record<s
   sessionIdSizeBuffer.writeUInt32BE(sessionIdBuffer.length, 0);
 
   // payload
-  let payload = JSON.stringify({ dialog: dialogConfig });
+  let payload: Buffer | string = JSON.stringify({ dialog: dialogConfig });
   if (useCompression) {
     payload = zlib.gzipSync(Buffer.from(payload, 'utf-8'));
   } else {
@@ -302,7 +299,7 @@ export function buildChatTextQueryFrame(sessionId: string, text: string): Buffer
   eventBuffer.writeUInt32BE(EventId.ChatTextQuery, 0);
 
   // payload
-  let payload = JSON.stringify({ content: text });
+  let payload: Buffer | string = JSON.stringify({ content: text });
   if (useCompression) {
     payload = zlib.gzipSync(Buffer.from(payload, 'utf-8'));
   } else {
@@ -348,7 +345,7 @@ export function buildFinishSessionFrame(sessionId: string): Buffer {
   eventBuffer.writeUInt32BE(EventId.FinishSession, 0);
 
   // payload (empty JSON: {})
-  let payload = JSON.stringify({});
+  let payload: Buffer | string = JSON.stringify({});
   if (useCompression) {
     payload = zlib.gzipSync(Buffer.from(payload, 'utf-8'));
   } else {
@@ -394,7 +391,7 @@ export function buildFinishConnectionFrame(): Buffer {
   eventBuffer.writeUInt32BE(EventId.ConnectionFailed, 0);
 
   // payload (empty JSON: {})
-  let payload = JSON.stringify({});
+  let payload: Buffer | string = JSON.stringify({});
   if (useCompression) {
     payload = zlib.gzipSync(Buffer.from(payload, 'utf-8'));
   } else {
