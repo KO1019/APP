@@ -501,10 +501,10 @@ export default function VoiceChatRealtimeScreen() {
 
         {/* 配置提示 */}
         {!isConnected && (
-          <View style={[styles.configWarning, { backgroundColor: '#FFF3CD', borderColor: '#FFC107', borderWidth: 1 }]}>
-            <FontAwesome6 name="triangle-exclamation" size={16} color="#856404" />
-            <Text style={[styles.configWarningText, { color: '#856404' }]}>
-              语音聊天需要配置豆包 API 才能使用
+          <View style={[styles.configWarning, { backgroundColor: '#E3F2FD', borderColor: '#2196F3', borderWidth: 1 }]}>
+            <FontAwesome6 name="spinner" size={16} color="#1976D2" />
+            <Text style={[styles.configWarningText, { color: '#1976D2' }]}>
+              正在连接语音服务...
             </Text>
           </View>
         )}

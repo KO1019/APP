@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import { WebSocketServer, WebSocket } from 'ws';
 import { getSupabaseClient } from "./storage/database/supabase-client";
+import { getAccessToken } from './token-manager';
 import {
   buildStartConnectionFrame,
   buildStartSessionFrame,
@@ -1123,29 +1124,21 @@ wss.on('connection', (ws: WebSocket, request) => {
         return;
       }
 
-      // TODO: 实现获取Access Token的逻辑
-      // 需要调用火山引擎API获取有效的Access Token
-      const errorMsg = '语音功能正在完善中，请使用文本聊天功能';
-      console.error(errorMsg);
-      ws.send(JSON.stringify({
-        type: 'error',
-        message: errorMsg,
-        hint: '建议使用文本聊天功能进行对话'
-      }));
-      return;
+      // 获取有效的Access Token
+      console.log('🔑 Getting Access Token...');
+      const accessToken = await getAccessToken(VOLCENGINE_SPEECH_APP_ID, VOLCENGINE_SPEECH_SECRET_KEY);
 
-      /* 
-      // 以下代码需要有效的Access Token才能工作
-      console.log('Connecting to Volcengine API...');
+      // 连接到豆包实时语音API
+      console.log('🔌 Connecting to Volcengine API...');
       console.log('APP ID:', VOLCENGINE_SPEECH_APP_ID);
-      console.log('Access Token:', VOLCENGINE_ACCESS_TOKEN.substring(0, 20) + '...');
+      console.log('Access Token:', accessToken.substring(0, 20) + '...');
 
       volcWs = new WebSocket(
         'wss://openspeech.bytedance.com/api/v3/realtime/dialogue',
         {
           headers: {
-            'X-Api-App-ID': VOLCENGINE_APP_ID,
-            'X-Api-Access-Key': VOLCENGINE_ACCESS_TOKEN,
+            'X-Api-App-ID': VOLCENGINE_SPEECH_APP_ID,
+            'X-Api-Access-Key': accessToken,
             'X-Api-Resource-Id': 'volc.speech.dialog',
             'X-Api-App-Key': 'PlgvMymc7f3tQnJ6',
           },
@@ -1289,7 +1282,6 @@ wss.on('connection', (ws: WebSocket, request) => {
           reason: reason?.toString() || 'Unknown',
         }));
       });
-      */
     } catch (error: any) {
       console.error('Failed to connect to Volcengine:', error);
       ws.send(JSON.stringify({ type: 'error', message: error.message }));
