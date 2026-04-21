@@ -32,8 +32,8 @@ const ARK_API_KEY = process.env.ARK_API_KEY || '';
 const ARK_CHAT_MODEL = process.env.ARK_CHAT_MODEL || 'ep-20250212215003-7j9f8';
 
 // 豆包语音API配置
-const VOLCENGINE_APP_ID = process.env.VOLCENGINE_APP_ID || '';
-const VOLCENGINE_ACCESS_TOKEN = process.env.VOLCENGINE_ACCESS_TOKEN || '';
+const VOLCENGINE_SPEECH_APP_ID = process.env.VOLCENGINE_SPEECH_APP_ID || '';
+const VOLCENGINE_SPEECH_SECRET_KEY = process.env.VOLCENGINE_SPEECH_SECRET_KEY || '';
 const VOLCENGINE_API_KEY = process.env.VOLCENGINE_API_KEY || '';
 
 // LLM API 调用函数（使用豆包ARK OpenAI 兼容接口）
@@ -1112,16 +1112,32 @@ wss.on('connection', (ws: WebSocket, request) => {
   // 连接到豆包实时语音API
   const connectToVolcengine = async () => {
     try {
-      if (!VOLCENGINE_APP_ID || !VOLCENGINE_ACCESS_TOKEN) {
-        const errorMsg = '豆包API配置缺失';
+      if (!VOLCENGINE_SPEECH_APP_ID || !VOLCENGINE_SPEECH_SECRET_KEY) {
+        const errorMsg = '豆包语音API配置缺失，请在.env文件中配置VOLCENGINE_SPEECH_APP_ID和VOLCENGINE_SPEECH_SECRET_KEY';
         console.error(errorMsg);
-        ws.send(JSON.stringify({ type: 'error', message: errorMsg }));
-        ws.close();
+        ws.send(JSON.stringify({
+          type: 'error',
+          message: errorMsg,
+          hint: '请使用文本聊天功能进行对话，语音功能暂时不可用'
+        }));
         return;
       }
 
+      // TODO: 实现获取Access Token的逻辑
+      // 需要调用火山引擎API获取有效的Access Token
+      const errorMsg = '语音功能正在完善中，请使用文本聊天功能';
+      console.error(errorMsg);
+      ws.send(JSON.stringify({
+        type: 'error',
+        message: errorMsg,
+        hint: '建议使用文本聊天功能进行对话'
+      }));
+      return;
+
+      /* 
+      // 以下代码需要有效的Access Token才能工作
       console.log('Connecting to Volcengine API...');
-      console.log('APP ID:', VOLCENGINE_APP_ID);
+      console.log('APP ID:', VOLCENGINE_SPEECH_APP_ID);
       console.log('Access Token:', VOLCENGINE_ACCESS_TOKEN.substring(0, 20) + '...');
 
       volcWs = new WebSocket(
@@ -1261,11 +1277,6 @@ wss.on('connection', (ws: WebSocket, request) => {
         }
       });
 
-      volcWs.on('error', (error) => {
-        console.error('Volcengine WebSocket error:', error);
-        ws.send(JSON.stringify({ type: 'error', message: '豆包连接错误' }));
-      });
-
       volcWs.on('close', (code, reason) => {
         console.log('❌ Volcengine connection closed:', {
           code,
@@ -1278,6 +1289,7 @@ wss.on('connection', (ws: WebSocket, request) => {
           reason: reason?.toString() || 'Unknown',
         }));
       });
+      */
     } catch (error: any) {
       console.error('Failed to connect to Volcengine:', error);
       ws.send(JSON.stringify({ type: 'error', message: error.message }));
