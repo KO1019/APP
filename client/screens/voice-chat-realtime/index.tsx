@@ -480,13 +480,47 @@ export default function VoiceChatRealtimeScreen() {
             />
           ))}
 
-          {/* AI头像 */}
-          <View style={[styles.avatar, { backgroundColor: `${accent}20` }]}>
-            <FontAwesome6 name="robot" size={100} color={accent} />
+          {/* 可爱陪伴机器人 */}
+          <View style={[styles.robotHead, { backgroundColor: surface }]}>
+            {/* 天线 */}
+            <View style={[styles.antenna, { backgroundColor: accent }]} />
+            <View style={[styles.antennaBall, { backgroundColor: '#FF6B9D' }]} />
+
+            {/* 左耳 */}
+            <View style={[styles.ear, { backgroundColor: `${accent}40`, left: -15 }]} />
+
+            {/* 右耳 */}
+            <View style={[styles.ear, { backgroundColor: `${accent}40`, right: -15 }]} />
+
+            {/* 左眼 */}
+            <View style={[styles.eye, { backgroundColor: foreground, left: 45 }]} />
+
+            {/* 右眼 */}
+            <View style={[styles.eye, { backgroundColor: foreground, right: 45 }]} />
+
+            {/* 眼睛高光 */}
+            <View style={[styles.eyeShine, { backgroundColor: '#FFFFFF', left: 50, top: 105 }]} />
+            <View style={[styles.eyeShine, { backgroundColor: '#FFFFFF', right: 50, top: 105 }]} />
+
+            {/* 微笑嘴巴 */}
+            <View style={[styles.mouth, { borderColor: '#FF6B9D' }]}>
+              <View style={[styles.tongue, { backgroundColor: '#FF6B9D' }]} />
+            </View>
+
+            {/* 脸颊红晕 */}
+            <View style={[styles.cheek, { backgroundColor: '#FF6B9D30', left: 30, top: 130 }]} />
+            <View style={[styles.cheek, { backgroundColor: '#FF6B9D30', right: 30, top: 130 }]} />
+
+            {/* 录音指示器 */}
             {isRecording && (
-              <View style={[styles.recordingIndicator, { backgroundColor: '#EF4444' }]} />
+              <View style={[styles.recordingIndicator, { backgroundColor: '#EF4444' }]}>
+                <FontAwesome6 name="circle" size={8} color="#FFFFFF" />
+              </View>
             )}
           </View>
+
+          {/* 阴影效果 */}
+          <View style={[styles.avatarShadow, { backgroundColor: `${foreground}10` }]} />
         </View>
 
         {/* 实时文字显示 */}
@@ -580,28 +614,113 @@ const styles = StyleSheet.create({
   },
   wave: {
     position: 'absolute',
-    width: 250,
-    height: 250,
-    borderRadius: 125,
-    borderWidth: 2,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    borderWidth: 3,
   },
-  avatar: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
+  robotHead: {
+    width: 180,
+    height: 200,
+    borderRadius: 90,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  antenna: {
+    position: 'absolute',
+    top: -30,
+    width: 4,
+    height: 35,
+    borderRadius: 2,
+  },
+  antennaBall: {
+    position: 'absolute',
+    top: -40,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  ear: {
+    position: 'absolute',
+    width: 30,
+    height: 50,
+    borderRadius: 15,
+    top: 70,
+  },
+  eye: {
+    position: 'absolute',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    top: 75,
+  },
+  eyeShine: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    top: 80,
+  },
+  mouth: {
+    position: 'absolute',
+    width: 60,
+    height: 30,
+    borderRadius: 30,
+    bottom: 40,
+    borderTopWidth: 4,
+    borderBottomWidth: 0,
+    borderLeftWidth: 0,
+    borderRightWidth: 0,
+    overflow: 'hidden',
+  },
+  tongue: {
+    position: 'absolute',
+    bottom: 0,
+    left: 15,
+    width: 30,
+    height: 15,
+    borderRadius: 15,
+  },
+  cheek: {
+    position: 'absolute',
+    width: 25,
+    height: 20,
+    borderRadius: 12.5,
   },
   recordingIndicator: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    top: -10,
+    right: -10,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  avatarShadow: {
+    position: 'absolute',
+    width: 160,
+    height: 20,
+    borderRadius: 80,
+    bottom: -30,
   },
   textContainer: {
     paddingHorizontal: 40,
