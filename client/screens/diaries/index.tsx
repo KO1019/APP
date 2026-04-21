@@ -52,7 +52,7 @@ const emotionLabels: Record<string, string> = {
 export default function DiariesScreen() {
   const router = useSafeRouter();
   const { isLocked, hasPassword, lockApp, decryptData, offlineMode } = usePassword();
-  const { isAuthenticated, isLoading: authLoading, token } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, token, logout } = useAuth();
 
   const [diaries, setDiaries] = useState<Diary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,6 +95,15 @@ export default function DiariesScreen() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+
+        // 处理 401 或 403 错误，自动登出
+        if (response.status === 401 || response.status === 403) {
+          console.error('Token invalid, logging out');
+          logout();
+          router.replace('/login');
+          return;
+        }
+
         throw new Error(errorData.error || `HTTP ${response.status}`);
       }
 
@@ -145,8 +154,10 @@ export default function DiariesScreen() {
       }
 
       // 已登录，加载数据
-      fetchDiaries();
-    }, [isAuthenticated, authLoading, fetchDiaries])
+      if (!authLoading && isAuthenticated) {
+        fetchDiaries();
+      }
+    }, [authLoading, isAuthenticated])
   );
 
   const onRefresh = () => {
