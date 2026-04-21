@@ -1,9 +1,18 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Platform } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CryptoJS from 'crypto-js';
+
+// 动态导入 SecureStore（仅移动端）
+let SecureStore: any = null;
+if (Platform.OS !== 'web') {
+  try {
+    SecureStore = require('expo-secure-store');
+  } catch (e) {
+    console.warn('expo-secure-store not available');
+  }
+}
 
 export type PasswordType = 'pin' | 'pattern' | 'biometric';
 
@@ -70,35 +79,32 @@ export function PasswordProvider({ children }: { children: React.ReactNode }) {
   const [encryptionKey, setEncryptionKey] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isWeb) {
-      setIsLocked(false);
-      return;
+    if (!isWeb) {
+      const init = async () => {
+        const password = await getSecureItemAsync(PASSWORD_KEY);
+        setHasPassword(!!password);
+      };
+      init();
+
+      const checkBio = async () => {
+        const compatible = await LocalAuthentication.hasHardwareAsync();
+        const enrolled = await LocalAuthentication.isEnrolledAsync();
+        setCanUseBiometric(compatible && enrolled);
+      };
+      checkBio();
+
+      const load = async () => {
+        const biometric = await getSecureItemAsync(BIOMETRIC_KEY);
+        setBiometricEnabled(biometric === 'true');
+
+        const offline = await getSecureItemAsync(OFFLINE_MODE_KEY);
+        setOfflineMode(offline === 'true');
+
+        const key = await getSecureItemAsync(ENCRYPTION_KEY);
+        if (key) setEncryptionKey(key);
+      };
+      load();
     }
-
-    const init = async () => {
-      const password = await getSecureItemAsync(PASSWORD_KEY);
-      setHasPassword(!!password);
-    };
-    init();
-
-    const checkBio = async () => {
-      const compatible = await LocalAuthentication.hasHardwareAsync();
-      const enrolled = await LocalAuthentication.isEnrolledAsync();
-      setCanUseBiometric(compatible && enrolled);
-    };
-    checkBio();
-
-    const load = async () => {
-      const biometric = await getSecureItemAsync(BIOMETRIC_KEY);
-      setBiometricEnabled(biometric === 'true');
-
-      const offline = await getSecureItemAsync(OFFLINE_MODE_KEY);
-      setOfflineMode(offline === 'true');
-
-      const key = await getSecureItemAsync(ENCRYPTION_KEY);
-      if (key) setEncryptionKey(key);
-    };
-    load();
   }, []);
 
   const lockApp = useCallback(() => {
