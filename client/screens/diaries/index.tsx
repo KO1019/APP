@@ -1,0 +1,261 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
+import { useSafeRouter } from '@/hooks/useSafeRouter';
+import { Screen } from '@/components/Screen';
+import { FontAwesome6 } from '@expo/vector-icons';
+import { useCSSVariable } from 'uniwind';
+
+interface Diary {
+  id: string;
+  content: string;
+  mood: string | null;
+  mood_intensity: number | null;
+  mood_analysis: any;
+  created_at: string;
+}
+
+const emotionColors: Record<string, string> = {
+  '愉悦': '#4ade80',
+  '悲伤': '#60a5fa',
+  '焦虑': '#fbbf24',
+  '愤怒': '#f87171',
+  '恐惧': '#c084fc',
+  '惊讶': '#f472b6',
+  '厌恶': '#94a3b8',
+  '孤独': '#818cf8',
+  '平静': '#2dd4bf',
+  '兴奋': '#fb923c',
+  '未识别': '#94a3b8',
+};
+
+export default function DiariesScreen() {
+  const router = useSafeRouter();
+  const [diaries, setDiaries] = useState<Diary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [background, surface, accent, foreground, muted, border] = useCSSVariable([
+    '--color-background',
+    '--color-surface',
+    '--color-accent',
+    '--color-foreground',
+    '--color-muted',
+    '--color-border',
+  ]) as string[];
+
+  const fetchDiaries = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/diaries`);
+      const data = await response.json();
+      setDiaries(data);
+    } catch (error) {
+      console.error('Error fetching diaries:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDiaries();
+  }, [fetchDiaries]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchDiaries();
+  };
+
+  const renderDiaryItem = ({ item }: { item: Diary }) => {
+    const date = new Date(item.created_at);
+    const dateStr = date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+    const timeStr = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+
+    const emotionColor = item.mood ? emotionColors[item.mood] || emotionColors['未识别'] : emotionColors['未识别'];
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.diaryCard,
+          {
+            backgroundColor: surface,
+            borderColor: border,
+          }
+        ]}
+        onPress={() => router.push('/diary-detail', { id: item.id })}
+      >
+        <View style={styles.diaryHeader}>
+          <View style={styles.dateContainer}>
+            <Text style={[styles.dateText, { color: muted }]}>{dateStr}</Text>
+            <Text style={[styles.timeText, { color: muted }]}>{timeStr}</Text>
+          </View>
+          {item.mood && (
+            <View style={[
+              styles.emotionTag,
+              { backgroundColor: `${emotionColor}20` }
+            ]}>
+              <View style={[styles.emotionDot, { backgroundColor: emotionColor }]} />
+              <Text style={[styles.emotionText, { color: foreground }]}>{item.mood}</Text>
+            </View>
+          )}
+        </View>
+        <Text style={[styles.diaryContent, { color: foreground }]} numberOfLines={3}>
+          {item.content}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderEmpty = () => (
+    <View style={styles.emptyContainer}>
+      <FontAwesome6 name="book-open" size={64} color={muted} style={styles.emptyIcon} />
+      <Text style={[styles.emptyText, { color: muted }]}>还没有日记</Text>
+      <Text style={[styles.emptySubtext, { color: muted }]}>点击下方按钮开始记录</Text>
+    </View>
+  );
+
+  return (
+    <Screen>
+      <View style={[styles.container, { backgroundColor: background }]}>
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: foreground }]}>我的日记</Text>
+          <Text style={[styles.subtitle, { color: muted }]}>记录每一天的心情</Text>
+        </View>
+
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={accent} />
+          </View>
+        ) : (
+          <FlatList
+            data={diaries}
+            renderItem={renderDiaryItem}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={renderEmpty}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={accent}
+              />
+            }
+          />
+        )}
+
+        <TouchableOpacity
+          style={[styles.fab, { backgroundColor: accent }]}
+          onPress={() => router.push('/write-diary')}
+        >
+          <FontAwesome6 name="plus" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '700',
+  },
+  subtitle: {
+    fontSize: 14,
+    marginTop: 4,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  listContent: {
+    padding: 16,
+    gap: 12,
+    paddingBottom: 100,
+  },
+  diaryCard: {
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+  },
+  diaryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  dateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dateText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  timeText: {
+    fontSize: 12,
+  },
+  emotionTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    gap: 6,
+  },
+  emotionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  emotionText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  diaryContent: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyIcon: {
+    marginBottom: 16,
+    opacity: 0.5,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 100,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+});
