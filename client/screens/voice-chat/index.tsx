@@ -18,6 +18,7 @@ export default function VoiceChatScreen() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [aiResponse, setAiResponse] = useState<string | null>(null);
   const [userText, setUserText] = useState<string | null>(null);
+  const [currentAudioUrl, setCurrentAudioUrl] = useState<string | null>(null);
 
   const recordingRef = useRef<Audio.Recording | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
@@ -115,8 +116,13 @@ export default function VoiceChatScreen() {
 
       // 如果有音频URL，自动播放
       if (data.audioUrl && data.audioUrl !== 'https://example.com/speech.mp3') {
-        await playAudio(data.audioUrl);
-      } else {
+        // 构建完整的音频URL
+        const fullAudioUrl = data.audioUrl.startsWith('http')
+          ? data.audioUrl
+          : `${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}${data.audioUrl}`;
+        setCurrentAudioUrl(fullAudioUrl);
+        await playAudio(fullAudioUrl);
+      } else if (aiResponse) {
         Toast.show({ type: 'success', text1: '对话完成', text2: '请查看回复文本' });
       }
     } catch (error: any) {
@@ -274,12 +280,16 @@ export default function VoiceChatScreen() {
           {/* 播放按钮 */}
           <TouchableOpacity
             style={[styles.playButton, { backgroundColor: `${foreground}10` }]}
-            onPress={() => {
-              if (aiResponse) {
-                Toast.show({ type: 'info', text1: '语音合成功能开发中' });
+            onPress={async () => {
+              if (currentAudioUrl) {
+                try {
+                  await playAudio(currentAudioUrl);
+                } catch (error) {
+                  Toast.show({ type: 'error', text1: '播放失败' });
+                }
               }
             }}
-            disabled={!aiResponse || isPlaying}
+            disabled={!currentAudioUrl || isPlaying}
             activeOpacity={0.8}
           >
             <FontAwesome6 name={isPlaying ? 'pause' : 'play'} size={20} color={foreground} />

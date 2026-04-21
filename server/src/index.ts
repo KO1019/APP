@@ -15,6 +15,11 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 const LLM_BASE_URL = process.env.LLM_BASE_URL || 'https://apis.iflow.cn/v1';
 const LLM_API_KEY = process.env.LLM_API_KEY || '';
 
+// 豆包语音API配置
+const VOLCENGINE_APP_ID = process.env.VOLCENGINE_APP_ID || '';
+const VOLCENGINE_ACCESS_TOKEN = process.env.VOLCENGINE_ACCESS_TOKEN || '';
+const VOLCENGINE_API_KEY = process.env.VOLCENGINE_API_KEY || '';
+
 // 模型配置
 const LLM_CHAT_MODEL = process.env.LLM_CHAT_MODEL || 'Qwen3-Max';
 const LLM_EMOTION_MODEL = process.env.LLM_EMOTION_MODEL || 'Qwen3-Max';
@@ -45,7 +50,7 @@ async function callLLM(
       throw new Error(`LLM API error: ${response.status} - ${errorText}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as any;
 
     if (!data.choices || !data.choices[0] || !data.choices[0].message) {
       throw new Error('Invalid LLM response format');
@@ -705,18 +710,104 @@ app.post('/api/v1/voice/chat', authenticateToken, upload.single('audio'), async 
   }
 });
 
-// 语音合成函数
+// TTS文件下载API（提供生成的语音文件）
+app.get('/api/v1/tts/file/:filename', async (req, res) => {
+  const { filename } = req.params;
+  const filepath = `/tmp/${filename}`;
+
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // 安全检查：确保文件名只包含字母数字和下划线
+    if (!/^[a-zA-Z0-9_\-\.]+$/.test(filename)) {
+      return res.status(400).json({ error: 'Invalid filename' });
+    }
+
+    // 检查文件是否存在
+    if (!fs.existsSync(filepath)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // 设置响应头并返回文件
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    const fileStream = fs.createReadStream(filepath);
+    fileStream.pipe(res);
+  } catch (error: any) {
+    console.error('Error serving TTS file:', error);
+    res.status(500).json({ error: error.message || 'Failed to serve file' });
+  }
+});
+
+// 语音合成函数（使用豆包HTTP TTS API）
 async function synthesizeSpeech(text: string): Promise<string> {
   try {
     console.log('Synthesizing speech for:', text);
 
-    // 模拟返回音频URL
-    // 实际实现需要：
-    // 1. 调用火山引擎的 TTS API
-    // 2. 将音频保存到对象存储
-    // 3. 返回音频 URL
+    if (!VOLCENGINE_APP_ID || !VOLCENGINE_ACCESS_TOKEN) {
+      console.warn('豆包语音API配置缺失，返回模拟URL');
+      return 'https://example.com/speech.mp3';
+    }
 
-    return 'https://example.com/speech.mp3';
+    const reqid = `req_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+    const requestBody = {
+      app: {
+        appid: VOLCENGINE_APP_ID,
+        token: VOLCENGINE_ACCESS_TOKEN,
+        cluster: 'volcano_tts',
+      },
+      user: {
+        uid: 'user_voice_chat',
+      },
+      audio: {
+        voice_type: 'zh_female_vv_jupiter_bigtts', // 豆包女声
+        encoding: 'mp3',
+        speed_ratio: 1.0,
+        rate: 24000,
+      },
+      request: {
+        reqid: reqid,
+        text: text,
+        operation: 'query',
+      },
+    };
+
+    const response = await fetch('https://openspeech.bytedance.com/api/v1/tts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer; ${VOLCENGINE_ACCESS_TOKEN}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('豆包TTS API error:', response.status, errorText);
+      throw new Error(`TTS API error: ${response.status}`);
+    }
+
+    const data = await response.json() as any;
+
+    if (data.code !== 3000) {
+      console.error('豆包TTS API返回错误:', data);
+      throw new Error(`TTS error: ${data.message}`);
+    }
+
+    // 将base64音频保存到文件
+    const audioBuffer = Buffer.from(data.data, 'base64');
+    const filename = `tts_${reqid}.mp3`;
+    const filepath = `/tmp/${filename}`;
+
+    const fs = await import('fs');
+    fs.writeFileSync(filepath, audioBuffer);
+
+    console.log('TTS audio saved to:', filepath);
+
+    // 返回文件路径（前端可以通过后端API下载）
+    return `/api/v1/tts/file/${filename}`;
   } catch (error) {
     console.error('Error synthesizing speech:', error);
     throw error;
