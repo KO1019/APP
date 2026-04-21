@@ -195,10 +195,8 @@ export default function VoiceChatRealtimeScreen() {
   // WebSocket连接函数
   const connectWebSocket = useCallback(() => {
     try {
-      // 在开发环境下使用localhost而不是代理URL，因为代理不支持WebSocket
-      const baseUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL.includes('dev.coze.site')
-        ? 'http://localhost:9091'
-        : process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
+      // 使用与当前页面相同的协议和主机，避免跨域问题
+      const baseUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
       const wsUrl = `${baseUrl.replace('http', 'ws')}/api/v1/voice/realtime`;
       console.log('Connecting to WebSocket:', wsUrl);
       const ws = new WebSocket(wsUrl) as any;
@@ -234,19 +232,25 @@ export default function VoiceChatRealtimeScreen() {
         }
       };
 
-      ws.onerror = (error: any) => {
-        console.error('WebSocket error:', error);
+      ws.onerror = (error: Event) => {
+        console.error('❌ WebSocket error:', error);
+        console.error('WebSocket readyState:', ws.readyState);
+        console.error('WebSocket URL:', ws.url);
         setIsConnected(false);
         Toast.show({
           type: 'error',
           text1: '连接错误',
-          text2: '网络连接出现问题',
+          text2: '语音服务连接失败，请检查网络或稍后重试',
           position: 'bottom',
         });
       };
 
-      ws.onclose = () => {
-        console.log('WebSocket closed');
+      ws.onclose = (event: CloseEvent) => {
+        console.log('❌ WebSocket closed:', {
+          code: event.code,
+          reason: event.reason,
+          wasClean: event.wasClean,
+        });
         setIsConnected(false);
       };
 

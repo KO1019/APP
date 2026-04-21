@@ -1113,10 +1113,16 @@ wss.on('connection', (ws: WebSocket, request) => {
   const connectToVolcengine = async () => {
     try {
       if (!VOLCENGINE_APP_ID || !VOLCENGINE_ACCESS_TOKEN) {
-        ws.send(JSON.stringify({ type: 'error', message: '豆包API配置缺失' }));
+        const errorMsg = '豆包API配置缺失';
+        console.error(errorMsg);
+        ws.send(JSON.stringify({ type: 'error', message: errorMsg }));
         ws.close();
         return;
       }
+
+      console.log('Connecting to Volcengine API...');
+      console.log('APP ID:', VOLCENGINE_APP_ID);
+      console.log('Access Token:', VOLCENGINE_ACCESS_TOKEN.substring(0, 20) + '...');
 
       volcWs = new WebSocket(
         'wss://openspeech.bytedance.com/api/v3/realtime/dialogue',
@@ -1133,11 +1139,12 @@ wss.on('connection', (ws: WebSocket, request) => {
       volcWs.binaryType = 'nodebuffer';
 
       volcWs.on('open', () => {
-        console.log('Connected to Volcengine');
+        console.log('✅ Connected to Volcengine');
 
         // 发送StartConnection事件
         const startConnectionFrame = buildStartConnectionFrame();
         volcWs!.send(startConnectionFrame);
+        console.log('✅ Sent StartConnection event');
 
         // 发送StartSession事件
         const startSessionFrame = buildStartSessionFrame(sessionId, {
@@ -1146,6 +1153,16 @@ wss.on('connection', (ws: WebSocket, request) => {
           model: '1.2.1.1',
         });
         volcWs!.send(startSessionFrame);
+        console.log('✅ Sent StartSession event');
+      });
+
+      volcWs.on('error', (error) => {
+        console.error('❌ Volcengine WebSocket error:', error);
+        ws.send(JSON.stringify({
+          type: 'error',
+          message: '连接豆包语音服务失败',
+          details: error.message
+        }));
       });
 
       volcWs.on('message', (data: Buffer) => {
