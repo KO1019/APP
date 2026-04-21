@@ -14,6 +14,7 @@ interface Diary {
   mood: string | null;
   mood_intensity: number | null;
   mood_analysis: any;
+  tags: string[] | null;
   created_at: string;
 }
 
@@ -29,6 +30,22 @@ const emotionColors: Record<string, string> = {
   '平静': '#2dd4bf',
   '兴奋': '#fb923c',
   '未识别': '#94a3b8',
+  // 新的情绪映射
+  'happy': '#FFD93D',
+  'calm': '#6BCB77',
+  'anxious': '#4D96FF',
+  'sad': '#6B7280',
+  'angry': '#FF6B6B',
+  'tired': '#9D4EDD',
+};
+
+const emotionLabels: Record<string, string> = {
+  'happy': '开心',
+  'calm': '平静',
+  'anxious': '焦虑',
+  'sad': '悲伤',
+  'angry': '愤怒',
+  'tired': '疲惫',
 };
 
 export default function DiariesScreen() {
@@ -133,6 +150,7 @@ export default function DiariesScreen() {
     const timeStr = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 
     const emotionColor = item.mood ? emotionColors[item.mood] || emotionColors['未识别'] : emotionColors['未识别'];
+    const emotionLabel = item.mood ? emotionLabels[item.mood] || item.mood : '';
 
     return (
       <TouchableOpacity
@@ -156,13 +174,22 @@ export default function DiariesScreen() {
               { backgroundColor: `${emotionColor}20` }
             ]}>
               <View style={[styles.emotionDot, { backgroundColor: emotionColor }]} />
-              <Text style={[styles.emotionText, { color: foreground }]}>{item.mood}</Text>
+              <Text style={[styles.emotionText, { color: foreground }]}>{emotionLabel}</Text>
             </View>
           )}
         </View>
         <Text style={[styles.diaryContent, { color: foreground }]} numberOfLines={3}>
           {item.content}
         </Text>
+        {item.tags && item.tags.length > 0 && (
+          <View style={styles.tagsContainer}>
+            {item.tags.map((tag, index) => (
+              <View key={index} style={[styles.tag, { backgroundColor: `${accent}15` }]}>
+                <Text style={[styles.tagText, { color: accent }]}>{tag}</Text>
+              </View>
+            ))}
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
@@ -285,6 +312,23 @@ const styles = StyleSheet.create({
   diaryContent: {
     fontSize: 15,
     lineHeight: 22,
+    marginBottom: 8,
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  tag: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 6,
+    marginBottom: 4,
+  },
+  tagText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,

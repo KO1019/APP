@@ -12,6 +12,7 @@ interface DiaryDetail {
   mood: string | null;
   mood_intensity: number | null;
   mood_analysis: any;
+  tags: string[] | null;
   created_at: string;
 }
 
@@ -27,6 +28,22 @@ const emotionColors: Record<string, string> = {
   '平静': '#2dd4bf',
   '兴奋': '#fb923c',
   '未识别': '#94a3b8',
+  // 新的情绪映射
+  'happy': '#FFD93D',
+  'calm': '#6BCB77',
+  'anxious': '#4D96FF',
+  'sad': '#6B7280',
+  'angry': '#FF6B6B',
+  'tired': '#9D4EDD',
+};
+
+const emotionLabels: Record<string, string> = {
+  'happy': '开心',
+  'calm': '平静',
+  'anxious': '焦虑',
+  'sad': '悲伤',
+  'angry': '愤怒',
+  'tired': '疲惫',
 };
 
 export default function DiaryDetailScreen() {
@@ -120,6 +137,7 @@ export default function DiaryDetailScreen() {
   const timeStr = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 
   const emotionColor = diary.mood ? emotionColors[diary.mood] || emotionColors['未识别'] : emotionColors['未识别'];
+  const emotionLabel = diary.mood ? emotionLabels[diary.mood] || diary.mood : '';
 
   return (
     <Screen>
@@ -149,7 +167,7 @@ export default function DiaryDetailScreen() {
               <Text style={[styles.emotionLabel, { color: muted }]}>情绪分析</Text>
               <View style={[styles.emotionTag, { backgroundColor: `${emotionColor}20` }]}>
                 <View style={[styles.emotionDot, { backgroundColor: emotionColor }]} />
-                <Text style={[styles.emotionText, { color: foreground }]}>{diary.mood}</Text>
+                <Text style={[styles.emotionText, { color: foreground }]}>{emotionLabel}</Text>
                 {diary.mood_intensity !== null && (
                   <Text style={[styles.intensityText, { color: muted }]}>强度: {diary.mood_intensity}</Text>
                 )}
@@ -173,6 +191,21 @@ export default function DiaryDetailScreen() {
             <Text style={[styles.contentLabel, { color: muted }]}>日记内容</Text>
             <Text style={[styles.contentText, { color: foreground }]}>{diary.content}</Text>
           </View>
+
+          {/* 用户标签 */}
+          {diary.tags && diary.tags.length > 0 && (
+            <View style={[styles.userTagsCard, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
+              <Text style={[styles.contentLabel, { color: muted }]}>标签</Text>
+              <View style={styles.tagsContainer}>
+                {diary.tags.map((tag, index) => (
+                  <View key={index} style={[styles.tag, { backgroundColor: `${accent}20` }]}>
+                    <FontAwesome6 name="tag" size={12} color={accent} style={{ marginRight: 4 }} />
+                    <Text style={[styles.tagText, { color: foreground }]}>{tag}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
 
           {/* 与AI聊聊按钮 */}
           <TouchableOpacity
@@ -304,6 +337,10 @@ const styles = StyleSheet.create({
   contentText: {
     fontSize: 16,
     lineHeight: 24,
+  },
+  userTagsCard: {
+    borderRadius: 16,
+    padding: 16,
   },
   chatButton: {
     borderRadius: 20,

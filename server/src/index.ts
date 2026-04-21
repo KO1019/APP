@@ -339,7 +339,7 @@ app.put('/api/v1/auth/me', authenticateToken, async (req: any, res) => {
 // 创建日记（自动进行情绪分析）
 app.post('/api/v1/diaries', authenticateToken, async (req: any, res) => {
   try {
-    const { content } = req.body;
+    const { content, mood, tags } = req.body;
 
     if (!content || typeof content !== 'string') {
       return res.status(400).json({ error: 'Content is required and must be a string' });
@@ -347,10 +347,23 @@ app.post('/api/v1/diaries', authenticateToken, async (req: any, res) => {
 
     const client = getSupabaseClient();
 
-    // 插入日记（仅包含内容和用户ID）
+    // 构建插入数据对象
+    const insertData: any = { content, user_id: req.userId };
+
+    // 如果提供了 mood，则保存
+    if (mood && typeof mood === 'string') {
+      insertData.mood = mood;
+    }
+
+    // 如果提供了 tags，则保存
+    if (tags && Array.isArray(tags) && tags.length > 0) {
+      insertData.tags = tags;
+    }
+
+    // 插入日记
     const { data: diary, error: insertError } = await client
       .from('diaries')
-      .insert({ content, user_id: req.userId })
+      .insert(insertData)
       .select()
       .single();
 

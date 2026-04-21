@@ -38,6 +38,7 @@ export const diaries = pgTable(
     mood: varchar("mood", { length: 50 }), // 情绪类型（愉悦、悲伤、焦虑等）
     mood_intensity: integer("mood_intensity"), // 情绪强度 0-100
     mood_analysis: jsonb("mood_analysis"), // 情绪分析结果 JSON
+    tags: text("tags").array(), // 标签数组
     created_at: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
     updated_at: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
   },
