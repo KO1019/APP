@@ -67,7 +67,22 @@ export default function DiariesScreen() {
           'Authorization': `Bearer ${token}`,
         },
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
       const data = await response.json();
+
+      // 检查返回的数据是否是数组
+      if (!Array.isArray(data)) {
+        console.error('Expected array but got:', typeof data, data);
+        setDiaries([]);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
 
       // 解密日记内容
       const decryptedDiaries = data.map((diary: Diary) => ({
