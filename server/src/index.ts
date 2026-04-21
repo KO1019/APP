@@ -3,7 +3,6 @@ import cors from "cors";
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import multer from 'multer';
-import { HeaderUtils } from "coze-coding-dev-sdk";
 import { getSupabaseClient } from "./storage/database/supabase-client";
 
 const app = express();
@@ -11,6 +10,120 @@ const port = process.env.PORT || 9091;
 
 // JWT密钥配置（生产环境应使用环境变量）
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+
+// LLM API 配置
+const LLM_BASE_URL = process.env.LLM_BASE_URL || 'https://apis.iflow.cn/v1';
+const LLM_API_KEY = process.env.LLM_API_KEY || '';
+
+// 模型配置
+const LLM_CHAT_MODEL = process.env.LLM_CHAT_MODEL || 'Qwen3-Max';
+const LLM_EMOTION_MODEL = process.env.LLM_EMOTION_MODEL || 'Qwen3-Max';
+const LLM_HEALTH_MODEL = process.env.LLM_HEALTH_MODEL || 'Qwen3-Max';
+
+// LLM API 调用函数（使用 iFlow OpenAI 兼容接口）
+async function callLLM(
+  messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
+  model: string = LLM_CHAT_MODEL,
+  temperature: number = 0.7
+): Promise<{ content: string }> {
+  try {
+    const response = await fetch(`${LLM_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${LLM_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        temperature,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`LLM API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      throw new Error('Invalid LLM response format');
+    }
+
+    return {
+      content: data.choices[0].message.content,
+    };
+  } catch (error: any) {
+    console.error('Error calling LLM:', error);
+    throw new Error(`Failed to call LLM: ${error.message}`);
+  }
+}
+
+// 流式 LLM API 调用函数
+async function callLLMStream(
+  messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
+  model: string = LLM_CHAT_MODEL,
+  temperature: number = 0.7,
+  onChunk: (chunk: string) => void
+): Promise<void> {
+  try {
+    const response = await fetch(`${LLM_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${LLM_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        temperature,
+        stream: true,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`LLM API error: ${response.status} - ${errorText}`);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('No response body');
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.trim().startsWith('data: ')) {
+          const data = line.trim().slice(6);
+          if (data === '[DONE]') continue;
+
+          try {
+            const json = JSON.parse(data);
+            if (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content) {
+              onChunk(json.choices[0].delta.content);
+            }
+          } catch (e) {
+            // 忽略解析错误
+          }
+        }
+      }
+    }
+  } catch (error: any) {
+    console.error('Error calling LLM stream:', error);
+    throw new Error(`Failed to call LLM stream: ${error.message}`);
+  }
+}
 
 // 中间件：验证JWT Token
 const authenticateToken = (req: any, res: any, next: any) => {
@@ -336,12 +449,6 @@ app.get('/api/v1/chat/topics', authenticateToken, async (req: any, res) => {
     })).join('\n');
 
     // 使用 LLM 生成建议话题
-    const { LLMClient, Config } = await import('coze-coding-dev-sdk');
-
-    const config = new Config();
-    const customHeaders = HeaderUtils.extractForwardHeaders(req.headers as Record<string, string>);
-    const llmClient = new LLMClient(config, customHeaders);
-
     const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
       {
         role: 'system' as const,
@@ -363,10 +470,7 @@ app.get('/api/v1/chat/topics', authenticateToken, async (req: any, res) => {
       }
     ];
 
-    const response = await llmClient.invoke(messages, {
-      model: 'doubao-seed-2-0-mini-260215',
-      temperature: 0.7,
-    });
+    const response = await callLLM(messages, LLM_CHAT_MODEL, 0.7);
 
     // 解析 JSON
     let topics: string[] = [];
@@ -427,12 +531,6 @@ app.get('/api/v1/health-tips', authenticateToken, async (req: any, res) => {
     })).join('\n');
 
     // 使用 LLM 生成个性化建议
-    const { LLMClient, Config } = await import('coze-coding-dev-sdk');
-
-    const config = new Config();
-    const customHeaders = HeaderUtils.extractForwardHeaders(req.headers as Record<string, string>);
-    const llmClient = new LLMClient(config, customHeaders);
-
     const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
       {
         role: 'system' as const,
@@ -457,10 +555,7 @@ app.get('/api/v1/health-tips', authenticateToken, async (req: any, res) => {
       }
     ];
 
-    const response = await llmClient.invoke(messages, {
-      model: 'doubao-seed-2-0-mini-260215',
-      temperature: 0.7,
-    });
+    const response = await callLLM(messages, LLM_HEALTH_MODEL, 0.7);
 
     // 解析 JSON
     let healthTips: any = {};
@@ -583,16 +678,7 @@ app.post('/api/v1/voice/chat', authenticateToken, upload.single('audio'), async 
       }
 
       // 调用 LLM
-      const { LLMClient, Config } = await import('coze-coding-dev-sdk');
-
-      const config = new Config();
-      const customHeaders = HeaderUtils.extractForwardHeaders(req.headers as Record<string, string>);
-      const llmClient = new LLMClient(config, customHeaders);
-
-      const response = await llmClient.invoke(messages, {
-        model: 'doubao-seed-2-0-mini-260215',
-        temperature: 0.7,
-      });
+      const response = await callLLM(messages, LLM_CHAT_MODEL, 0.7);
 
       const aiResponse = response.content;
 
@@ -655,12 +741,6 @@ app.post('/api/v1/chat', authenticateToken, async (req: any, res) => {
       return res.end();
     }
 
-    const { LLMClient, Config } = await import('coze-coding-dev-sdk');
-
-    const config = new Config();
-    const customHeaders = HeaderUtils.extractForwardHeaders(req.headers as Record<string, string>);
-    const llmClient = new LLMClient(config, customHeaders);
-
     // 构建对话历史（从数据库获取）
     const client = getSupabaseClient();
     let messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [];
@@ -708,20 +788,12 @@ app.post('/api/v1/chat', authenticateToken, async (req: any, res) => {
     messages.push({ role: 'user' as const, content: message });
 
     // 调用 LLM 进行流式响应
-    const stream = llmClient.stream(messages, {
-      model: 'doubao-seed-2-0-lite-260215',
-      temperature: 0.8,
-    });
-
     let fullResponse = '';
 
-    for await (const chunk of stream) {
-      if (chunk.content) {
-        const content = chunk.content.toString();
-        fullResponse += content;
-        res.write(`data: ${JSON.stringify({ content })}\n\n`);
-      }
-    }
+    await callLLMStream(messages, LLM_CHAT_MODEL, 0.8, (chunk) => {
+      fullResponse += chunk;
+      res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
+    });
 
     res.write('data: [DONE]\n\n');
 
@@ -775,11 +847,6 @@ app.get('/api/v1/conversations', authenticateToken, async (req: any, res) => {
 // 异步情绪分析函数
 async function analyzeEmotionAsync(diaryId: string, content: string) {
   try {
-    const { LLMClient, Config } = await import('coze-coding-dev-sdk');
-
-    const config = new Config();
-    const llmClient = new LLMClient(config);
-
     const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
       {
         role: 'system' as const,
@@ -805,10 +872,7 @@ async function analyzeEmotionAsync(diaryId: string, content: string) {
       }
     ];
 
-    const response = await llmClient.invoke(messages, {
-      model: 'doubao-seed-2-0-mini-260215',
-      temperature: 0.3,
-    });
+    const response = await callLLM(messages, LLM_EMOTION_MODEL, 0.3);
 
     // 尝试解析 JSON
     let moodAnalysis = null;
