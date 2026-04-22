@@ -138,13 +138,22 @@ export default function AICompanion() {
       <View style={styles.container}>
         {/* 顶部导航栏 */}
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.navButton}
-            activeOpacity={0.6}
-          >
-            <FontAwesome6 name="arrow-left" size={20} color="#6B7280" />
-          </TouchableOpacity>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.navButton}
+              activeOpacity={0.6}
+            >
+              <FontAwesome6 name="arrow-left" size={20} color="#6B7280" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push('/voice-chat-realtime')}
+              style={[styles.navButton, styles.voiceCallButton]}
+              activeOpacity={0.7}
+            >
+              <FontAwesome6 name="phone" size={18} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.headerContent}>
             <View style={styles.headerTitleContainer}>
@@ -315,6 +324,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  voiceCallButton: {
+    backgroundColor: '#10B981',
   },
   headerContent: {
     flex: 1,

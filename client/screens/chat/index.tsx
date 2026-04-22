@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
@@ -21,6 +21,7 @@ export default function ChatScreen() {
   const [suggestedTopics, setSuggestedTopics] = useState<string[]>([]);
   const [apiConfigured, setApiConfigured] = useState(true);
   const scrollViewRef = useRef<ScrollView>(null);
+  const [showMenu, setShowMenu] = useState(false);
 
   const router = useSafeRouter();
   const { token } = useAuth();
@@ -196,6 +197,27 @@ export default function ChatScreen() {
     );
   };
 
+  const handleNewChat = () => {
+    Alert.alert(
+      '新建对话',
+      '确定要开始新的对话吗？当前对话记录将被清空。',
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '确定',
+          onPress: () => {
+            setMessages([]);
+            setInputText('');
+          }
+        }
+      ]
+    );
+  };
+
+  const handleViewHistory = () => {
+    router.push('/conversation-history');
+  };
+
   return (
     <Screen>
       <KeyboardAvoidingView
@@ -204,26 +226,38 @@ export default function ChatScreen() {
       >
         <View style={[styles.container, { backgroundColor: background }]}>
           <View style={styles.header}>
+          <View style={styles.headerLeft}>
             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
               <FontAwesome6 name="arrow-left" size={24} color={foreground} />
             </TouchableOpacity>
-            <View style={styles.headerCenter}>
-              <FontAwesome6 name="comments" size={24} color={accent} style={styles.headerIcon} />
-              <View>
-                <Text style={[styles.title, { color: foreground }]}>AI 陪伴</Text>
-                <Text style={[styles.subtitle, { color: muted }]}>温暖倾听，用心陪伴</Text>
-              </View>
+          </View>
+
+          <View style={styles.headerCenter}>
+            <FontAwesome6 name="comments" size={24} color={accent} style={styles.headerIcon} />
+            <View>
+              <Text style={[styles.title, { color: foreground }]}>AI 陪伴</Text>
+              <Text style={[styles.subtitle, { color: muted }]}>温暖倾听，用心陪伴</Text>
             </View>
+          </View>
+
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={handleNewChat} style={styles.headerButton}>
+              <FontAwesome6 name="plus" size={20} color={foreground} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleViewHistory} style={styles.headerButton}>
+              <FontAwesome6 name="clock-rotate-left" size={20} color={foreground} />
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => router.push('/voice-chat-realtime')} style={styles.voiceButton}>
               <FontAwesome6 name="microphone" size={20} color={foreground} />
             </TouchableOpacity>
           </View>
+        </View>
 
-          <ScrollView
-            ref={scrollViewRef}
-            style={styles.messagesContainer}
-            contentContainerStyle={styles.messagesContent}
-          >
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.messagesContainer}
+          contentContainerStyle={styles.messagesContent}
+        >
             {!apiConfigured && (
               <View style={[styles.configWarning, { backgroundColor: '#FFF3CD', borderColor: '#FFC107', borderWidth: 1 }]}>
                 <FontAwesome6 name="triangle-exclamation" size={16} color="#856404" />
@@ -311,9 +345,24 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 16,
   },
+  headerLeft: {
+    width: 40,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   backButton: {
     width: 32,
     height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
