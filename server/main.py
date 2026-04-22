@@ -21,8 +21,9 @@ import httpx
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
-# 加载.env文件
-load_dotenv()
+# 加载.env文件（使用绝对路径）
+dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(dotenv_path)
 
 # 环境变量配置
 JWT_SECRET = os.getenv('JWT_SECRET', 'your-secret-key-change-in-production')
@@ -214,7 +215,7 @@ async def register(user: UserRegister):
         'email': user.email,
         'nickname': user.nickname or user.username,
         'cloud_sync_enabled': False
-    }).select('id, username, email, nickname, created_at').execute()
+    }).execute()
 
     # 生成JWT Token
     token = generate_token(new_user.data[0]['id'])
@@ -291,11 +292,11 @@ async def create_diary(diary: DiaryCreate, user_id: str = Depends(get_user_id)):
     if diary.tags:
         insert_data["tags"] = diary.tags
 
-    result = supabase.table('diaries').insert(insert_data).select().single().execute()
+    result = supabase.table('diaries').insert(insert_data).execute()
 
     # TODO: 异步进行情绪分析
 
-    return result.data
+    return result.data[0] if result.data else None
 
 
 @app.get('/api/v1/diaries')
