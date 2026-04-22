@@ -116,14 +116,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (!response.ok) {
-        // 尝试解析错误响应
+        // 先读取响应内容（只读取一次，避免"body stream already read"错误）
+        const text = await response.text();
         let errorMessage = '登录失败';
+
         try {
-          const data = await response.json();
+          // 尝试解析为JSON
+          const data = JSON.parse(text);
           errorMessage = data.detail || data.error || errorMessage;
         } catch {
-          // 如果响应不是JSON，尝试读取文本
-          const text = await response.text();
+          // 如果不是JSON，使用原始文本
           errorMessage = text || `登录失败 (${response.status})`;
         }
         throw new Error(errorMessage);
@@ -161,14 +163,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (!response.ok) {
-        // 尝试解析错误响应
+        // 先读取响应内容（只读取一次，避免"body stream already read"错误）
+        const text = await response.text();
         let errorMessage = '注册失败';
+
         try {
-          const data = await response.json();
+          // 尝试解析为JSON
+          const data = JSON.parse(text);
           errorMessage = data.detail || data.error || errorMessage;
         } catch {
-          // 如果响应不是JSON，尝试读取文本
-          const text = await response.text();
+          // 如果不是JSON，使用原始文本
           errorMessage = text || `注册失败 (${response.status})`;
         }
         throw new Error(errorMessage);
@@ -221,14 +225,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (!response.ok) {
-        // 尝试解析错误响应
+        // 先读取响应内容（只读取一次，避免"body stream already read"错误）
+        const text = await response.text();
         let errorMessage = '更新失败';
+
         try {
-          const responseData = await response.json();
+          // 尝试解析为JSON
+          const responseData = JSON.parse(text);
           errorMessage = responseData.detail || responseData.error || errorMessage;
         } catch {
-          // 如果响应不是JSON，尝试读取文本
-          const text = await response.text();
+          // 如果不是JSON，使用原始文本
           errorMessage = text || `更新失败 (${response.status})`;
         }
         throw new Error(errorMessage);
