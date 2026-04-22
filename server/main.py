@@ -398,16 +398,21 @@ async def websocket_voice_realtime(websocket: WebSocket):
     await websocket.accept()
 
     session_id = str(uuid.uuid4())
+    client = None
 
     try:
+        print(f"[WS] New WebSocket connection, session_id: {session_id}")
+
         # 检查配置
         if not VOLCENGINE_SPEECH_APP_ID or not VOLCENGINE_ACCESS_TOKEN:
+            print(f"[WS] Error: Missing configuration")
             await websocket.send_json({
                 "type": "error",
                 "message": "豆包语音API配置缺失，请在.env文件中配置VOLCENGINE_SPEECH_APP_ID和VOLCENGINE_ACCESS_TOKEN"
             })
             return
 
+        print(f"[WS] Creating RealtimeDialogClient...")
         # 创建实时语音客户端
         client = RealtimeDialogClient(
             config=config.ws_connect_config,
@@ -417,6 +422,7 @@ async def websocket_voice_realtime(websocket: WebSocket):
             recv_timeout=60  # 超时时间60秒
         )
 
+        print(f"[WS] Connecting to Volcengine API...")
         # 连接到豆包API
         await client.connect()
         print(f"✅ Connected to Volcengine API, session_id: {session_id}")
@@ -426,57 +432,88 @@ async def websocket_voice_realtime(websocket: WebSocket):
             "type": "connection_ready",
             "sessionId": session_id
         })
+        print(f"[WS] Sent connection_ready message")
 
         # 监听豆包API响应
         async def listen_volcengine():
             try:
+                print(f"[WS] listen_volcengine started")
                 while True:
                     response = await client.receive_server_response()
+                    print(f"[WS] Received response from Volcengine: {response}")
                     await handle_volcengine_response(websocket, response)
+            except asyncio.CancelledError:
+                print(f"[WS] listen_volcengine cancelled")
+                raise
             except Exception as e:
-                print(f"Error listening to Volcengine: {e}")
+                print(f"[WS] Error listening to Volcengine: {e}")
+                import traceback
+                traceback.print_exc()
                 await websocket.send_json({
                     "type": "error",
                     "message": f"监听豆包API错误: {str(e)}"
                 })
+                raise
 
         # 监听客户端消息
         async def listen_client():
             try:
+                print(f"[WS] listen_client started")
                 while True:
                     data = await websocket.receive()
+                    print(f"[WS] Received message from client: {type(data)}")
                     if 'text' in data:
                         message = json.loads(data['text'])
+                        print(f"[WS] Client message: {message}")
                         await handle_client_message(websocket, client, message)
                     elif 'bytes' in data:
+                        print(f"[WS] Received audio data from client")
                         # 音频数据 - 使用TaskRequest
                         await client.task_request(data['bytes'])
+            except asyncio.CancelledError:
+                print(f"[WS] listen_client cancelled")
+                raise
             except WebSocketDisconnect:
-                print("Client disconnected")
+                print(f"[WS] Client disconnected normally")
+                raise
             except Exception as e:
-                print(f"Error listening to client: {e}")
+                print(f"[WS] Error listening to client: {e}")
+                import traceback
+                traceback.print_exc()
+                raise
 
         # 启动监听任务
         listen_volcengine_task = asyncio.create_task(listen_volcengine())
         listen_client_task = asyncio.create_task(listen_client())
 
+        print(f"[WS] Waiting for tasks...")
         # 等待任一任务完成
         await asyncio.wait([listen_volcengine_task, listen_client_task], return_when=asyncio.FIRST_COMPLETED)
+        print(f"[WS] One of the tasks completed")
 
+    except WebSocketDisconnect:
+        print(f"[WS] Client disconnected (WebSocketDisconnect)")
     except Exception as e:
-        print(f"WebSocket error: {e}")
-        await websocket.send_json({
-            "type": "error",
-            "message": str(e)
-        })
-    finally:
-        # 关闭连接
+        print(f"[WS] WebSocket error: {e}")
+        import traceback
+        traceback.print_exc()
         try:
-            if 'client' in locals():
-                await client.finish_session()
-                await client.close()
+            await websocket.send_json({
+                "type": "error",
+                "message": str(e)
+            })
         except:
             pass
+    finally:
+        # 关闭连接
+        print(f"[WS] Closing connection, session_id: {session_id}")
+        try:
+            if client:
+                await client.finish_session()
+                await client.close()
+        except Exception as e:
+            print(f"[WS] Error closing client: {e}")
+        print(f"[WS] Connection closed")
         await websocket.close()
 
 
