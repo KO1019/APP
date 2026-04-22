@@ -390,26 +390,33 @@ export default function ChatScreen() {
                   </View>
                 )}
 
-                {/* 建议话题 */}
+                {/* AI主动提问 */}
                 <View style={styles.quickPrompts}>
-                  <Text style={[styles.sectionTitle, { color: muted }]}>开始聊天</Text>
+                  <Text style={[styles.sectionTitle, { color: muted }]}>AI 主动询问</Text>
                   {suggestedTopics.length > 0 ? (
                     suggestedTopics.map((prompt, index) => (
                       <TouchableOpacity
                         key={index}
                         style={[styles.quickPrompt, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}
-                        onPress={() => setInputText(prompt)}
+                        onPress={() => {
+                          setInputText(prompt);
+                          // 稍后发送消息，让用户看到输入框填充后再发送
+                          setTimeout(() => sendMessage(), 100);
+                        }}
                       >
                         <Text style={[styles.quickPromptText, { color: foreground }]}>{prompt}</Text>
                       </TouchableOpacity>
                     ))
                   ) : (
-                    // 默认提示
-                    ['今天感觉很累', '有点焦虑', '分享一件开心的事'].map((prompt, index) => (
+                    // 默认AI提问
+                    ['今天感觉怎么样？', '最近有什么想和我分享的吗？', '有什么我可以帮助你的吗？'].map((prompt, index) => (
                       <TouchableOpacity
                         key={index}
                         style={[styles.quickPrompt, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}
-                        onPress={() => setInputText(prompt)}
+                        onPress={() => {
+                          setInputText(prompt);
+                          setTimeout(() => sendMessage(), 100);
+                        }}
                       >
                         <Text style={[styles.quickPromptText, { color: foreground }]}>{prompt}</Text>
                       </TouchableOpacity>
