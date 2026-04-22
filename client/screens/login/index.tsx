@@ -26,17 +26,57 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!username || !password) {
-      Toast.show({ type: 'error', text1: '请输入用户名和密码' });
+      Toast.show({
+        type: 'error',
+        text1: '请完整填写信息',
+        text2: '用户名和密码都不能为空'
+      });
+      return;
+    }
+
+    if (username.length < 3) {
+      Toast.show({
+        type: 'error',
+        text1: '用户名格式错误',
+        text2: '用户名至少需要3个字符'
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      Toast.show({
+        type: 'error',
+        text1: '密码格式错误',
+        text2: '密码至少需要6个字符'
+      });
       return;
     }
 
     try {
       setLoading(true);
       await login(username, password);
-      Toast.show({ type: 'success', text1: '登录成功' });
+      Toast.show({
+        type: 'success',
+        text1: '登录成功',
+        text2: '欢迎回来'
+      });
       router.replace('/');
     } catch (error: any) {
-      Toast.show({ type: 'error', text1: error.message || '登录失败' });
+      let errorMessage = '登录失败，请稍后重试';
+      let errorTitle = '登录失败';
+
+      if (error.message?.includes('Invalid username or password')) {
+        errorTitle = '登录信息错误';
+        errorMessage = '用户名或密码错误，请检查后重试';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      Toast.show({
+        type: 'error',
+        text1: errorTitle,
+        text2: errorMessage
+      });
     } finally {
       setLoading(false);
     }

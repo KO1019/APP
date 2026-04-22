@@ -29,32 +29,84 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     if (!username || !password) {
-      Toast.show({ type: 'error', text1: '用户名和密码为必填项' });
+      Toast.show({
+        type: 'error',
+        text1: '请完整填写信息',
+        text2: '用户名和密码都不能为空'
+      });
       return;
     }
 
-    if (username.length < 3 || username.length > 20) {
-      Toast.show({ type: 'error', text1: '用户名长度应为3-20个字符' });
+    if (!confirmPassword) {
+      Toast.show({
+        type: 'error',
+        text1: '请确认密码',
+        text2: '请再次输入密码以确认'
+      });
+      return;
+    }
+
+    if (username.length < 3) {
+      Toast.show({
+        type: 'error',
+        text1: '用户名太短',
+        text2: '用户名至少需要3个字符'
+      });
+      return;
+    }
+
+    if (username.length > 20) {
+      Toast.show({
+        type: 'error',
+        text1: '用户名太长',
+        text2: '用户名不能超过20个字符'
+      });
       return;
     }
 
     if (password.length < 6) {
-      Toast.show({ type: 'error', text1: '密码至少需要6个字符' });
+      Toast.show({
+        type: 'error',
+        text1: '密码太短',
+        text2: '密码至少需要6个字符，为了安全请设置更复杂的密码'
+      });
       return;
     }
 
     if (password !== confirmPassword) {
-      Toast.show({ type: 'error', text1: '两次输入的密码不一致' });
+      Toast.show({
+        type: 'error',
+        text1: '密码不匹配',
+        text2: '两次输入的密码不一致，请检查后重试'
+      });
       return;
     }
 
     try {
       setLoading(true);
       await register(username, password, email || undefined, nickname || undefined);
-      Toast.show({ type: 'success', text1: '注册成功' });
+      Toast.show({
+        type: 'success',
+        text1: '注册成功',
+        text2: '欢迎加入AI情绪日记'
+      });
       router.replace('/');
     } catch (error: any) {
-      Toast.show({ type: 'error', text1: error.message || '注册失败' });
+      let errorMessage = '注册失败，请稍后重试';
+      let errorTitle = '注册失败';
+
+      if (error.message?.includes('Username already exists')) {
+        errorTitle = '用户名已被占用';
+        errorMessage = '该用户名已被注册，请换一个试试';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      Toast.show({
+        type: 'error',
+        text1: errorTitle,
+        text2: errorMessage
+      });
     } finally {
       setLoading(false);
     }

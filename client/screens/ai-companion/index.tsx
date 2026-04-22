@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { FontAwesome6 } from '@expo/vector-icons';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { Screen } from '@/components/Screen';
 import { useAuth } from '@/contexts/AuthContext';
@@ -189,8 +190,8 @@ export default function AICompanionScreen() {
         >
           {messages.length === 0 && (
             <View className="flex-1 justify-center items-center py-20">
-              <Text className="text-6xl mb-4">🤖</Text>
-              <Text className="text-lg text-gray-600 mb-2">我是您的AI陪伴助手</Text>
+              <FontAwesome6 name="robot" size={64} color="#9CA3AF" />
+              <Text className="text-lg text-gray-600 mb-2 mt-4">我是您的AI陪伴助手</Text>
               <Text className="text-sm text-gray-400 text-center px-8">
                 我会认真倾听您的心声，帮助您理解和管理情绪
               </Text>
