@@ -14,10 +14,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY') or os.getenv('SUPABASE_SERVICE_ROLE_KEY')
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    print("❌ 请设置 SUPABASE_URL 和 SUPABASE_SERVICE_ROLE_KEY 环境变量")
+    print("❌ 请设置 SUPABASE_URL 和 SUPABASE_KEY 环境变量")
     sys.exit(1)
 
 import requests

@@ -42,6 +42,7 @@ VOLCENGINE_API_KEY = os.getenv('VOLCENGINE_API_KEY', '')
 # Supabase配置（从环境变量读取）
 SUPABASE_URL = os.getenv('SUPABASE_URL', '')
 SUPABASE_KEY = os.getenv('SUPABASE_KEY', '')
+SUPABASE_SERVICE_ROLE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY', SUPABASE_KEY)  # 如果没有service role key，使用普通key
 
 # 初始化FastAPI应用
 app = FastAPI(title="AI情绪日记 & 心理状态智能陪伴系统", version="1.0.0")
@@ -60,8 +61,14 @@ security = HTTPBearer()
 
 # Supabase客户端
 supabase: Optional[Client] = None
+admin_supabase: Optional[Client] = None  # Admin客户端，用于绕过RLS
 if SUPABASE_URL and SUPABASE_KEY:
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    admin_supabase = supabase  # 临时方案：使用相同的客户端（RLS已禁用）
+
+# 初始化Admin Supabase客户端（使用service role key，绕过RLS）
+if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY and SUPABASE_SERVICE_ROLE_KEY != SUPABASE_KEY:
+    admin_supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 
 # ========== 导入实时语音客户端 ==========
@@ -474,7 +481,7 @@ async def check_update(request: VersionCheckRequest):
         "force_update": latest_version["force_update"],
         "update_url": latest_version.get("update_url", ""),
         "release_notes": latest_version["release_notes"],
-        "release_date": latest_version["release_date"].isoformat() if latest_version["release_date"] else ""
+        "release_date": latest_version.get("release_date", "")
     }
 
 
@@ -1238,17 +1245,17 @@ class UpdateVersion(BaseModel):
 @app.post('/api/v1/admin/versions')
 async def create_version(version_data: CreateVersion):
     """创建新版本"""
-    if not supabase:
-        raise HTTPException(status_code=500, detail="Database not configured")
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
 
     # 检查版本号是否已存在
-    existing = supabase.table('app_versions').select('*').eq('platform', version_data.platform).eq('version', version_data.version).execute()
+    existing = admin_supabase.table('app_versions').select('*').eq('platform', version_data.platform).eq('version', version_data.version).execute()
 
     if existing.data:
         raise HTTPException(status_code=400, detail="该平台的此版本号已存在")
 
     # 创建版本
-    result = supabase.table('app_versions').insert({
+    result = admin_supabase.table('app_versions').insert({
         "version": version_data.version,
         "build_number": version_data.build_number,
         "platform": version_data.platform,
@@ -1264,10 +1271,10 @@ async def create_version(version_data: CreateVersion):
 @app.get('/api/v1/admin/versions')
 async def get_all_versions(platform: Optional[str] = None):
     """获取所有版本"""
-    if not supabase:
-        raise HTTPException(status_code=500, detail="Database not configured")
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
 
-    query = supabase.table('app_versions').select('*').order('release_date', desc=True)
+    query = admin_supabase.table('app_versions').select('*').order('release_date', desc=True)
 
     if platform:
         query = query.eq('platform', platform)
@@ -1280,10 +1287,10 @@ async def get_all_versions(platform: Optional[str] = None):
 @app.get('/api/v1/admin/versions/{version_id}')
 async def get_version(version_id: str):
     """获取单个版本详情"""
-    if not supabase:
-        raise HTTPException(status_code=500, detail="Database not configured")
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
 
-    result = supabase.table('app_versions').select('*').eq('id', version_id).execute()
+    result = admin_supabase.table('app_versions').select('*').eq('id', version_id).execute()
 
     if not result.data:
         raise HTTPException(status_code=404, detail="版本不存在")
@@ -1294,8 +1301,8 @@ async def get_version(version_id: str):
 @app.put('/api/v1/admin/versions/{version_id}')
 async def update_version(version_id: str, version_data: UpdateVersion):
     """更新版本"""
-    if not supabase:
-        raise HTTPException(status_code=500, detail="Database not configured")
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
 
     # 构建更新数据
     update_data = {}
@@ -1310,7 +1317,7 @@ async def update_version(version_id: str, version_data: UpdateVersion):
     if version_data.update_url is not None:
         update_data['update_url'] = version_data.update_url
 
-    result = supabase.table('app_versions').update(update_data).eq('id', version_id).execute()
+    result = admin_supabase.table('app_versions').update(update_data).eq('id', version_id).execute()
 
     if not result.data:
         raise HTTPException(status_code=404, detail="版本不存在")
@@ -1321,10 +1328,10 @@ async def update_version(version_id: str, version_data: UpdateVersion):
 @app.delete('/api/v1/admin/versions/{version_id}')
 async def delete_version(version_id: str):
     """删除版本"""
-    if not supabase:
-        raise HTTPException(status_code=500, detail="Database not configured")
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
 
-    result = supabase.table('app_versions').delete().eq('id', version_id).execute()
+    result = admin_supabase.table('app_versions').delete().eq('id', version_id).execute()
 
     if not result.data:
         raise HTTPException(status_code=404, detail="版本不存在")
@@ -1335,11 +1342,11 @@ async def delete_version(version_id: str):
 @app.post('/api/v1/admin/versions/{version_id}/activate')
 async def activate_version(version_id: str):
     """激活版本（推送给用户）"""
-    if not supabase:
-        raise HTTPException(status_code=500, detail="Database not configured")
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
 
     # 获取要激活的版本
-    version_result = supabase.table('app_versions').select('*').eq('id', version_id).execute()
+    version_result = admin_supabase.table('app_versions').select('*').eq('id', version_id).execute()
 
     if not version_result.data:
         raise HTTPException(status_code=404, detail="版本不存在")
@@ -1347,10 +1354,10 @@ async def activate_version(version_id: str):
     version = version_result.data[0]
 
     # 取消该平台所有版本的激活状态
-    supabase.table('app_versions').update({'is_active': False}).eq('platform', version['platform']).execute()
+    admin_supabase.table('app_versions').update({'is_active': False}).eq('platform', version['platform']).execute()
 
     # 激活当前版本
-    result = supabase.table('app_versions').update({'is_active': True}).eq('id', version_id).execute()
+    result = admin_supabase.table('app_versions').update({'is_active': True}).eq('id', version_id).execute()
 
     return {"success": True, "version": result.data[0]}
 
@@ -1358,10 +1365,10 @@ async def activate_version(version_id: str):
 @app.get('/api/v1/admin/versions/active')
 async def get_active_versions():
     """获取当前激活的版本"""
-    if not supabase:
-        raise HTTPException(status_code=500, detail="Database not configured")
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
 
-    result = supabase.table('app_versions').select('*').eq('is_active', True).execute()
+    result = admin_supabase.table('app_versions').select('*').eq('is_active', True).execute()
 
     return {"success": True, "versions": result.data}
 
