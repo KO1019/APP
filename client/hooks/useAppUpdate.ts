@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import * as Application from 'expo-application';
-import { Platform, Alert, Linking } from 'react-native';
+import * as Updates from 'expo-updates';
+import { Platform, Alert } from 'react-native';
 
 interface UpdateInfo {
   has_update: boolean;
@@ -14,43 +14,92 @@ interface UpdateInfo {
 
 export function useAppUpdate() {
   const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
 
   const checkForUpdate = async () => {
+    // 如果在开发环境或网页端，不检查更新
+    if (__DEV__ || Platform.OS === 'web') {
+      return null;
+    }
+
     setLoading(true);
     try {
-      const currentVersion = Application.nativeApplicationVersion || '1.0.0';
-      const buildNumber = Application.nativeBuildVersion;
-
-      const platform = Platform.OS === 'android' ? 'android' : 'ios';
-      const backendBaseUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
-
-      const response = await fetch(`${backendBaseUrl}/api/v1/app/check-update`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          platform,
-          current_version: currentVersion,
-          build_number: buildNumber ? parseInt(buildNumber, 10) : null,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('检查更新失败');
+      // 检查 expo-updates 是否可用
+      if (!Updates.isEmbeddedLaunch) {
+        console.log('Running in development mode, skipping update check');
+        return null;
       }
 
-      const data = await response.json();
-      setUpdateInfo(data);
+      // 检查更新
+      const update = await Updates.checkForUpdateAsync();
 
-      return data;
+      if (!update.isAvailable) {
+        console.log('No update available');
+        setUpdateInfo({
+          has_update: false,
+          current_version: Updates.runtimeVersion,
+          latest_version: Updates.runtimeVersion,
+          force_update: false,
+          update_url: '',
+          release_notes: '',
+          release_date: '',
+        });
+        return null;
+      }
+
+      // 获取清单信息（这里需要从后端获取详细的更新信息）
+      // 先返回基础信息，让应用显示更新对话框
+      setUpdateInfo({
+        has_update: true,
+        current_version: Updates.runtimeVersion,
+        latest_version: update.manifest?.version || 'Unknown',
+        force_update: false,
+        update_url: '',
+        release_notes: update.manifest?.releaseNotes || '新版本可用',
+        release_date: update.manifest?.createdAt || new Date().toISOString(),
+      });
+
+      return update;
     } catch (error) {
       console.error('检查更新失败:', error);
-      Alert.alert('错误', '检查更新失败，请稍后重试');
       return null;
     } finally {
       setLoading(false);
+    }
+  };
+
+  const downloadUpdate = async (update: any) => {
+    setDownloading(true);
+    try {
+      // 下载更新
+      await Updates.fetchUpdateAsync();
+
+      Alert.alert(
+        '下载完成',
+        '更新已下载完成，需要重启应用才能生效。是否现在重启？',
+        [
+          {
+            text: '稍后',
+            style: 'cancel',
+          },
+          {
+            text: '立即重启',
+            onPress: async () => {
+              // 重启应用
+              await Updates.reloadAsync();
+            },
+          },
+        ]
+      );
+
+      return true;
+    } catch (error) {
+      console.error('下载更新失败:', error);
+      Alert.alert('错误', '下载更新失败，请稍后重试');
+      return false;
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -60,22 +109,27 @@ export function useAppUpdate() {
         text: info.force_update ? '立即更新' : '稍后',
         onPress: () => {
           if (!info.force_update) return;
-          // 强制更新时，不允许稍后
         },
         style: info.force_update ? 'default' : 'cancel' as const,
       },
       {
         text: '立即更新',
-        onPress: () => {
-          openUpdateUrl(info.update_url);
+        onPress: async () => {
+          if (downloading) return;
+
+          // 再次检查是否有更新
+          const update = await checkForUpdate();
+          if (update) {
+            await downloadUpdate(update);
+          }
         },
         style: 'default' as const,
       },
     ];
 
-    // 如果不是强制更新，添加取消按钮
+    // 如果不是强制更新，调整按钮顺序
     if (!info.force_update) {
-      buttons.pop(); // 移除"稍后"按钮
+      buttons.pop();
       buttons.push(
         {
           text: '稍后',
@@ -84,8 +138,13 @@ export function useAppUpdate() {
         },
         {
           text: '立即更新',
-          onPress: () => {
-            openUpdateUrl(info.update_url);
+          onPress: async () => {
+            if (downloading) return;
+
+            const update = await checkForUpdate();
+            if (update) {
+              await downloadUpdate(update);
+            }
           },
           style: 'default' as const,
         }
@@ -99,24 +158,10 @@ export function useAppUpdate() {
     );
   };
 
-  const openUpdateUrl = async (url: string) => {
-    try {
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
-      } else {
-        Alert.alert('错误', '无法打开更新链接');
-      }
-    } catch (error) {
-      console.error('打开更新链接失败:', error);
-      Alert.alert('错误', '无法打开更新链接');
-    }
-  };
-
   const checkAndShowUpdate = async () => {
-    const info = await checkForUpdate();
-    if (info && info.has_update) {
-      showUpdateDialog(info);
+    const update = await checkForUpdate();
+    if (update && updateInfo && updateInfo.has_update) {
+      showUpdateDialog(updateInfo);
       return true;
     }
     return false;
@@ -124,8 +169,10 @@ export function useAppUpdate() {
 
   return {
     loading,
+    downloading,
     updateInfo,
     checkForUpdate,
+    downloadUpdate,
     showUpdateDialog,
     checkAndShowUpdate,
   };

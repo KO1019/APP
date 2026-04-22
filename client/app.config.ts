@@ -31,6 +31,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "expo-updates",
       process.env.EXPO_PUBLIC_BACKEND_BASE_URL ? [
         "expo-router",
         {
@@ -69,6 +70,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         }
       ]
     ],
+    "updates": {
+      "url": "https://u.expo.dev/your-update-url"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "experiments": {
       "typedRoutes": true
     }
