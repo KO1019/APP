@@ -569,6 +569,38 @@ app.post('/api/v1/ai-companion/chat', authenticateToken, async (req: any, res) =
 
     const client = getSupabaseClient();
 
+    // 获取用户最近2天的日记（用于综合分析）
+    const twoDaysAgo = new Date();
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+
+    const { data: recentDiaries } = await client
+      .from('diaries')
+      .select('*')
+      .eq('user_id', req.userId)
+      .gte('created_at', twoDaysAgo.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    let diarySummary = '';
+    let moodTrend = '';
+
+    if (recentDiaries && recentDiaries.length > 0) {
+      // 构建日记摘要
+      diarySummary = '\n用户最近日记记录：\n';
+      recentDiaries.forEach((diary: any, index: number) => {
+        const date = new Date(diary.created_at).toLocaleDateString('zh-CN');
+        diarySummary += `${index + 1}. ${date} - 心情：${diary.mood}\n   内容摘要：${diary.content.substring(0, 100)}...\n`;
+      });
+
+      // 分析心情变化趋势
+      const moods = recentDiaries.map((d: any) => d.mood).reverse();
+      if (moods.length >= 2) {
+        const firstMood = moods[0];
+        const lastMood = moods[moods.length - 1];
+        moodTrend = `\n注意：用户心情从"${firstMood}"变为"${lastMood}"，可能有情绪变化，需要特别关注。`;
+      }
+    }
+
     // 获取相关日记内容（如果提供了relatedDiaryId）
     let diaryContext = '';
     if (relatedDiaryId) {
@@ -580,7 +612,7 @@ app.post('/api/v1/ai-companion/chat', authenticateToken, async (req: any, res) =
         .single();
 
       if (diary) {
-        diaryContext = `\n相关日记信息：\n标题：${diary.title}\n心情：${diary.mood}\n内容：${diary.content}\n时间：${diary.created_at}\n`;
+        diaryContext = `\n当前讨论的日记：\n标题：${diary.title}\n心情：${diary.mood}\n内容：${diary.content}\n时间：${diary.created_at}\n`;
       }
     }
 
@@ -612,12 +644,18 @@ app.post('/api/v1/ai-companion/chat', authenticateToken, async (req: any, res) =
 2. 提供专业、实用的心理健康建议
 3. 帮助用户建立积极的自我认知和情绪管理能力
 4. 始终保持温暖、耐心的态度，不做评判
+5. **重要**：主动关注用户的心情变化，询问用户的感受和情绪变化
+6. **重要**：结合用户最近几天的日记，理解用户的情绪背景和发展趋势
 
 当前时间：${new Date().toLocaleString('zh-CN')}
 
-请以温暖、专业的语气回复用户。回复要简洁、真诚，避免过于生硬的建议。
+${diarySummary}${moodTrend}${diaryContext}${historyContext}
 
-${diaryContext}${historyContext}`;
+请以温暖、专业的语气回复用户。回复要简洁、真诚，避免过于生硬的建议。
+特别提示：
+- 如果用户最近有心情变化，请主动询问他们的感受
+- 结合日记内容，理解用户的情绪状态
+- 提供有针对性的建议和关怀`;
 
     // 调用豆包ARK API
     const arkResponse = await fetch('https://ark.cn-beijing.volces.com/api/v3/chat/completions', {

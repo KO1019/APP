@@ -193,6 +193,12 @@ export default function AICompanion() {
               <Text style={styles.emptyStateText}>
                 我会认真倾听您的心声，帮助您理解和管理情绪
               </Text>
+              <View style={styles.diaryHint}>
+                <FontAwesome6 name="book-bookmark" size={16} color="#4F46E5" />
+                <Text style={styles.diaryHintText}>
+                  我会关注您最近几天的日记，了解您的情绪变化，与您深入交流
+                </Text>
+              </View>
               <View style={styles.suggestionList}>
                 <TouchableOpacity
                   style={styles.suggestionItem}
@@ -406,6 +412,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 32,
+  },
+  diaryHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginBottom: 24,
+    gap: 12,
+  },
+  diaryHintText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#166534',
+    lineHeight: 18,
   },
   suggestionList: {
     width: '100%',
