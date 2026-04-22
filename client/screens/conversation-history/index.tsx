@@ -12,7 +12,9 @@ interface Conversation {
   id: string;
   user_message: string;
   ai_message: string;
+  related_diary_id: string | null;
   created_at: string;
+  user_id: string;
 }
 
 export default function ConversationHistoryScreen() {
@@ -113,8 +115,23 @@ export default function ConversationHistoryScreen() {
     <Screen>
       <View style={[styles.container, { backgroundColor: background }]}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: foreground }]}>对话历史</Text>
-          <Text style={[styles.subtitle, { color: muted }]}>查看你的聊天记录</Text>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <FontAwesome6 name="arrow-left" size={24} color={foreground} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.headerCenter}>
+            <FontAwesome6 name="clock-rotate-left" size={24} color={accent} style={styles.headerIcon} />
+            <View>
+              <Text style={[styles.title, { color: foreground }]}>对话历史</Text>
+              <Text style={[styles.subtitle, { color: muted }]}>查看你的聊天记录</Text>
+            </View>
+          </View>
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={() => router.replace('/chat')} style={styles.newChatButton}>
+              <FontAwesome6 name="plus" size={20} color={foreground} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {conversations.length === 0 ? (
@@ -124,6 +141,12 @@ export default function ConversationHistoryScreen() {
             <Text style={[styles.emptyText, { color: muted }]}>
               和AI陪伴助手聊聊天，开始记录你的对话吧
             </Text>
+            <View style={styles.tipsContainer}>
+              <FontAwesome6 name="lightbulb" size={16} color={accent} style={styles.tipsIcon} />
+              <Text style={[styles.tipsText, { color: muted }]}>
+                小提示：在日记详情页点击&ldquo;与AI聊聊&rdquo;，可以围绕日记内容进行对话
+              </Text>
+            </View>
           </View>
         ) : (
           <ScrollView style={styles.listContainer}>
@@ -150,16 +173,22 @@ export default function ConversationHistoryScreen() {
                   {conversation.user_message}
                 </Text>
                 <View style={[styles.divider, { backgroundColor: border }]} />
-                <View style={styles.aiMessageContainer}>
-                  <FontAwesome6 name="robot" size={14} color={accent} style={styles.aiIcon} />
-                  <Text
-                    style={[styles.aiMessage, { color: foreground }]}
-                    numberOfLines={2}
-                    ellipsizeMode="tail"
-                  >
-                    {conversation.ai_message}
-                  </Text>
-                </View>
+                {conversation.ai_message ? (
+                  <View style={styles.aiMessageContainer}>
+                    <FontAwesome6 name="robot" size={14} color={accent} style={styles.aiIcon} />
+                    <Text
+                      style={[styles.aiMessage, { color: foreground }]}
+                      numberOfLines={2}
+                      ellipsizeMode="tail"
+                    >
+                      {conversation.ai_message}
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.emptyMessageContainer}>
+                    <Text style={[styles.emptyMessageText, { color: muted }]}>AI正在思考中...</Text>
+                  </View>
+                )}
               </TouchableOpacity>
             ))}
             <View style={{ height: 100 }} />
@@ -175,17 +204,48 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 16,
   },
+  headerLeft: {
+    width: 40,
+  },
+  headerRight: {
+    width: 40,
+  },
+  headerCenter: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerIcon: {
+    marginRight: 8,
+  },
+  backButton: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  newChatButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700',
   },
   subtitle: {
-    fontSize: 14,
-    marginTop: 4,
+    fontSize: 12,
+    marginTop: 2,
   },
   loadingContainer: {
     flex: 1,
@@ -209,6 +269,23 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     textAlign: 'center',
+    marginBottom: 24,
+  },
+  tipsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    borderRadius: 12,
+  },
+  tipsIcon: {
+    marginRight: 8,
+  },
+  tipsText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
   },
   listContainer: {
     flex: 1,
@@ -249,6 +326,13 @@ const styles = StyleSheet.create({
   aiMessageContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+  },
+  emptyMessageContainer: {
+    paddingVertical: 4,
+  },
+  emptyMessageText: {
+    fontSize: 13,
+    fontStyle: 'italic',
   },
   aiIcon: {
     marginTop: 2,
