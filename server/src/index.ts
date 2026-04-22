@@ -1528,7 +1528,6 @@ wss.on('connection', (ws: WebSocket, request) => {
               extra: {
                 strict_audit: false,
                 audit_response: '',
-                recv_timeout: 60,  // 增加到60秒，避免空闲超时
                 input_mod: 'text',
               },
             },
@@ -1537,6 +1536,7 @@ wss.on('connection', (ws: WebSocket, request) => {
           const startSessionFrame = buildStartSessionFrame(sessionId, startSessionConfig);
           console.log('Sending StartSession frame, size:', startSessionFrame.length);
           console.log('Session ID:', sessionId);
+          console.log('StartSession payload JSON:', JSON.stringify(startSessionConfig, null, 2));
           console.log('StartSession hex:', startSessionFrame.toString('hex'));
 
           // 详细解析StartSession帧，检查结构
