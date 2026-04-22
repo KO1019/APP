@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   Modal,
   ActivityIndicator,
   Image,
+  FlatList,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
@@ -26,6 +27,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import RNSSE from 'react-native-sse';
 
 const { width } = Dimensions.get('window');
 
@@ -60,12 +62,21 @@ const TEMPLATES = [
   { id: 'free', title: '自由写作', prompt: '写下你想要表达的任何内容' },
 ];
 
+// AI消息类型
+interface AIMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
 export default function WriteDiaryScreen() {
   const router = useSafeRouter();
   const insets = useSafeAreaInsets();
   const { encryptData } = usePassword();
   const { token, isOfflineMode, user } = useAuth();
 
+  // 表单状态
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
@@ -75,13 +86,20 @@ export default function WriteDiaryScreen() {
   const [tagInput, setTagInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // 新增功能
+  // 新增功能状态
   const [images, setImages] = useState<string[]>([]);
   const [location, setLocation] = useState<{ lat: number; lng: number; address?: string } | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showWeatherModal, setShowWeatherModal] = useState(false);
   const [showMoodIntensityModal, setShowMoodIntensityModal] = useState(false);
+
+  // AI陪伴功能状态
+  const [showAIChat, setShowAIChat] = useState(false);
+  const [aiMessages, setAIMessages] = useState<AIMessage[]>([]);
+  const [aiInput, setAIInput] = useState('');
+  const [aiLoading, setAILoading] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const [background, surface, accent, foreground, muted, border] = useCSSVariable([
     '--color-background',
@@ -92,11 +110,119 @@ export default function WriteDiaryScreen() {
     '--color-border',
   ]) as string[];
 
+  // 初始化时发送AI问候
+  useEffect(() => {
+    setAIMessages([
+      {
+        id: 'init',
+        role: 'assistant',
+        content: '你好！我是你的AI写作助手。在写日记的过程中，如果你有任何想法需要分享，或者希望我给你一些建议，随时都可以告诉我。我会一直陪伴着你。',
+        timestamp: new Date().toISOString(),
+      },
+    ]);
+  }, []);
+
+  // 发送消息给AI
+  const handleSendAIMessage = async () => {
+    if (!aiInput.trim() || aiLoading) return;
+
+    const userMessage: AIMessage = {
+      id: `user_${Date.now()}`,
+      role: 'user',
+      content: aiInput.trim(),
+      timestamp: new Date().toISOString(),
+    };
+
+    setAIMessages(prev => [...prev, userMessage]);
+    setAIInput('');
+    setAILoading(true);
+
+    try {
+      const sseUrl = buildApiUrl('/api/v1/ai/chat');
+
+      // 构建消息历史
+      const messageHistory = aiMessages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+      }));
+
+      // 使用 FormData 发送请求
+      const formData = new FormData();
+      formData.append('messages', JSON.stringify([
+        ...messageHistory,
+        { role: 'user', content: userMessage.content },
+      ]));
+
+      // 创建 SSE 连接
+      const sse = new RNSSE(sseUrl, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      let aiResponse = '';
+
+      sse.addEventListener('message', (event) => {
+        if (event.data === '[DONE]') {
+          sse.close();
+          setAILoading(false);
+          return;
+        }
+
+        try {
+          const data = JSON.parse(event.data);
+          if (data.content) {
+            aiResponse += data.content;
+            setAIMessages(prev => {
+              const newMessages = [...prev];
+              const lastMessage = newMessages[newMessages.length - 1];
+              if (lastMessage && lastMessage.role === 'assistant' && lastMessage.id === 'ai_response') {
+                lastMessage.content = aiResponse;
+              } else {
+                newMessages.push({
+                  id: 'ai_response',
+                  role: 'assistant',
+                  content: aiResponse,
+                  timestamp: new Date().toISOString(),
+                });
+              }
+              return newMessages;
+            });
+          }
+        } catch (e) {
+          console.error('Error parsing SSE data:', e);
+        }
+      });
+
+      sse.addEventListener('error', (error) => {
+        console.error('SSE error:', error);
+        sse.close();
+        setAILoading(false);
+        Alert.alert('错误', 'AI响应失败，请重试');
+      });
+
+    } catch (error) {
+      console.error('Error sending AI message:', error);
+      setAILoading(false);
+      Alert.alert('错误', '发送消息失败，请重试');
+    }
+  };
+
   // 选择模板
   const handleSelectTemplate = (template: typeof TEMPLATES[0]) => {
     setSelectedTemplate(template.id);
     setContent(template.prompt);
     setShowTemplateModal(false);
+
+    // 发送给AI，让AI了解用户选择了什么模板
+    setAIMessages(prev => [...prev, {
+      id: `system_${Date.now()}`,
+      role: 'assistant',
+      content: `我注意到你选择了"${template.title}"模板，这是一个很棒的选择！${template.prompt}`,
+      timestamp: new Date().toISOString(),
+    }]);
   };
 
   // 选择图片
@@ -168,11 +294,6 @@ export default function WriteDiaryScreen() {
       return;
     }
 
-    if (!token) {
-      Alert.alert('提示', '请先登录');
-      return;
-    }
-
     try {
       setSubmitting(true);
 
@@ -196,8 +317,8 @@ export default function WriteDiaryScreen() {
       // 先保存到本地
       await saveDiaryLocally(diaryData);
 
-      // 如果是在线模式且用户开启了云端同步，上传到云端
-      if (!isOfflineMode && user?.cloud_sync_enabled) {
+      // 如果是在线模式且有token，上传到云端
+      if (!isOfflineMode && token) {
         try {
           /**
            * 服务端文件：server/main.py
@@ -244,7 +365,7 @@ export default function WriteDiaryScreen() {
       } else {
         const message = isOfflineMode
           ? '日记已保存到本地（离线模式）'
-          : '日记已保存到本地（云端同步已关闭）';
+          : '日记已保存到本地';
 
         Alert.alert('成功', message, [
           { text: '确定', onPress: () => router.back() },
@@ -256,6 +377,27 @@ export default function WriteDiaryScreen() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // 渲染AI消息
+  const renderAIMessage = ({ item }: { item: AIMessage }) => {
+    const isUser = item.role === 'user';
+
+    return (
+      <View style={[
+        styles.aiMessageBubble,
+        isUser
+          ? styles.aiMessageBubbleUser
+          : { backgroundColor: surface, borderColor: border, borderWidth: 1 },
+      ]}>
+        <Text style={[
+          styles.aiMessageText,
+          { color: foreground },
+        ]}>
+          {item.content}
+        </Text>
+      </View>
+    );
   };
 
   return (
@@ -296,6 +438,20 @@ export default function WriteDiaryScreen() {
           </View>
 
           <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+            {/* AI陪伴按钮 */}
+            <TouchableOpacity
+              style={[styles.aiAssistantButton, { backgroundColor: `${accent}15`, borderColor: `${accent}40`, borderWidth: 1 }]}
+              onPress={() => setShowAIChat(true)}
+              activeOpacity={0.7}
+            >
+              <FontAwesome6 name="robot" size={20} color={accent} />
+              <View style={styles.aiAssistantButtonContent}>
+                <Text style={[styles.aiAssistantButtonText, { color: foreground }]}>AI写作助手</Text>
+                <Text style={[styles.aiAssistantButtonSubtext, { color: muted }]}>陪伴你写日记，提供写作建议</Text>
+              </View>
+              <FontAwesome6 name="chevron-right" size={16} color={muted} />
+            </TouchableOpacity>
+
             {/* 模板选择 */}
             <TouchableOpacity
               style={[styles.templateSelector, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}
@@ -492,6 +648,68 @@ export default function WriteDiaryScreen() {
         </KeyboardAvoidingView>
       </View>
 
+      {/* AI聊天弹窗 */}
+      <Modal
+        visible={showAIChat}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAIChat(false)}
+      >
+        <View style={[styles.modalOverlay, { backgroundColor: `${background}90` }]}>
+          <View style={[styles.aiChatModalContent, { backgroundColor: surface }]}>
+            <View style={[styles.aiChatHeader, { borderBottomColor: border }]}>
+              <TouchableOpacity
+                style={styles.aiChatBackButton}
+                onPress={() => setShowAIChat(false)}
+                activeOpacity={0.6}
+              >
+                <FontAwesome6 name="xmark" size={24} color={foreground} />
+              </TouchableOpacity>
+              <Text style={[styles.aiChatTitle, { color: foreground }]}>AI写作助手</Text>
+              <View style={{ width: 40 }} />
+            </View>
+
+            <View style={styles.aiChatMessages}>
+              <FlatList
+                ref={scrollViewRef}
+                data={aiMessages}
+                renderItem={renderAIMessage}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.aiChatMessagesContent}
+                onContentSizeChange={() => {
+                  scrollViewRef.current?.scrollToEnd({ animated: true });
+                }}
+              />
+              {aiLoading && (
+                <View style={styles.aiLoadingContainer}>
+                  <ActivityIndicator size="small" color={accent} />
+                  <Text style={[styles.aiLoadingText, { color: muted }]}>AI正在思考...</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={[styles.aiChatInputArea, { borderTopColor: border }]}>
+              <TextInput
+                style={[styles.aiChatInput, { color: foreground, backgroundColor: `${background}50`, borderColor: border }]}
+                placeholder="和AI助手聊聊..."
+                placeholderTextColor={muted}
+                value={aiInput}
+                onChangeText={setAIInput}
+                multiline
+              />
+              <TouchableOpacity
+                style={[styles.aiChatSendButton, { backgroundColor: accent }]}
+                onPress={handleSendAIMessage}
+                disabled={aiLoading || !aiInput.trim()}
+                activeOpacity={0.7}
+              >
+                <FontAwesome6 name="paper-plane" size={18} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* 模板选择弹窗 */}
       <Modal visible={showTemplateModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
@@ -644,6 +862,25 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
   },
+  aiAssistantButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  aiAssistantButtonContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  aiAssistantButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  aiAssistantButtonSubtext: {
+    fontSize: 12,
+    marginTop: 2,
+  },
   templateSelector: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -716,39 +953,37 @@ const styles = StyleSheet.create({
     minHeight: 200,
     padding: 12,
     borderRadius: 12,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   moodSection: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   sectionLabel: {
-    fontSize: 13,
-    fontWeight: '500',
+    fontSize: 12,
     marginBottom: 8,
   },
   moodButton: {
-    flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+    borderRadius: 12,
     marginRight: 8,
-    gap: 6,
+    minWidth: 70,
   },
   moodLabel: {
-    fontSize: 14,
+    fontSize: 12,
+    marginTop: 4,
     fontWeight: '500',
   },
   tagSection: {
-    padding: 12,
+    padding: 14,
     borderRadius: 12,
     marginBottom: 12,
   },
   tagList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 8,
-    gap: 8,
+    marginBottom: 12,
   },
   tagBadge: {
     flexDirection: 'row',
@@ -756,27 +991,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 16,
-    gap: 6,
+    marginRight: 8,
+    marginBottom: 8,
   },
   tagText: {
     fontSize: 13,
+    marginRight: 6,
   },
   tagInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
   tagInput: {
     flex: 1,
     fontSize: 14,
-    padding: 8,
+    padding: 10,
     borderRadius: 8,
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    marginRight: 8,
   },
   addTagBtn: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -785,21 +1021,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 10,
     borderRadius: 8,
-    gap: 8,
+    marginBottom: 12,
   },
   locationText: {
     fontSize: 13,
+    marginLeft: 8,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     maxHeight: '80%',
+    padding: 20,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -814,11 +1050,11 @@ const styles = StyleSheet.create({
   templateItem: {
     padding: 16,
     borderRadius: 12,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   templateItemTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
     marginBottom: 4,
   },
   templateItemPrompt: {
@@ -827,48 +1063,126 @@ const styles = StyleSheet.create({
   weatherGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    justifyContent: 'space-between',
   },
   weatherItem: {
-    width: (width - 64) / 3,
+    width: (width - 40 - 24) / 3,
+    alignItems: 'center',
     padding: 16,
     borderRadius: 12,
-    alignItems: 'center',
+    marginBottom: 12,
   },
   weatherLabel: {
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 8,
   },
   intensityContainer: {
-    padding: 20,
+    paddingVertical: 20,
   },
   intensityValue: {
     fontSize: 48,
     fontWeight: '700',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   intensitySlider: {
     width: '100%',
     height: 40,
-    marginBottom: 12,
   },
   intensityLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: 8,
   },
   intensityLabel: {
     fontSize: 13,
   },
   intensityConfirmBtn: {
-    margin: 16,
-    padding: 14,
+    padding: 16,
     borderRadius: 12,
     alignItems: 'center',
+    marginTop: 16,
   },
   intensityConfirmText: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  aiChatModalContent: {
+    flex: 1,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  aiChatHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+  },
+  aiChatBackButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  aiChatTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  aiChatMessages: {
+    flex: 1,
+  },
+  aiChatMessagesContent: {
+    padding: 16,
+  },
+  aiMessageBubble: {
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  aiMessageBubbleUser: {
+    backgroundColor: '#007AFF',
+    marginLeft: 40,
+  },
+  aiMessageText: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  aiLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    marginTop: 8,
+  },
+  aiLoadingText: {
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  aiChatInputArea: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 20,
+    borderTopWidth: 1,
+  },
+  aiChatInput: {
+    flex: 1,
+    fontSize: 15,
+    padding: 12,
+    borderRadius: 20,
+    maxHeight: 100,
+    marginRight: 12,
+    borderWidth: 1,
+  },
+  aiChatSendButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
