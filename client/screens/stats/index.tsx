@@ -292,7 +292,7 @@ export default function StatsScreen() {
       <View style={styles.statContent}>
         <Text style={[styles.statValue, { color: foreground }]}>{value}</Text>
         <Text style={[styles.statTitle, { color: muted }]}>{title}</Text>
-        {subtitle && <Text style={[styles.statSubtitle, { color: muted }]}>{subtitle}</Text>}
+        {subtitle && subtitle.trim().length > 0 && <Text style={[styles.statSubtitle, { color: muted }]}>{subtitle}</Text>}
       </View>
     </View>
   );
