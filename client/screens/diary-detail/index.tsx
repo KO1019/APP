@@ -6,7 +6,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
-import { buildApiUrl, getLocalDiaries, saveLocalDiary } from '@/utils';
+import { buildApiUrl } from '@/utils';
+import { getLocalDiaryById } from '@/utils/localStorage';
 
 interface DiaryDetail {
   id: string;
@@ -84,9 +85,8 @@ export default function DiaryDetailScreen() {
       if (id.startsWith('local_')) {
         console.log('[DiaryDetail] Loading from local storage');
 
-        // 从本地存储加载日记
-        const localDiaries = await getLocalDiaries();
-        const localDiary = localDiaries.find(d => d.id === id);
+        // 从本地存储加载日记（直接通过ID获取）
+        const localDiary = await getLocalDiaryById(id);
 
         if (localDiary) {
           console.log('[DiaryDetail] Loaded from local storage');
