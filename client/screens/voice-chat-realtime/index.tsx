@@ -42,7 +42,7 @@ export default function VoiceChatRealtime() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [isMuted, setIsMuted] = useState(false); // 静音状态
-  const [recordMode, setRecordMode] = useState(false);
+  const [recordMode, setRecordMode] = useState(false); // 记录模式：自动保存对话为日记
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant', content: string }>>([]);
   const [latestAiMessage, setLatestAiMessage] = useState('');
   const [currentInterimText, setCurrentInterimText] = useState('');
@@ -682,69 +682,60 @@ export default function VoiceChatRealtime() {
     }
   }, [sendTextMessage]);
 
-  const handleRecordingPress = useCallback(async () => {
-    if (isRecording) {
-      // 停止录音
-      await stopRecording();
-    } else {
-      // 开始录音
-      await startRecording();
-    }
-  }, [isRecording, startRecording, stopRecording]);
-
   const handleEndCall = async () => {
-    Alert.alert(
-      '结束通话',
-      '确定要结束通话吗？',
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '确定',
-          onPress: async () => {
-            // 标记为手动断开，不自动重连
-            shouldAutoReconnectRef.current = false;
+    try {
+      console.log('[VOICE] Ending call...');
 
-            // 清理重连定时器
-            if (connectTimeoutRef.current) {
-              clearTimeout(connectTimeoutRef.current);
-              connectTimeoutRef.current = null;
-            }
+      // 标记为手动断开，不自动重连
+      shouldAutoReconnectRef.current = false;
 
-            // 清理HTTP轮询定时器
-            if (httpPollingIntervalRef.current) {
-              clearInterval(httpPollingIntervalRef.current);
-              httpPollingIntervalRef.current = null;
-            }
+      // 清理重连定时器
+      if (connectTimeoutRef.current) {
+        clearTimeout(connectTimeoutRef.current);
+        connectTimeoutRef.current = null;
+      }
 
-            // 停止录音
-            if (isRecording) {
-              await stopRecording();
-            }
+      // 清理HTTP轮询定时器
+      if (httpPollingIntervalRef.current) {
+        clearInterval(httpPollingIntervalRef.current);
+        httpPollingIntervalRef.current = null;
+      }
 
-            // 停止音频播放
-            if (soundRef.current) {
-              await soundRef.current.unloadAsync();
-            }
+      // 停止录音
+      if (isRecording) {
+        await stopRecording();
+      }
 
-            // 关闭连接
-            if (useHttpPolling) {
-              // HTTP长轮询模式：关闭会话
-              httpIsConnectedRef.current = false;
-              await httpCloseSession();
-              httpSessionIdRef.current = null;
-            } else {
-              // WebSocket模式：关闭WebSocket
-              if (wsRef.current) {
-                wsRef.current.close(1000); // 正常关闭
-              }
-            }
+      // 停止音频播放
+      if (soundRef.current) {
+        await soundRef.current.unloadAsync();
+      }
 
-            setIsConnected(false);
-            router.back();
-          }
+      // 关闭连接
+      if (useHttpPolling) {
+        // HTTP长轮询模式：关闭会话
+        httpIsConnectedRef.current = false;
+        await httpCloseSession();
+        httpSessionIdRef.current = null;
+      } else {
+        // WebSocket模式：关闭WebSocket
+        if (wsRef.current) {
+          wsRef.current.close(1000); // 正常关闭
         }
-      ]
-    );
+      }
+
+      setIsConnected(false);
+
+      Toast.show({ type: 'success', text1: '通话已结束' });
+
+      // 延迟返回，让Toast显示
+      setTimeout(() => {
+        router.back();
+      }, 500);
+    } catch (error) {
+      console.error('[VOICE] Failed to end call:', error);
+      Toast.show({ type: 'error', text1: '结束通话失败' });
+    }
   };
 
   const handleMessage = useCallback((message: any) => {
@@ -831,8 +822,10 @@ export default function VoiceChatRealtime() {
     const connectOnce = async () => {
       try {
         await connectWebSocket();
-        // 连接成功后不自动开始录音，改为手动录音
-        console.log('[VOICE] Connected successfully, ready to record');
+        // 连接成功后自动开始录音（真正的通话模式）
+        console.log('[VOICE] Connected successfully, starting call...');
+        await startRecording();
+        Toast.show({ type: 'success', text1: '通话已连接', text2: '请开始说话' });
       } catch (error) {
         console.error('[VOICE] Failed to connect:', error);
       }
@@ -1008,6 +1001,24 @@ export default function VoiceChatRealtime() {
 
         {/* 底部控制栏 */}
         <View style={[styles.footer, { backgroundColor: surface, borderTopColor: `${foreground}05`, borderTopWidth: 1 }]}>
+          {/* 状态指示 */}
+          <View style={styles.statusContainer}>
+            {isConnected ? (
+              <>
+                {isAiSpeaking ? (
+                  <FontAwesome6 name="volume-high" size={20} color={accent} />
+                ) : (
+                  <FontAwesome6 name="microphone" size={20} color="#EF4444" />
+                )}
+                <Text style={[styles.statusText, { color: muted }]}>
+                  {isAiSpeaking ? 'AI正在说话...' : '正在录音，请直接说话...'}
+                </Text>
+              </>
+            ) : (
+              <FontAwesome6 name="spinner" size={20} color={muted} />
+            )}
+          </View>
+
           {/* 挂断按钮 */}
           <TouchableOpacity
             style={[styles.controlButton, styles.endButton, { backgroundColor: '#EF444420' }]}
@@ -1016,29 +1027,6 @@ export default function VoiceChatRealtime() {
           >
             <FontAwesome6 name="phone-slash" size={24} color="#EF4444" />
             <Text style={[styles.controlButtonText, { color: '#EF4444' }]}>挂断</Text>
-          </TouchableOpacity>
-
-          {/* 主录音按钮 */}
-          <TouchableOpacity
-            style={[
-              styles.mainRecordButton,
-              { backgroundColor: isRecording ? '#EF4444' : `${accent}10`, borderColor: isRecording ? '#EF4444' : accent, borderWidth: 2 },
-            ]}
-            onPress={handleRecordingPress}
-            disabled={!isConnected}
-            activeOpacity={0.8}
-          >
-            {isRecording ? (
-              <>
-                <FontAwesome6 name="stop" size={32} color="#FFFFFF" />
-                <Text style={styles.mainRecordText}>停止录音</Text>
-              </>
-            ) : (
-              <>
-                <FontAwesome6 name="microphone" size={32} color={accent} />
-                <Text style={[styles.mainRecordText, { color: accent }]}>点击说话</Text>
-              </>
-            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -1235,21 +1223,12 @@ const styles = StyleSheet.create({
   },
   muteButton: {
   },
-  mainRecordButton: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    justifyContent: 'center',
+  statusContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+    gap: 8,
   },
-  mainRecordText: {
-    fontSize: 13,
-    fontWeight: '600',
+  statusText: {
+    fontSize: 14,
   },
 });
