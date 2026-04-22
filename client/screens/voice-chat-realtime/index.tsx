@@ -199,21 +199,14 @@ export default function VoiceChatRealtime() {
             case 1006: errorDetail = '连接异常断开，可能是网络问题'; break;
             default: errorDetail = `未知错误 (代码: ${event.code})`;
           }
-          if (errorDetail) {
-            Toast.show({
-              type: 'error',
-              text1: '连接断开',
-              text2: errorDetail,
-              position: 'bottom',
-            });
-          }
 
-          console.log('[VOICE] Will reconnect in 3 seconds...');
+          console.log(`[VOICE] Will reconnect in 5 seconds... (reason: ${errorDetail})`);
           connectTimeoutRef.current = setTimeout(() => {
             if (shouldAutoReconnectRef.current) {
+              console.log('[VOICE] Reconnecting...');
               connectWebSocket();
             }
-          }, 3000);
+          }, 5000); // 增加到5秒，避免快速重连
         }
       };
 
