@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { useFocusEffect } from 'expo-router';
+import { useAuth } from '@/contexts/AuthContext';
 import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
@@ -51,6 +52,7 @@ const emotionLabels: Record<string, string> = {
 export default function DiaryDetailScreen() {
   const router = useSafeRouter();
   const { id } = useSafeSearchParams<{ id: string }>();
+  const { token } = useAuth();
 
   const [diary, setDiary] = useState<DiaryDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,17 +67,22 @@ export default function DiaryDetailScreen() {
   ]) as string[];
 
   const fetchDiaryDetail = useCallback(async () => {
-    if (!id) return;
+    if (!id || !token) return;
 
     try {
       setLoading(true);
 
       /**
-       * 服务端文件：server/src/index.ts
-       * 接口：GET /api/v1/diaries/:id
-       * Path 参数：id: string
+       * 服务端文件：server/main.py
+       * 接口：GET /api/v1/diaries/{diary_id}
+       * Path 参数：diary_id: string
+       * Headers: Authorization: Bearer {token}
        */
-      const response = await fetch(buildApiUrl(`/api/v1/diaries/${id}`));
+      const response = await fetch(buildApiUrl(`/api/v1/diaries/${id}`), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
 
       if (!response.ok) {
         throw new Error('Failed to fetch diary');
@@ -88,7 +95,7 @@ export default function DiaryDetailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, token]);
 
   useFocusEffect(
     useCallback(() => {
