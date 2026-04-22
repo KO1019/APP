@@ -41,8 +41,8 @@ start_session_req = {
         "extra": {
             "strict_audit": False,
             "audit_response": "",
-            "recv_timeout": 10,  # 参数范围[10,120]，纯文本模式使用
-            "input_mod": "text"  # 支持text/audio/keep_alive/push_to_talk/audio_file
+            "recv_timeout": 120,  # 参数范围[10,120]，麦克风模式使用最大值
+            "input_mod": "keep_alive"  # 支持text/audio/keep_alive/push_to_talk/audio_file
         }
     }
 }

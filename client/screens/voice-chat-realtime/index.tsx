@@ -51,7 +51,9 @@ export default function VoiceChatRealtime() {
   const soundRef = useRef<Audio.Sound | null>(null);
   const audioBufferRef = useRef<Buffer[] | null>(null);
   const audioIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const connectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const handleMessageRef = useRef<any>(null);
+  const shouldAutoReconnectRef = useRef(true);
 
   const { width: screenWidth } = Dimensions.get('window');
   const waveAnimations = useMemo(() => [
@@ -189,7 +191,8 @@ export default function VoiceChatRealtime() {
         }
         setIsConnected(false);
 
-        if (event.code !== 1000) {
+        // 只有在应该自动重连且不是用户手动断开时才重连
+        if (event.code !== 1000 && shouldAutoReconnectRef.current) {
           let errorDetail = '';
           switch (event.code) {
             case 1001: errorDetail = '连接被服务器主动关闭'; break;
@@ -204,9 +207,14 @@ export default function VoiceChatRealtime() {
               position: 'bottom',
             });
           }
-        }
 
-        setTimeout(() => connectWebSocket(), 3000);
+          console.log('[VOICE] Will reconnect in 3 seconds...');
+          connectTimeoutRef.current = setTimeout(() => {
+            if (shouldAutoReconnectRef.current) {
+              connectWebSocket();
+            }
+          }, 3000);
+        }
       };
 
       wsRef.current = ws;
@@ -518,9 +526,30 @@ export default function VoiceChatRealtime() {
         {
           text: '确定',
           onPress: () => {
-            if (wsRef.current) {
-              wsRef.current.close();
+            // 标记为手动断开，不自动重连
+            shouldAutoReconnectRef.current = false;
+
+            // 清理重连定时器
+            if (connectTimeoutRef.current) {
+              clearTimeout(connectTimeoutRef.current);
+              connectTimeoutRef.current = null;
             }
+
+            // 停止录音
+            if (isRecording) {
+              stopRecording();
+            }
+
+            // 停止音频播放
+            if (soundRef.current) {
+              soundRef.current.unloadAsync();
+            }
+
+            // 关闭 WebSocket
+            if (wsRef.current) {
+              wsRef.current.close(1000); // 正常关闭
+            }
+
             router.back();
           }
         }

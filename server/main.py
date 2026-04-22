@@ -418,8 +418,8 @@ async def websocket_voice_realtime(websocket: WebSocket):
             config=config.ws_connect_config,
             session_id=session_id,
             output_audio_format="pcm",
-            mod="keep_alive",  # 使用麦克风模式
-            recv_timeout=60  # 超时时间60秒
+            mod=None,  # 使用配置文件中的 input_mod 设置
+            recv_timeout=120  # 超时时间120秒，与配置文件一致
         )
 
         print(f"[WS] Connecting to Volcengine API...")
