@@ -310,9 +310,11 @@ export default function ChatScreen() {
         <View style={[styles.container, { backgroundColor: background }]}>
           <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <FontAwesome6 name="arrow-left" size={24} color={foreground} />
-            </TouchableOpacity>
+            {params.conversationId && (
+              <TouchableOpacity onPress={() => router.replace('/chat')} style={styles.backButton}>
+                <FontAwesome6 name="arrow-left" size={24} color={foreground} />
+              </TouchableOpacity>
+            )}
           </View>
 
           <View style={styles.headerCenter}>
