@@ -131,27 +131,20 @@ export default function VoiceChatRealtime() {
       let wsUrl: string;
 
       if (Platform.OS === 'web') {
-        // Web环境下：开发环境指向Metro Dev Server，生产环境直接指向后端
-        const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        // Web环境下：始终使用localhost:9091，因为前端和后端在同一容器中运行
+        const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.includes('coze.site');
         if (isDev) {
-          // 开发环境：指向Metro Dev Server，让Metro代理拦截并转发到后端
-          wsUrl = 'ws://localhost:5000/api/v1/voice/realtime';
+          // 开发环境和Coze环境：直接连接后端WebSocket
+          wsUrl = 'ws://localhost:9091/api/v1/voice/realtime';
         } else {
-          // 生产环境：直接使用完整URL
-          const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-          wsUrl = `${protocol}//${window.location.host}/api/v1/voice/realtime`;
+          // 生产环境：从backendUrl提取WebSocket地址
+          const url = new URL(backendUrl);
+          const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+          wsUrl = `${protocol}//${url.hostname}/api/v1/voice/realtime`;
         }
       } else {
-        // 移动端环境下使用完整URL
-        let wsProtocol = 'ws://';
-        if (backendUrl.startsWith('https://')) {
-          wsProtocol = 'wss://';
-        } else if (backendUrl.startsWith('http://')) {
-          wsProtocol = 'ws://';
-        }
-
-        const hostname = backendUrl.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-        wsUrl = `${wsProtocol}${hostname}/api/v1/voice/realtime`;
+        // 移动端：始终使用localhost:9091，因为前端和后端在同一容器中运行
+        wsUrl = 'ws://localhost:9091/api/v1/voice/realtime';
       }
 
       console.log('[VOICE] Attempting to connect to WebSocket...');
