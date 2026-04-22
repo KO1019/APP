@@ -70,6 +70,7 @@ export default function ConversationHistoryScreen() {
   }, [token]);
 
   const handleDeleteConversation = useCallback(async (conversationId: string) => {
+    console.log('Delete button clicked, conversationId:', conversationId);
     Alert.alert(
       '删除对话',
       '确定要删除这条对话记录吗？此操作不可恢复。',
@@ -80,6 +81,7 @@ export default function ConversationHistoryScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              console.log('Starting delete request for conversationId:', conversationId);
               /**
                * 服务端文件：server/src/index.ts
                * 接口：DELETE /api/v1/conversations/:id
@@ -93,12 +95,15 @@ export default function ConversationHistoryScreen() {
                 },
               });
 
+              console.log('Delete response status:', response.status);
+
               if (response.ok) {
                 Alert.alert('成功', '对话已删除');
                 // 刷新列表
                 fetchConversations();
               } else {
                 const data = await response.json();
+                console.error('Delete failed:', data);
                 Alert.alert('错误', data.error || '删除失败');
               }
             } catch (error) {
@@ -204,17 +209,18 @@ export default function ConversationHistoryScreen() {
                   <View style={[styles.avatarContainer, { backgroundColor: `${accent}20` }]}>
                     <FontAwesome6 name="user" size={16} color={accent} />
                   </View>
-                  <Text style={[styles.conversationTime, { color: muted }]}>
+                  <Text style={[styles.conversationTime, { color: muted }]} numberOfLines={1}>
                     {formatDate(conversation.created_at)}
                   </Text>
+                  <View style={styles.spacer} />
                   <TouchableOpacity
                     style={styles.deleteButton}
                     onPress={(e) => {
                       e.stopPropagation();
+                      console.log('Delete button pressed for conversation:', conversation.id);
                       handleDeleteConversation(conversation.id);
                     }}
                     activeOpacity={0.6}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
                     <FontAwesome6 name="trash-can" size={16} color="#EF4444" />
                   </TouchableOpacity>
@@ -365,12 +371,15 @@ const styles = StyleSheet.create({
   },
   conversationTime: {
     fontSize: 12,
+    flex: 0,
+  },
+  spacer: {
     flex: 1,
   },
   deleteButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
