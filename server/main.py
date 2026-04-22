@@ -495,7 +495,7 @@ async def listen_volcengine_http(session_id: str, client: RealtimeDialogClient, 
 
 
 async def convert_to_http_response(response: Dict[str, Any]) -> Dict[str, Any]:
-    """将豆包API响应转换为HTTP响应格式"""
+    """将豆包API响应转换为HTTP响应格式 - 按照官方API事件类型"""
     result = {}
     message_type = response.get('message_type', '')
     payload_msg = response.get('payload_msg')
@@ -513,30 +513,50 @@ async def convert_to_http_response(response: Dict[str, Any]) -> Dict[str, Any]:
     elif event == 152:  # SessionStopped
         result = {"type": "session_stopped"}
 
-    elif message_type == 'ChatTextQueryResponse':
-        result = {"type": "text_response", "text": payload_msg if isinstance(payload_msg, str) else str(payload_msg)}
+    elif event == 451:  # ASRResponse - 用户语音识别结果
+        if isinstance(payload_msg, dict) and 'results' in payload_msg:
+            results = payload_msg['results']
+            for res in results:
+                text = res.get('text', '')
+                is_interim = res.get('is_interim', False)
+                result = {
+                    "type": "asr_text",
+                    "data": {
+                        "text": text,
+                        "is_interim": is_interim,
+                        "is_final": not is_interim
+                    }
+                }
 
-    elif message_type == 'TaskResponse':
-        result = {"type": "audio_response"}
-        if payload_msg:
-            if isinstance(payload_msg, bytes):
-                result['audio_data'] = payload_msg.hex()  # 转为hex字符串
-            elif isinstance(payload_msg, str):
-                result['audio_data'] = payload_msg
+    elif event == 459:  # ASREnded - 用户说话结束
+        result = {"type": "asr_ended"}
 
-    elif message_type == 'TextEvent':
-        result = {"type": "text_event", "text": payload_msg if isinstance(payload_msg, str) else str(payload_msg)}
+    elif event == 550:  # ChatResponse - AI回复文本
+        if isinstance(payload_msg, dict):
+            content = payload_msg.get('content', '')
+            result = {
+                "type": "llm_response",
+                "data": {
+                    "content": content
+                }
+            }
 
-    elif message_type == 'AudioEvent':
-        result = {"type": "audio_event"}
+    elif event == 559:  # ChatEnded - AI文本回复结束
+        result = {"type": "chat_ended"}
+
+    elif event == 352:  # TTSResponse - AI回复音频
+        result = {"type": "tts_audio"}
         if payload_msg:
             if isinstance(payload_msg, bytes):
                 result['audio_data'] = payload_msg.hex()
             elif isinstance(payload_msg, str):
                 result['audio_data'] = payload_msg
 
+    elif event == 359:  # TTSEnded - AI音频结束
+        result = {"type": "tts_ended"}
+
     else:
-        result = {"type": "unknown", "data": str(response)}
+        result = {"type": "unknown", "event": event, "message_type": message_type}
 
     return result
 
@@ -763,17 +783,21 @@ async def websocket_voice_realtime(websocket: WebSocket):
 
 
 async def handle_volcengine_response(websocket: WebSocket, response: Dict[str, Any]):
-    """处理豆包API返回的响应"""
+    """处理豆包API返回的响应 - 按照官方API事件类型"""
     try:
         message_type = response.get('message_type', '')
         payload_msg = response.get('payload_msg')
         event = response.get('event')
 
         # 打印响应信息
-        print(f"📥 Volcengine response: message_type={message_type}, event={event}")
+        print(f"📥 Volcengine response: event={event}, message_type={message_type}")
 
+        # 连接相关事件
         if event == 50:  # ConnectionStarted
             print("✅ ConnectionStarted")
+            await websocket.send_json({
+                "type": "connection_started",
+            })
 
         elif event == 150:  # SessionStarted
             print("✅ SessionStarted")
@@ -782,16 +806,49 @@ async def handle_volcengine_response(websocket: WebSocket, response: Dict[str, A
                 "dialog_id": payload_msg.get('dialog_id') if isinstance(payload_msg, dict) else None
             })
 
-        elif event == 550:  # ChatResponse
-            # AI回复文本
-            print(f"💬 ChatResponse: {payload_msg}")
+        # ASR语音识别事件
+        elif event == 451:  # ASRResponse - 用户语音识别结果
+            if isinstance(payload_msg, dict) and 'results' in payload_msg:
+                results = payload_msg['results']
+                for result in results:
+                    text = result.get('text', '')
+                    is_interim = result.get('is_interim', False)
+                    print(f"💬 ASRResponse: text={text}, is_interim={is_interim}")
+                    await websocket.send_json({
+                        "type": "asr_text",
+                        "data": {
+                            "text": text,
+                            "is_interim": is_interim,
+                            "is_final": not is_interim
+                        }
+                    })
+
+        elif event == 459:  # ASREnded - 用户说话结束
+            print("✅ ASREnded")
             await websocket.send_json({
-                "type": "chat_response",
-                "data": payload_msg
+                "type": "asr_ended",
             })
 
-        elif event == 352:  # TTSResponse
-            # 音频数据 - payload_msg是二进制数据
+        # AI对话事件
+        elif event == 550:  # ChatResponse - AI回复文本
+            if isinstance(payload_msg, dict):
+                content = payload_msg.get('content', '')
+                print(f"💬 ChatResponse: {content}")
+                await websocket.send_json({
+                    "type": "llm_response",
+                    "data": {
+                        "content": content
+                    }
+                })
+
+        elif event == 559:  # ChatEnded - AI文本回复结束
+            print("✅ ChatEnded")
+            await websocket.send_json({
+                "type": "chat_ended",
+            })
+
+        # TTS音频事件
+        elif event == 352:  # TTSResponse - AI回复音频
             if isinstance(payload_msg, bytes):
                 print(f"🎵 TTSResponse: {len(payload_msg)} bytes")
                 await websocket.send_json({
@@ -799,16 +856,14 @@ async def handle_volcengine_response(websocket: WebSocket, response: Dict[str, A
                     "data": payload_msg.hex()  # 发送hex字符串
                 })
 
-        elif event == 559:  # ChatEnded
-            # 聊天结束
-            print("🔚 ChatEnded")
+        elif event == 359:  # TTSEnded - AI音频结束
+            print("✅ TTSEnded")
             await websocket.send_json({
-                "type": "chat_ended",
-                "data": payload_msg
+                "type": "tts_ended",
             })
 
+        # 错误事件
         elif message_type == 'SERVER_ERROR_RESPONSE' or 'code' in response:
-            # 错误响应
             error_msg = payload_msg if isinstance(payload_msg, str) else str(payload_msg)
             print(f"❌ Server Error: {response.get('code')} - {error_msg}")
             await websocket.send_json({
@@ -818,6 +873,8 @@ async def handle_volcengine_response(websocket: WebSocket, response: Dict[str, A
 
     except Exception as e:
         print(f"Error handling Volcengine response: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 async def handle_client_message(websocket: WebSocket, client: RealtimeDialogClient, message: Dict[str, Any]):
