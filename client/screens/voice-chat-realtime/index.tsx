@@ -273,13 +273,29 @@ export default function VoiceChatRealtimeScreen() {
       };
 
       ws.onclose = (event: CloseEvent) => {
-        console.log('[VOICE] WebSocket closed:', {
-          code: event.code,
-          reason: event.reason,
-          wasClean: event.wasClean,
-        });
+        // 使用 info 级别记录正常关闭，使用 error 级别记录异常关闭
+        if (event.code === 1000) {
+          // 正常关闭，使用 info 级别
+          console.log('[VOICE] WebSocket closed normally:', {
+            code: event.code,
+            reason: event.reason || 'normal closure',
+            wasClean: event.wasClean,
+          });
+        } else {
+          // 异常关闭，使用 error 级别
+          console.error('[VOICE] WebSocket closed abnormally:', {
+            code: event.code,
+            reason: event.reason,
+            wasClean: event.wasClean,
+          });
+        }
 
         setIsConnected(false);
+
+        // 正常关闭（1000）不显示错误提示
+        if (event.code === 1000) {
+          return;
+        }
 
         // 根据关闭代码提供详细的错误提示
         const errorMessage = '语音服务连接已断开';
@@ -287,10 +303,6 @@ export default function VoiceChatRealtimeScreen() {
 
         // 常见的WebSocket关闭代码
         switch (event.code) {
-          case 1000:
-            // 正常关闭
-            return; // 不需要显示错误提示
-
           case 1001:
             errorDetail = '连接被服务器主动关闭';
             break;
@@ -332,7 +344,8 @@ export default function VoiceChatRealtimeScreen() {
             break;
 
           default:
-            if (event.reason) {
+            if (event.reason && !event.reason.includes('close 1000') && !event.reason.includes('normal')) {
+              // 过滤掉正常关闭相关的reason消息
               errorDetail = event.reason;
             } else {
               errorDetail = `未知错误 (代码: ${event.code})`;
