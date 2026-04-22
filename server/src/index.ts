@@ -1405,22 +1405,9 @@ wss.on('connection', (ws: WebSocket, request) => {
 
       volcWs.binaryType = 'nodebuffer';
 
-      // 心跳定时器
-      let heartbeatInterval: NodeJS.Timeout | null = null;
-
       volcWs.on('open', () => {
         console.log('✅ Connected to Volcengine API');
         console.log('WebSocket state:', volcWs?.readyState);
-
-        // 启动心跳，每30秒发送一次
-        heartbeatInterval = setInterval(() => {
-          if (volcWs && volcWs.readyState === WebSocket.OPEN) {
-            console.log('💓 Sending heartbeat');
-            // 发送一个空的 TaskRequest 帧作为心跳
-            const heartbeatFrame = buildTaskRequestFrameWithSession(sessionId, '', '');
-            volcWs.send(heartbeatFrame);
-          }
-        }, 30000);
 
         // 发送StartConnection事件
         const startConnectionFrame = buildStartConnectionFrame();
@@ -1682,13 +1669,6 @@ wss.on('connection', (ws: WebSocket, request) => {
           reason: reason?.toString() || 'No reason provided',
           wasClean: code === 1000,
         });
-
-        // 清除心跳定时器
-        if (heartbeatInterval) {
-          clearInterval(heartbeatInterval);
-          heartbeatInterval = null;
-        }
-
         ws.send(JSON.stringify({
           type: 'connection_closed',
           code,
