@@ -12,6 +12,16 @@ import Toast from 'react-native-toast-message';
 import * as KeepAwake from 'expo-keep-awake';
 import { buildApiUrl } from '@/utils';
 
+// 网页端录音适配
+interface WebRecorder {
+  mediaRecorder: MediaRecorder | null;
+  chunks: Blob[];
+  stream: MediaStream | null;
+}
+
+// 网页端录音实例
+let webRecorder: WebRecorder | null = null;
+
 export default function VoiceChatRealtime() {
   const router = useSafeRouter();
   const [background, foreground, surface, accent, muted, border] = useCSSVariable([
@@ -213,31 +223,49 @@ export default function VoiceChatRealtime() {
       const audioData = Buffer.concat(audioBufferRef.current);
       audioBufferRef.current = null;
 
-      const base64Audio = audioData.toString('base64');
-      const tempDir = (FileSystem as any).documentDirectory || (FileSystem as any).cacheDirectory || '';
-      const tempUri = `${tempDir}temp_audio_${Date.now()}.mp3`;
+      if (Platform.OS === 'web') {
+        // 网页端播放音频
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const audioBuffer = await audioContext.decodeAudioData(audioData.buffer);
 
-      await (FileSystem as any).writeAsStringAsync(tempUri, base64Audio, {
-        encoding: 'base64',
-      });
+        const source = audioContext.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioContext.destination);
+        source.start();
 
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: tempUri },
-        { shouldPlay: true }
-      );
-
-      soundRef.current = sound;
-      setIsAiSpeaking(true);
-
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
+        setIsAiSpeaking(true);
+        source.onended = () => {
           setIsAiSpeaking(false);
-          sound.unloadAsync();
-          FileSystem.deleteAsync(tempUri).catch(console.error);
-        }
-      });
+          audioContext.close();
+        };
+      } else {
+        // 移动端播放音频
+        const base64Audio = audioData.toString('base64');
+        const tempDir = (FileSystem as any).documentDirectory || (FileSystem as any).cacheDirectory || '';
+        const tempUri = `${tempDir}temp_audio_${Date.now()}.mp3`;
 
-      await sound.playAsync();
+        await (FileSystem as any).writeAsStringAsync(tempUri, base64Audio, {
+          encoding: 'base64',
+        });
+
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: tempUri },
+          { shouldPlay: true }
+        );
+
+        soundRef.current = sound;
+        setIsAiSpeaking(true);
+
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (status.isLoaded && status.didJustFinish) {
+            setIsAiSpeaking(false);
+            sound.unloadAsync();
+            FileSystem.deleteAsync(tempUri).catch(console.error);
+          }
+        });
+
+        await sound.playAsync();
+      }
     } catch (error) {
       console.error('[VOICE] Failed to play audio:', error);
       setIsAiSpeaking(false);
@@ -290,72 +318,120 @@ export default function VoiceChatRealtime() {
         return;
       }
 
-      const permission = await Audio.requestPermissionsAsync();
-      if (permission.status !== 'granted') {
-        Alert.alert('需要权限', '请授予麦克风权限以使用语音功能');
-        return;
-      }
-
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      const recording = new Audio.Recording();
-      recordingRef.current = recording;
-
-      await recording.prepareToRecordAsync({
-        android: {
-          extension: '.m4a',
-          outputFormat: 6,
-          audioEncoder: 3,
-          sampleRate: 16000,
-          numberOfChannels: 1,
-          bitRate: 128000,
-        },
-        ios: {
-          extension: '.m4a',
-          outputFormat: 'mp4',
-          audioQuality: 127,
-          sampleRate: 16000,
-          numberOfChannels: 1,
-          bitRate: 128000,
-        },
-        web: {
-          mimeType: 'audio/webm',
-          bitsPerSecond: 128000,
-        },
-      });
-
-      await recording.startAsync();
-      setIsRecording(true);
-      setIsProcessing(true);
-
-      // 实时发送录音数据
-      audioIntervalRef.current = setInterval(async () => {
+      if (Platform.OS === 'web') {
+        // 网页端录音实现
         try {
-          const status = await recording.getStatusAsync();
-          if (status.isRecording && status.durationMillis > 100) { // 每100ms发送一次
-            const uri = status.uri;
-            const audioData = await (FileSystem as any).readAsStringAsync(uri, {
-              encoding: 'base64',
-            });
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-            if (audioData && wsRef.current) {
-              const base64Audio = audioData.split(',')[1] || audioData; // 移除data URI前缀
-              const audioBytes = Buffer.from(base64Audio, 'base64');
+          webRecorder = {
+            mediaRecorder: new MediaRecorder(stream, { mimeType: 'audio/webm' }),
+            chunks: [],
+            stream: stream,
+          };
 
-              // 发送音频数据到后端
-              if (wsRef.current.readyState === WebSocket.OPEN) {
-                wsRef.current.send(audioBytes.buffer);
-                console.log('[VOICE] Sent audio chunk:', audioBytes.length, 'bytes');
+          if (webRecorder.mediaRecorder) {
+            webRecorder.mediaRecorder.ondataavailable = (event) => {
+              if (event.data.size > 0) {
+                webRecorder!.chunks.push(event.data);
+              }
+            };
+
+            webRecorder.mediaRecorder.start(100); // 每100ms收集一次数据
+          }
+          setIsRecording(true);
+          setIsProcessing(true);
+
+          // 实时发送音频数据
+          audioIntervalRef.current = setInterval(async () => {
+            try {
+              if (webRecorder && webRecorder.chunks.length > 0 && wsRef.current) {
+                const chunk = webRecorder.chunks.shift();
+                if (chunk) {
+                  const arrayBuffer = await chunk.arrayBuffer();
+                  if (wsRef.current.readyState === WebSocket.OPEN) {
+                    wsRef.current.send(arrayBuffer);
+                    console.log('[VOICE] Web: Sent audio chunk:', arrayBuffer.byteLength, 'bytes');
+                  }
+                }
+              }
+            } catch (error) {
+              console.error('[VOICE] Web: Failed to send audio chunk:', error);
+            }
+          }, 100);
+
+        } catch (error) {
+          console.error('[VOICE] Web: Failed to start recording:', error);
+          Toast.show({ type: 'error', text1: '无法访问麦克风' });
+        }
+      } else {
+        // 移动端录音实现
+        const permission = await Audio.requestPermissionsAsync();
+        if (permission.status !== 'granted') {
+          Alert.alert('需要权限', '请授予麦克风权限以使用语音功能');
+          return;
+        }
+
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+        });
+
+        const recording = new Audio.Recording();
+        recordingRef.current = recording;
+
+        await recording.prepareToRecordAsync({
+          android: {
+            extension: '.m4a',
+            outputFormat: 6,
+            audioEncoder: 3,
+            sampleRate: 16000,
+            numberOfChannels: 1,
+            bitRate: 128000,
+          },
+          ios: {
+            extension: '.m4a',
+            outputFormat: 'mp4',
+            audioQuality: 127,
+            sampleRate: 16000,
+            numberOfChannels: 1,
+            bitRate: 128000,
+          },
+          web: {
+            mimeType: 'audio/webm',
+            bitsPerSecond: 128000,
+          },
+        });
+
+        await recording.startAsync();
+        setIsRecording(true);
+        setIsProcessing(true);
+
+        // 实时发送录音数据
+        audioIntervalRef.current = setInterval(async () => {
+          try {
+            const status = await recording.getStatusAsync();
+            if (status.isRecording && status.durationMillis > 100) { // 每100ms发送一次
+              const uri = status.uri;
+              const audioData = await (FileSystem as any).readAsStringAsync(uri, {
+                encoding: 'base64',
+              });
+
+              if (audioData && wsRef.current) {
+                const base64Audio = audioData.split(',')[1] || audioData; // 移除data URI前缀
+                const audioBytes = Buffer.from(base64Audio, 'base64');
+
+                // 发送音频数据到后端
+                if (wsRef.current.readyState === WebSocket.OPEN) {
+                  wsRef.current.send(audioBytes.buffer);
+                  console.log('[VOICE] Mobile: Sent audio chunk:', audioBytes.length, 'bytes');
+                }
               }
             }
+          } catch (error) {
+            console.error('[VOICE] Mobile: Failed to send audio chunk:', error);
           }
-        } catch (error) {
-          console.error('[VOICE] Failed to send audio chunk:', error);
-        }
-      }, 100); // 每100ms发送一次
+        }, 100); // 每100ms发送一次
+      }
 
     } catch (error) {
       console.error('[VOICE] Failed to start recording:', error);
@@ -365,15 +441,26 @@ export default function VoiceChatRealtime() {
 
   const stopRecording = async () => {
     try {
-      if (!recordingRef.current) return;
-
       if (audioIntervalRef.current) {
         clearInterval(audioIntervalRef.current);
         audioIntervalRef.current = null;
       }
 
-      await recordingRef.current.stopAndUnloadAsync();
-      recordingRef.current = null;
+      if (Platform.OS === 'web') {
+        // 网页端停止录音
+        if (webRecorder && webRecorder.mediaRecorder) {
+          webRecorder.mediaRecorder.stop();
+          webRecorder.stream?.getTracks().forEach(track => track.stop());
+          webRecorder = null;
+        }
+      } else {
+        // 移动端停止录音
+        if (recordingRef.current) {
+          await recordingRef.current.stopAndUnloadAsync();
+          recordingRef.current = null;
+        }
+      }
+
       setIsRecording(false);
       setIsProcessing(false);
     } catch (error) {
