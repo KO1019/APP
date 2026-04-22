@@ -330,6 +330,33 @@ export default function VoiceChatRealtime() {
       await recording.startAsync();
       setIsRecording(true);
       setIsProcessing(true);
+
+      // 实时发送录音数据
+      audioIntervalRef.current = setInterval(async () => {
+        try {
+          const status = await recording.getStatusAsync();
+          if (status.isRecording && status.durationMillis > 100) { // 每100ms发送一次
+            const uri = status.uri;
+            const audioData = await (FileSystem as any).readAsStringAsync(uri, {
+              encoding: 'base64',
+            });
+
+            if (audioData && wsRef.current) {
+              const base64Audio = audioData.split(',')[1] || audioData; // 移除data URI前缀
+              const audioBytes = Buffer.from(base64Audio, 'base64');
+
+              // 发送音频数据到后端
+              if (wsRef.current.readyState === WebSocket.OPEN) {
+                wsRef.current.send(audioBytes.buffer);
+                console.log('[VOICE] Sent audio chunk:', audioBytes.length, 'bytes');
+              }
+            }
+          }
+        } catch (error) {
+          console.error('[VOICE] Failed to send audio chunk:', error);
+        }
+      }, 100); // 每100ms发送一次
+
     } catch (error) {
       console.error('[VOICE] Failed to start recording:', error);
       Toast.show({ type: 'error', text1: '录音失败' });
@@ -348,12 +375,42 @@ export default function VoiceChatRealtime() {
       await recordingRef.current.stopAndUnloadAsync();
       recordingRef.current = null;
       setIsRecording(false);
+      setIsProcessing(false);
     } catch (error) {
       console.error('[VOICE] Failed to stop recording:', error);
       setIsRecording(false);
       setIsProcessing(false);
     }
   };
+
+  // 文本输入预留接口
+  const sendTextMessage = useCallback((text: string) => {
+    try {
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        console.error('[VOICE] WebSocket not connected');
+        Toast.show({ type: 'error', text1: '连接已断开' });
+        return;
+      }
+
+      const message = {
+        type: 'text_input',
+        text: text,
+      };
+
+      wsRef.current.send(JSON.stringify(message));
+      console.log('[VOICE] Sent text message:', text);
+      setIsProcessing(true);
+    } catch (error) {
+      console.error('[VOICE] Failed to send text message:', error);
+      Toast.show({ type: 'error', text1: '发送失败' });
+    }
+  }, []);
+
+  // 暴露给外部调用
+  useEffect(() => {
+    // 可以通过 ref 暴露给其他组件使用
+    (wsRef.current as any).sendTextMessage = sendTextMessage;
+  }, [sendTextMessage]);
 
   const handleRecordingPress = useCallback(async () => {
     if (isRecording) {

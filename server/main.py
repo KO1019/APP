@@ -418,7 +418,7 @@ async def websocket_voice_realtime(websocket: WebSocket):
             config=config.ws_connect_config,
             session_id=session_id,
             output_audio_format="pcm",
-            mod="text",  # 使用文本输入模式
+            mod="keep_alive",  # 使用麦克风模式
             recv_timeout=60  # 超时时间60秒
         )
 
