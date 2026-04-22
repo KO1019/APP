@@ -518,6 +518,20 @@ async def get_diaries(user_id: str = Depends(get_user_id)):
     return result.data or []
 
 
+@app.get('/api/v1/diaries/{diary_id}')
+async def get_diary_detail(diary_id: str, user_id: str = Depends(get_user_id)):
+    """获取日记详情"""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    result = supabase.table('diaries').select('*').eq('id', diary_id).eq('user_id', user_id).execute()
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Diary not found")
+
+    return result.data[0]
+
+
 @app.delete('/api/v1/diaries/{diary_id}')
 async def delete_diary(diary_id: str, user_id: str = Depends(get_user_id)):
     """删除日记"""
