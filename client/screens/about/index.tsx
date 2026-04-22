@@ -4,6 +4,7 @@ import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
 import { buildApiUrl } from '@/utils';
+import { useSafeRouter } from '@/hooks/useSafeRouter';
 
 interface AboutInfo {
   app_name: string;
@@ -15,6 +16,7 @@ interface AboutInfo {
 }
 
 export default function AboutScreen() {
+  const router = useSafeRouter();
   const [aboutInfo, setAboutInfo] = useState<AboutInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -55,6 +57,19 @@ export default function AboutScreen() {
 
   return (
     <Screen>
+      {/* 顶部导航栏 */}
+      <View style={[styles.headerBar, { borderBottomColor: border }]}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+        >
+          <FontAwesome6 name="arrow-left" size={24} color={foreground} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: foreground }]}>关于</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
       <ScrollView style={[styles.container, { backgroundColor: background }]}>
         {loading ? (
           <View style={styles.loading}>
@@ -127,6 +142,25 @@ export default function AboutScreen() {
 }
 
 const styles = StyleSheet.create({
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    height: 56,
+    borderBottomWidth: 1,
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    flex: 1,
+    marginLeft: 8,
+  },
+  headerSpacer: {
+    width: 40,
+  },
   container: {
     flex: 1,
     padding: 20,

@@ -6,9 +6,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCSSVariable } from 'uniwind';
 import Toast from 'react-native-toast-message';
 import { buildApiUrl } from '@/utils';
+import { useSafeRouter } from '@/hooks/useSafeRouter';
 
 export default function ChangePasswordScreen() {
   const { user, token } = useAuth();
+  const router = useSafeRouter();
 
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -92,15 +94,27 @@ export default function ChangePasswordScreen() {
   return (
     <Screen>
       <View style={[styles.container, { backgroundColor: background }]}>
+        {/* 顶部导航栏 */}
+        <View style={[styles.headerBar, { borderBottomColor: border }]}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+          >
+            <FontAwesome6 name="arrow-left" size={24} color={foreground} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: foreground }]}>修改密码</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+
         <View style={styles.form}>
-          {/* 标题 */}
-          <View style={styles.header}>
-            <FontAwesome6 name="key" size={32} color={accent} />
-            <Text style={[styles.title, { color: foreground }]}>修改密码</Text>
-            <Text style={[styles.subtitle, { color: muted }]}>
-              为了您的账户安全，建议定期更换密码
-            </Text>
+          {/* 提示图标 */}
+          <View style={styles.iconContainer}>
+            <FontAwesome6 name="key" size={48} color={accent} />
           </View>
+          <Text style={[styles.pageSubtitle, { color: muted }]}>
+            为了您的账户安全，建议定期更换密码
+          </Text>
 
           {/* 旧密码输入 */}
           <View style={styles.inputGroup}>
@@ -177,24 +191,37 @@ export default function ChangePasswordScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+  },
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    height: 56,
+    borderBottomWidth: 1,
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    flex: 1,
+    marginLeft: 8,
+  },
+  headerSpacer: {
+    width: 40,
   },
   form: {
-    marginTop: 40,
+    padding: 20,
   },
-  header: {
+  iconContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 16,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginTop: 16,
-  },
-  subtitle: {
+  pageSubtitle: {
     fontSize: 14,
-    marginTop: 8,
     textAlign: 'center',
+    marginBottom: 32,
   },
   inputGroup: {
     marginBottom: 20,

@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCSSVariable } from 'uniwind';
 import Toast from 'react-native-toast-message';
 import { buildApiUrl } from '@/utils';
+import { useSafeRouter } from '@/hooks/useSafeRouter';
 
 interface PrivacySettings {
   cloud_sync_enabled: boolean;
@@ -15,6 +16,7 @@ interface PrivacySettings {
 
 export default function PrivacySettingsScreen() {
   const { user, token } = useAuth();
+  const router = useSafeRouter();
 
   const [settings, setSettings] = useState<PrivacySettings>({
     cloud_sync_enabled: false,
@@ -99,15 +101,23 @@ export default function PrivacySettingsScreen() {
   return (
     <Screen>
       <View style={[styles.container, { backgroundColor: background }]}>
+        {/* 顶部导航栏 */}
+        <View style={[styles.headerBar, { borderBottomColor: border }]}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+          >
+            <FontAwesome6 name="arrow-left" size={24} color={foreground} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: foreground }]}>隐私设置</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+
         <View style={styles.form}>
-          {/* 标题 */}
-          <View style={styles.header}>
-            <FontAwesome6 name="shield-halved" size={32} color={accent} />
-            <Text style={[styles.title, { color: foreground }]}>隐私设置</Text>
-            <Text style={[styles.subtitle, { color: muted }]}>
-              控制您的数据隐私和安全选项
-            </Text>
-          </View>
+          <Text style={[styles.pageSubtitle, { color: muted }]}>
+            控制您的数据隐私和安全选项
+          </Text>
 
           {loading ? (
             <View style={styles.loading}>
@@ -194,24 +204,33 @@ export default function PrivacySettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+  },
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    height: 56,
+    borderBottomWidth: 1,
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    flex: 1,
+    marginLeft: 8,
+  },
+  headerSpacer: {
+    width: 40,
   },
   form: {
-    marginTop: 20,
+    padding: 20,
   },
-  header: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginTop: 16,
-  },
-  subtitle: {
+  pageSubtitle: {
     fontSize: 14,
-    marginTop: 8,
-    textAlign: 'center',
+    marginBottom: 24,
+    marginLeft: 4,
   },
   loading: {
     padding: 40,
