@@ -41,6 +41,7 @@ export default function VoiceChatRealtime() {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
+  const [isMuted, setIsMuted] = useState(false); // 静音状态
   const [recordMode, setRecordMode] = useState(false);
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant', content: string }>>([]);
   const [latestAiMessage, setLatestAiMessage] = useState('');
@@ -503,12 +504,20 @@ export default function VoiceChatRealtime() {
   }, [sendTextMessage]);
 
   const handleRecordingPress = useCallback(async () => {
-    if (isRecording) {
-      await stopRecording();
+    if (isMuted) {
+      // 取消静音 - 继续录音
+      setIsMuted(false);
+      if (!isRecording && isConnected) {
+        await startRecording();
+      }
     } else {
-      await startRecording();
+      // 静音 - 停止录音但不结束通话
+      setIsMuted(true);
+      if (isRecording) {
+        await stopRecording();
+      }
     }
-  }, [isRecording, startRecording, stopRecording]);
+  }, [isMuted, isRecording, isConnected, startRecording, stopRecording]);
 
   const handleEndCall = () => {
     Alert.alert(
@@ -617,8 +626,37 @@ export default function VoiceChatRealtime() {
   }, [handleMessage]);
 
   useEffect(() => {
-    connectWebSocket();
-  }, [connectWebSocket]);
+    // 组件挂载时只连接一次，不依赖connectWebSocket
+    const connectOnce = async () => {
+      try {
+        await connectWebSocket();
+        // 连接成功后自动开始录音（真正的实时通话）
+        setTimeout(() => {
+          if (!isRecording && isConnected) {
+            startRecording();
+          }
+        }, 1000); // 等待1秒后开始录音
+      } catch (error) {
+        console.error('[VOICE] Failed to connect:', error);
+      }
+    };
+
+    connectOnce();
+
+    // 清理函数
+    return () => {
+      shouldAutoReconnectRef.current = false;
+      if (connectTimeoutRef.current) {
+        clearTimeout(connectTimeoutRef.current);
+      }
+      if (wsRef.current) {
+        wsRef.current.close(1000);
+      }
+      if (isRecording) {
+        stopRecording();
+      }
+    };
+  }, []); // 空依赖数组，只在组件挂载时执行一次
 
   return (
     <Screen>
@@ -766,7 +804,7 @@ export default function VoiceChatRealtime() {
             </View>
           ) : (
             <Text style={[styles.hintText, { color: muted }]}>
-              {isConnected ? '点击下方按钮开始说话' : '正在连接...'}
+              {isConnected ? '正在录音，请直接说话...' : '正在连接...'}
             </Text>
           )}
         </View>
@@ -787,32 +825,28 @@ export default function VoiceChatRealtime() {
           <TouchableOpacity
             style={[
               styles.mainRecordButton,
-              { backgroundColor: isRecording ? '#EF4444' : `${accent}10`, borderColor: isRecording ? '#EF4444' : accent, borderWidth: 2 },
+              { backgroundColor: isMuted ? '#6B7280' : isRecording ? `${accent}` : `${accent}10`, borderColor: isMuted ? '#6B7280' : accent, borderWidth: 2 },
             ]}
             onPress={handleRecordingPress}
             disabled={!isConnected}
             activeOpacity={0.8}
           >
-            {isRecording ? (
+            {isMuted ? (
               <>
-                <FontAwesome6 name="stop" size={32} color="#FFFFFF" />
-                <Text style={styles.mainRecordText}>停止</Text>
+                <FontAwesome6 name="microphone-slash" size={32} color="#FFFFFF" />
+                <Text style={styles.mainRecordText}>已静音</Text>
+              </>
+            ) : isRecording ? (
+              <>
+                <FontAwesome6 name="microphone" size={32} color="#FFFFFF" />
+                <Text style={styles.mainRecordText}>通话中</Text>
               </>
             ) : (
               <>
                 <FontAwesome6 name="microphone" size={32} color={accent} />
-                <Text style={[styles.mainRecordText, { color: accent }]}>说话</Text>
+                <Text style={[styles.mainRecordText, { color: accent }]}>正在录音</Text>
               </>
             )}
-          </TouchableOpacity>
-
-          {/* 麦克风静音按钮 */}
-          <TouchableOpacity
-            style={[styles.controlButton, styles.muteButton, { backgroundColor: `${foreground}05` }]}
-            activeOpacity={0.7}
-          >
-            <FontAwesome6 name="microphone-slash" size={24} color={muted} />
-            <Text style={[styles.controlButtonText, { color: muted }]}>静音</Text>
           </TouchableOpacity>
         </View>
       </View>
