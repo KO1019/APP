@@ -17,12 +17,14 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isOfflineMode: boolean; // 离线模式
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, password: string, email?: string, nickname?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
   refreshUser: () => Promise<void>;
   toggleCloudSync: () => Promise<void>;
+  toggleOfflineMode: () => Promise<void>; // 切换离线模式
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,12 +32,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const STORAGE_KEYS = {
   TOKEN: '@ai_diary_token',
   USER: '@ai_diary_user',
+  OFFLINE_MODE: '@ai_diary_offline_mode',
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
 
   // 初始化：从本地存储恢复登录状态
   useEffect(() => {
@@ -46,13 +50,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const storedToken = await AsyncStorage.getItem(STORAGE_KEYS.TOKEN);
       const storedUser = await AsyncStorage.getItem(STORAGE_KEYS.USER);
+      const storedOfflineMode = await AsyncStorage.getItem(STORAGE_KEYS.OFFLINE_MODE);
 
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
 
-        // 验证token是否有效
-        await refreshUserInfo(storedToken);
+        // 加载离线模式状态
+        if (storedOfflineMode) {
+          setIsOfflineMode(storedOfflineMode === 'true');
+        }
+
+        // 验证token是否有效（只有在线模式下才验证）
+        if (storedOfflineMode !== 'true') {
+          await refreshUserInfo(storedToken);
+        }
       }
     } catch (error) {
       console.error('Error loading auth data:', error);
@@ -262,17 +274,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const toggleOfflineMode = async () => {
+    try {
+      const newOfflineMode = !isOfflineMode;
+
+      if (newOfflineMode) {
+        // 开启离线模式：断开所有后端连接
+        setIsOfflineMode(true);
+        await AsyncStorage.setItem(STORAGE_KEYS.OFFLINE_MODE, 'true');
+      } else {
+        // 关闭离线模式：恢复在线模式
+        setIsOfflineMode(false);
+        await AsyncStorage.setItem(STORAGE_KEYS.OFFLINE_MODE, 'false');
+
+        // 刷新用户信息（验证token）
+        if (token) {
+          await refreshUserInfo(token);
+        }
+      }
+    } catch (error: any) {
+      console.error('Error toggling offline mode:', error);
+      throw error;
+    }
+  };
+
   const value: AuthContextType = {
     user,
     token,
     isLoading,
     isAuthenticated: !!user && !!token,
+    isOfflineMode,
     login,
     register,
     logout,
     updateProfile,
     refreshUser,
     toggleCloudSync,
+    toggleOfflineMode,
+  };
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

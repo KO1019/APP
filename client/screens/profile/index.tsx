@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIn
 import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
+import { useAuth } from '@/contexts/AuthContext';
 import { usePassword } from '@/contexts/PasswordContext';
 import { useCSSVariable } from 'uniwind';
 import Toast from 'react-native-toast-message';
@@ -17,14 +18,13 @@ interface MenuItem {
 
 export default function ProfileScreen() {
   const router = useSafeRouter();
+  const { user, token, isOfflineMode, toggleOfflineMode } = useAuth();
   const {
     hasPassword,
     canUseBiometric,
     biometricEnabled,
-    offlineMode,
     enableBiometric,
     disableBiometric,
-    toggleOfflineMode,
     exportAllData,
     deleteAllData,
   } = usePassword();
