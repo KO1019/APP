@@ -221,6 +221,7 @@ export default function ConversationHistoryScreen() {
                       handleDeleteConversation(conversation.id);
                     }}
                     activeOpacity={0.6}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
                     <FontAwesome6 name="trash-can" size={16} color="#EF4444" />
                   </TouchableOpacity>
@@ -377,12 +378,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   deleteButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)', // 红色背景，方便调试
+    zIndex: 10, // 确保在最上层
   },
   userMessage: {
     fontSize: 15,
