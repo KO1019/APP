@@ -390,6 +390,251 @@ async def get_conversations(user_id: str = Depends(get_user_id)):
     return result.data or []
 
 
+# ========== 会话管理（用于HTTP长轮询） ==========
+import asyncio
+voice_sessions = {}  # session_id -> {'client': RealtimeDialogClient, 'message_queue': asyncio.Queue, 'lock': asyncio.Lock}
+
+
+class SessionCreate(BaseModel):
+    """创建会话请求"""
+    pass
+
+
+class AudioUpload(BaseModel):
+    """音频上传请求"""
+    session_id: str
+    audio_data: str  # Base64编码的音频数据
+
+
+class PollMessages(BaseModel):
+    """轮询消息请求"""
+    session_id: str
+
+
+@app.post('/api/v1/voice/session/create')
+async def create_voice_session():
+    """创建语音会话（HTTP长轮询模式）"""
+    session_id = str(uuid.uuid4())
+    message_queue = asyncio.Queue()
+    lock = asyncio.Lock()
+
+    voice_sessions[session_id] = {
+        'client': None,
+        'message_queue': message_queue,
+        'lock': lock,
+        'created_at': asyncio.get_event_loop().time()
+    }
+
+    print(f"[HTTP] Created session: {session_id}")
+    return {"session_id": session_id, "type": "session_created"}
+
+
+@app.post('/api/v1/voice/session/connect')
+async def connect_voice_session(request: dict):
+    """连接到豆包API（HTTP长轮询模式）"""
+    session_id = request.get('session_id')
+
+    if session_id not in voice_sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    async with voice_sessions[session_id]['lock']:
+        if voice_sessions[session_id]['client'] is not None:
+            return {"status": "already_connected"}
+
+        # 检查配置
+        if not VOLCENGINE_SPEECH_APP_ID or not VOLCENGINE_ACCESS_TOKEN:
+            raise HTTPException(status_code=500, detail="豆包语音API配置缺失")
+
+        print(f"[HTTP] Connecting to Volcengine API, session_id: {session_id}")
+
+        # 创建实时语音客户端
+        client = RealtimeDialogClient(
+            config=config.ws_connect_config,
+            session_id=session_id,
+            output_audio_format="pcm",
+            mod=None,
+            recv_timeout=120
+        )
+
+        await client.connect()
+        voice_sessions[session_id]['client'] = client
+
+        # 启动监听豆包API响应的任务
+        asyncio.create_task(listen_volcengine_http(session_id, client, voice_sessions[session_id]['message_queue']))
+
+        print(f"[HTTP] Connected to Volcengine API, session_id: {session_id}")
+
+        return {"status": "connected", "type": "connection_ready", "session_id": session_id}
+
+
+async def listen_volcengine_http(session_id: str, client: RealtimeDialogClient, message_queue: asyncio.Queue):
+    """监听豆包API响应（HTTP长轮询模式）"""
+    try:
+        print(f"[HTTP] listen_volcengine started, session_id: {session_id}")
+        while session_id in voice_sessions:
+            try:
+                response = await asyncio.wait_for(client.receive_server_response(), timeout=5)
+                print(f"[HTTP] Received response from Volcengine, session_id: {session_id}: {response}")
+
+                # 转换响应格式
+                http_response = await convert_to_http_response(response)
+                await message_queue.put(http_response)
+
+            except asyncio.TimeoutError:
+                # 超时继续等待
+                continue
+            except Exception as e:
+                print(f"[HTTP] Error listening to Volcengine, session_id: {session_id}: {e}")
+                await message_queue.put({
+                    "type": "error",
+                    "message": str(e)
+                })
+                break
+    except Exception as e:
+        print(f"[HTTP] listen_volcengine error, session_id: {session_id}: {e}")
+
+
+async def convert_to_http_response(response: Dict[str, Any]) -> Dict[str, Any]:
+    """将豆包API响应转换为HTTP响应格式"""
+    result = {}
+    message_type = response.get('message_type', '')
+    payload_msg = response.get('payload_msg')
+    event = response.get('event')
+
+    if event == 50:  # ConnectionStarted
+        result = {"type": "connection_started"}
+
+    elif event == 150:  # SessionStarted
+        result = {
+            "type": "session_ready",
+            "dialog_id": payload_msg.get('dialog_id') if isinstance(payload_msg, dict) else None
+        }
+
+    elif event == 152:  # SessionStopped
+        result = {"type": "session_stopped"}
+
+    elif message_type == 'ChatTextQueryResponse':
+        result = {"type": "text_response", "text": payload_msg if isinstance(payload_msg, str) else str(payload_msg)}
+
+    elif message_type == 'TaskResponse':
+        result = {"type": "audio_response"}
+        if payload_msg:
+            if isinstance(payload_msg, bytes):
+                result['audio_data'] = payload_msg.hex()  # 转为hex字符串
+            elif isinstance(payload_msg, str):
+                result['audio_data'] = payload_msg
+
+    elif message_type == 'TextEvent':
+        result = {"type": "text_event", "text": payload_msg if isinstance(payload_msg, str) else str(payload_msg)}
+
+    elif message_type == 'AudioEvent':
+        result = {"type": "audio_event"}
+        if payload_msg:
+            if isinstance(payload_msg, bytes):
+                result['audio_data'] = payload_msg.hex()
+            elif isinstance(payload_msg, str):
+                result['audio_data'] = payload_msg
+
+    else:
+        result = {"type": "unknown", "data": str(response)}
+
+    return result
+
+
+@app.post('/api/v1/voice/send')
+async def send_to_voice_session(request: dict):
+    """向语音会话发送消息（HTTP长轮询模式）"""
+    session_id = request.get('session_id')
+    msg_type = request.get('type')
+
+    if session_id not in voice_sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session = voice_sessions[session_id]
+    client = session['client']
+
+    if client is None:
+        raise HTTPException(status_code=400, detail="Session not connected")
+
+    try:
+        if msg_type == 'text_input':
+            # 文本输入
+            text = request.get('text')
+            if text:
+                await client.chat_text_query(text)
+                print(f"[HTTP] ChatTextQuery sent, session_id: {session_id}: {text}")
+
+        elif msg_type == 'audio_input':
+            # 音频输入
+            audio_hex = request.get('audio_data')
+            if audio_hex:
+                audio_bytes = bytes.fromhex(audio_hex)
+                await client.task_request(audio_bytes)
+                print(f"[HTTP] Audio data sent, session_id: {session_id}, size: {len(audio_bytes)}")
+
+        elif msg_type == 'end_session':
+            # 结束会话
+            try:
+                await client.finish_session()
+                print(f"[HTTP] FinishSession sent, session_id: {session_id}")
+            except Exception as e:
+                print(f"Error finishing session: {e}")
+
+        return {"status": "sent"}
+
+    except Exception as e:
+        print(f"[HTTP] Error sending message, session_id: {session_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post('/api/v1/voice/poll')
+async def poll_voice_messages(request: dict):
+    """轮询会话消息（HTTP长轮询模式）"""
+    session_id = request.get('session_id')
+
+    if session_id not in voice_sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session = voice_sessions[session_id]
+    message_queue = session['message_queue']
+
+    try:
+        # 等待消息，最长30秒
+        message = await asyncio.wait_for(message_queue.get(), timeout=30)
+        return message
+    except asyncio.TimeoutError:
+        return {"type": "keep_alive"}
+    except Exception as e:
+        print(f"[HTTP] Error polling messages, session_id: {session_id}: {e}")
+        return {"type": "error", "message": str(e)}
+
+
+@app.post('/api/v1/voice/session/close')
+async def close_voice_session(request: dict):
+    """关闭语音会话（HTTP长轮询模式）"""
+    session_id = request.get('session_id')
+
+    if session_id not in voice_sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session = voice_sessions[session_id]
+    client = session['client']
+
+    try:
+        if client:
+            await client.finish_session()
+            await client.close()
+    except Exception as e:
+        print(f"Error closing client: {e}")
+
+    del voice_sessions[session_id]
+    print(f"[HTTP] Closed session: {session_id}")
+
+    return {"status": "closed"}
+
+
 # ========== WebSocket实时语音对话（使用官方Python示例） ==========
 
 @app.websocket('/api/v1/voice/realtime')

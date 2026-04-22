@@ -56,6 +56,12 @@ export default function VoiceChatRealtime() {
   const handleMessageRef = useRef<any>(null);
   const shouldAutoReconnectRef = useRef(true);
 
+  // HTTP长轮询相关
+  const [useHttpPolling, setUseHttpPolling] = useState(false); // 是否使用HTTP长轮询
+  const httpSessionIdRef = useRef<string | null>(null); // HTTP会话ID
+  const httpPollingIntervalRef = useRef<NodeJS.Timeout | null>(null); // 轮询定时器
+  const httpIsConnectedRef = useRef<boolean>(false); // HTTP连接状态
+
   const { width: screenWidth } = Dimensions.get('window');
   const waveAnimations = useMemo(() => [
     new Animated.Value(0),
@@ -124,90 +130,235 @@ export default function VoiceChatRealtime() {
     return () => pulseAnim.stop();
   }, []);
 
-  const connectWebSocket = () => {
+  // 检测是否在Coze环境中
+  const isCozeEnvironment = (): boolean => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      return window.location.hostname.includes('coze.site');
+    }
+    return false;
+  };
+
+  // HTTP长轮询：创建会话
+  const httpCreateSession = async (): Promise<string> => {
+    const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/voice/session/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to create session: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.session_id;
+  };
+
+  // HTTP长轮询：连接到豆包API
+  const httpConnectSession = async (sessionId: string): Promise<void> => {
+    const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/voice/session/connect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to connect session: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('[VOICE-HTTP] Session connected:', data);
+  };
+
+  // HTTP长轮询：发送消息
+  const httpSendMessage = async (message: any): Promise<void> => {
+    const sessionId = httpSessionIdRef.current;
+    if (!sessionId) return;
+
+    const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/voice/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...message, session_id: sessionId }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to send message: ${response.status}`);
+    }
+  };
+
+  // HTTP长轮询：轮询消息
+  const httpPollMessages = async (): Promise<void> => {
+    const sessionId = httpSessionIdRef.current;
+    if (!sessionId || !httpIsConnectedRef.current) return;
+
     try {
-      const backendUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
+      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/voice/poll`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId }),
+      });
 
-      let wsUrl: string;
-
-      if (Platform.OS === 'web') {
-        // Web环境下：始终使用localhost:9091，因为前端和后端在同一容器中运行
-        const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.includes('coze.site');
-        if (isDev) {
-          // 开发环境和Coze环境：直接连接后端WebSocket
-          wsUrl = 'ws://localhost:9091/api/v1/voice/realtime';
-        } else {
-          // 生产环境：从backendUrl提取WebSocket地址
-          const url = new URL(backendUrl);
-          const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-          wsUrl = `${protocol}//${url.hostname}/api/v1/voice/realtime`;
-        }
-      } else {
-        // 移动端：始终使用localhost:9091，因为前端和后端在同一容器中运行
-        wsUrl = 'ws://localhost:9091/api/v1/voice/realtime';
+      if (!response.ok) {
+        throw new Error(`Failed to poll messages: ${response.status}`);
       }
 
-      console.log('[VOICE] Attempting to connect to WebSocket...');
-      console.log('[VOICE] WebSocket URL:', wsUrl);
+      const message = await response.json();
 
-      const ws = new WebSocket(wsUrl) as any;
+      if (message.type !== 'keep_alive' && handleMessageRef.current) {
+        handleMessageRef.current(message);
+      }
+    } catch (error) {
+      console.error('[VOICE-HTTP] Error polling messages:', error);
+    }
+  };
 
-      ws.onopen = async () => {
-        console.log('[VOICE] WebSocket connected successfully!');
+  // HTTP长轮询：关闭会话
+  const httpCloseSession = async (): Promise<void> => {
+    const sessionId = httpSessionIdRef.current;
+    if (!sessionId) return;
+
+    try {
+      await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/voice/session/close`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId }),
+      });
+      console.log('[VOICE-HTTP] Session closed');
+    } catch (error) {
+      console.error('[VOICE-HTTP] Error closing session:', error);
+    }
+  };
+
+  // 连接到语音服务（自动选择WebSocket或HTTP长轮询）
+  const connectWebSocket = async () => {
+    const backendUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
+
+    // 检测是否在Coze环境中
+    const inCozeEnv = isCozeEnvironment();
+
+    if (inCozeEnv) {
+      // Coze环境：使用HTTP长轮询
+      console.log('[VOICE] Coze environment detected, using HTTP long-polling');
+      setUseHttpPolling(true);
+
+      try {
+        // 创建会话
+        const sessionId = await httpCreateSession();
+        httpSessionIdRef.current = sessionId;
+        console.log('[VOICE-HTTP] Session created:', sessionId);
+
+        // 连接到豆包API
+        await httpConnectSession(sessionId);
+        httpIsConnectedRef.current = true;
         setIsConnected(true);
+
+        // 启动轮询
+        httpPollingIntervalRef.current = setInterval(() => {
+          httpPollMessages();
+        }, 100); // 每100ms轮询一次
+
+        // 激活常亮
         try {
           await KeepAwake.activateKeepAwakeAsync();
         } catch (error) {
           console.error('[VOICE] Failed to activate keep awake:', error);
         }
-      };
 
-      ws.onmessage = (event: any) => {
-        try {
-          const message = JSON.parse(event.data);
-          if (handleMessageRef.current) {
-            handleMessageRef.current(message);
-          }
-        } catch (error) {
-          console.error('[VOICE] Failed to parse message:', error);
-        }
-      };
-
-      ws.onerror = (error: Event) => {
-        console.error('[VOICE] WebSocket error event triggered');
-      };
-
-      ws.onclose = (event: CloseEvent) => {
-        if (event.code === 1000) {
-          console.log('[VOICE] WebSocket closed normally');
-        } else {
-          console.error('[VOICE] WebSocket closed abnormally:', event.code);
-        }
+        console.log('[VOICE-HTTP] Connected successfully');
+      } catch (error) {
+        console.error('[VOICE-HTTP] Failed to connect:', error);
         setIsConnected(false);
 
-        // 只有在应该自动重连且不是用户手动断开时才重连
-        if (event.code !== 1000 && shouldAutoReconnectRef.current) {
-          let errorDetail = '';
-          switch (event.code) {
-            case 1001: errorDetail = '连接被服务器主动关闭'; break;
-            case 1006: errorDetail = '连接异常断开，可能是网络问题'; break;
-            default: errorDetail = `未知错误 (代码: ${event.code})`;
-          }
-
-          console.log(`[VOICE] Will reconnect in 5 seconds... (reason: ${errorDetail})`);
+        // 5秒后重连
+        if (shouldAutoReconnectRef.current) {
           connectTimeoutRef.current = setTimeout(() => {
             if (shouldAutoReconnectRef.current) {
-              console.log('[VOICE] Reconnecting...');
               connectWebSocket();
             }
-          }, 5000); // 增加到5秒，避免快速重连
+          }, 5000);
         }
-      };
+      }
+    } else {
+      // 非Coze环境：使用WebSocket
+      console.log('[VOICE] Non-Coze environment, using WebSocket');
+      setUseHttpPolling(false);
 
-      wsRef.current = ws;
-    } catch (error) {
-      console.error('[VOICE] Failed to connect WebSocket:', error);
-      setTimeout(() => connectWebSocket(), 3000);
+      try {
+        let wsUrl: string;
+
+        if (Platform.OS === 'web') {
+          // Web环境下：使用相同的backendUrl，但将http/https协议转换为ws/wss
+          const url = new URL(backendUrl);
+          const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+          wsUrl = `${protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}/api/v1/voice/realtime`;
+        } else {
+          // 移动端：使用相同的backendUrl，但将http/https协议转换为ws/wss
+          const url = new URL(backendUrl);
+          const wsProtocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+          wsUrl = `${wsProtocol}${url.hostname}${url.port ? `:${url.port}` : ''}/api/v1/voice/realtime`;
+        }
+
+        console.log('[VOICE] Attempting to connect to WebSocket...');
+        console.log('[VOICE] WebSocket URL:', wsUrl);
+
+        const ws = new WebSocket(wsUrl) as any;
+
+        ws.onopen = async () => {
+          console.log('[VOICE] WebSocket connected successfully!');
+          setIsConnected(true);
+          try {
+            await KeepAwake.activateKeepAwakeAsync();
+          } catch (error) {
+            console.error('[VOICE] Failed to activate keep awake:', error);
+          }
+        };
+
+        ws.onmessage = (event: any) => {
+          try {
+            const message = JSON.parse(event.data);
+            if (handleMessageRef.current) {
+              handleMessageRef.current(message);
+            }
+          } catch (error) {
+            console.error('[VOICE] Failed to parse message:', error);
+          }
+        };
+
+        ws.onerror = (error: Event) => {
+          console.error('[VOICE] WebSocket error event triggered');
+        };
+
+        ws.onclose = (event: CloseEvent) => {
+          if (event.code === 1000) {
+            console.log('[VOICE] WebSocket closed normally');
+          } else {
+            console.error('[VOICE] WebSocket closed abnormally:', event.code);
+          }
+          setIsConnected(false);
+
+          // 只有在应该自动重连且不是用户手动断开时才重连
+          if (event.code !== 1000 && shouldAutoReconnectRef.current) {
+            let errorDetail = '';
+            switch (event.code) {
+              case 1001: errorDetail = '连接被服务器主动关闭'; break;
+              case 1006: errorDetail = '连接异常断开，可能是网络问题'; break;
+              default: errorDetail = `未知错误 (代码: ${event.code})`;
+            }
+
+            console.log(`[VOICE] Will reconnect in 5 seconds... (reason: ${errorDetail})`);
+            connectTimeoutRef.current = setTimeout(() => {
+              if (shouldAutoReconnectRef.current) {
+                console.log('[VOICE] Reconnecting...');
+                connectWebSocket();
+              }
+            }, 5000);
+          }
+        };
+
+        wsRef.current = ws;
+      } catch (error) {
+        console.error('[VOICE] Failed to connect WebSocket:', error);
+        setTimeout(() => connectWebSocket(), 3000);
+      }
     }
   };
 
@@ -339,13 +490,25 @@ export default function VoiceChatRealtime() {
           // 实时发送音频数据
           audioIntervalRef.current = setInterval(async () => {
             try {
-              if (webRecorder && webRecorder.chunks.length > 0 && wsRef.current) {
+              if (webRecorder && webRecorder.chunks.length > 0) {
                 const chunk = webRecorder.chunks.shift();
                 if (chunk) {
                   const arrayBuffer = await chunk.arrayBuffer();
-                  if (wsRef.current.readyState === WebSocket.OPEN) {
-                    wsRef.current.send(arrayBuffer);
-                    console.log('[VOICE] Web: Sent audio chunk:', arrayBuffer.byteLength, 'bytes');
+
+                  if (useHttpPolling) {
+                    // HTTP长轮询模式：发送hex编码的音频数据
+                    const audioHex = Buffer.from(arrayBuffer).toString('hex');
+                    await httpSendMessage({
+                      type: 'audio_input',
+                      audio_data: audioHex
+                    });
+                    console.log('[VOICE-HTTP] Web: Sent audio chunk:', arrayBuffer.byteLength, 'bytes');
+                  } else {
+                    // WebSocket模式：直接发送二进制数据
+                    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                      wsRef.current.send(arrayBuffer);
+                      console.log('[VOICE] Web: Sent audio chunk:', arrayBuffer.byteLength, 'bytes');
+                    }
                   }
                 }
               }
@@ -411,14 +574,25 @@ export default function VoiceChatRealtime() {
                 encoding: 'base64',
               });
 
-              if (audioData && wsRef.current) {
+              if (audioData) {
                 const base64Audio = audioData.split(',')[1] || audioData; // 移除data URI前缀
                 const audioBytes = Buffer.from(base64Audio, 'base64');
 
                 // 发送音频数据到后端
-                if (wsRef.current.readyState === WebSocket.OPEN) {
-                  wsRef.current.send(audioBytes.buffer);
-                  console.log('[VOICE] Mobile: Sent audio chunk:', audioBytes.length, 'bytes');
+                if (useHttpPolling) {
+                  // HTTP长轮询模式：发送hex编码的音频数据
+                  const audioHex = audioBytes.toString('hex');
+                  await httpSendMessage({
+                    type: 'audio_input',
+                    audio_data: audioHex
+                  });
+                  console.log('[VOICE-HTTP] Mobile: Sent audio chunk:', audioBytes.length, 'bytes');
+                } else {
+                  // WebSocket模式：直接发送二进制数据
+                  if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                    wsRef.current.send(audioBytes.buffer);
+                    console.log('[VOICE] Mobile: Sent audio chunk:', audioBytes.length, 'bytes');
+                  }
                 }
               }
             }
@@ -466,27 +640,39 @@ export default function VoiceChatRealtime() {
   };
 
   // 文本输入预留接口
-  const sendTextMessage = useCallback((text: string) => {
+  const sendTextMessage = useCallback(async (text: string) => {
     try {
-      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-        console.error('[VOICE] WebSocket not connected');
-        Toast.show({ type: 'error', text1: '连接已断开' });
-        return;
-      }
-
       const message = {
         type: 'text_input',
         text: text,
       };
 
-      wsRef.current.send(JSON.stringify(message));
-      console.log('[VOICE] Sent text message:', text);
+      if (useHttpPolling) {
+        // HTTP长轮询模式
+        if (!httpSessionIdRef.current) {
+          console.error('[VOICE-HTTP] Session not connected');
+          Toast.show({ type: 'error', text1: '连接已断开' });
+          return;
+        }
+        await httpSendMessage(message);
+        console.log('[VOICE-HTTP] Sent text message:', text);
+      } else {
+        // WebSocket模式
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+          console.error('[VOICE] WebSocket not connected');
+          Toast.show({ type: 'error', text1: '连接已断开' });
+          return;
+        }
+        wsRef.current.send(JSON.stringify(message));
+        console.log('[VOICE] Sent text message:', text);
+      }
+
       setIsProcessing(true);
     } catch (error) {
       console.error('[VOICE] Failed to send text message:', error);
       Toast.show({ type: 'error', text1: '发送失败' });
     }
-  }, []);
+  }, [useHttpPolling]);
 
   // 暴露给外部调用
   useEffect(() => {
@@ -506,7 +692,7 @@ export default function VoiceChatRealtime() {
     }
   }, [isRecording, startRecording, stopRecording]);
 
-  const handleEndCall = () => {
+  const handleEndCall = async () => {
     Alert.alert(
       '结束通话',
       '确定要结束通话吗？',
@@ -514,7 +700,7 @@ export default function VoiceChatRealtime() {
         { text: '取消', style: 'cancel' },
         {
           text: '确定',
-          onPress: () => {
+          onPress: async () => {
             // 标记为手动断开，不自动重连
             shouldAutoReconnectRef.current = false;
 
@@ -524,21 +710,36 @@ export default function VoiceChatRealtime() {
               connectTimeoutRef.current = null;
             }
 
+            // 清理HTTP轮询定时器
+            if (httpPollingIntervalRef.current) {
+              clearInterval(httpPollingIntervalRef.current);
+              httpPollingIntervalRef.current = null;
+            }
+
             // 停止录音
             if (isRecording) {
-              stopRecording();
+              await stopRecording();
             }
 
             // 停止音频播放
             if (soundRef.current) {
-              soundRef.current.unloadAsync();
+              await soundRef.current.unloadAsync();
             }
 
-            // 关闭 WebSocket
-            if (wsRef.current) {
-              wsRef.current.close(1000); // 正常关闭
+            // 关闭连接
+            if (useHttpPolling) {
+              // HTTP长轮询模式：关闭会话
+              httpIsConnectedRef.current = false;
+              await httpCloseSession();
+              httpSessionIdRef.current = null;
+            } else {
+              // WebSocket模式：关闭WebSocket
+              if (wsRef.current) {
+                wsRef.current.close(1000); // 正常关闭
+              }
             }
 
+            setIsConnected(false);
             router.back();
           }
         }
@@ -574,7 +775,20 @@ export default function VoiceChatRealtime() {
           audioBufferRef.current = [];
           setTimeout(() => playCollectedAudio(), 500);
         }
-        audioBufferRef.current.push(Buffer.from(message.data, 'base64'));
+        // WebSocket模式：message.data是base64字符串
+        // HTTP长轮询模式：message.audio_data是hex字符串
+        let audioData: string;
+        if (typeof message.data === 'string') {
+          audioData = message.data; // base64
+        } else if (typeof message.audio_data === 'string') {
+          // hex转base64
+          const audioBytes = Buffer.from(message.audio_data, 'hex');
+          audioData = audioBytes.toString('base64');
+        } else {
+          console.error('[VOICE] Invalid audio data format:', message);
+          break;
+        }
+        audioBufferRef.current.push(Buffer.from(audioData, 'base64'));
         break;
 
       case 'tts_ended':
