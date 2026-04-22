@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Alert, Platform } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
@@ -71,50 +71,78 @@ export default function ConversationHistoryScreen() {
 
   const handleDeleteConversation = useCallback(async (conversationId: string) => {
     console.log('Delete button clicked, conversationId:', conversationId);
-    Alert.alert(
-      '删除对话',
-      '确定要删除这条对话记录吗？此操作不可恢复。',
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '删除',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              console.log('Starting delete request for conversationId:', conversationId);
-              /**
-               * 服务端文件：server/src/index.ts
-               * 接口：DELETE /api/v1/conversations/:id
-               * Path 参数：id: string
-               * Headers: Authorization: Bearer {token}
-               */
-              const response = await fetch(buildApiUrl(`/api/v1/conversations/${conversationId}`), {
-                method: 'DELETE',
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                },
-              });
 
-              console.log('Delete response status:', response.status);
+    // Web 环境使用 window.confirm，移动端使用 Alert.alert
+    const confirmDelete = () => {
+      return new Promise<boolean>((resolve) => {
+        if (Platform.OS === 'web') {
+          const result = window.confirm('确定要删除这条对话记录吗？此操作不可恢复。');
+          resolve(result);
+        } else {
+          Alert.alert(
+            '删除对话',
+            '确定要删除这条对话记录吗？此操作不可恢复。',
+            [
+              { text: '取消', style: 'cancel', onPress: () => resolve(false) },
+              { text: '删除', style: 'destructive', onPress: () => resolve(true) },
+            ],
+            { cancelable: true }
+          );
+        }
+      });
+    };
 
-              if (response.ok) {
-                Alert.alert('成功', '对话已删除');
-                // 刷新列表
-                fetchConversations();
-              } else {
-                const data = await response.json();
-                console.error('Delete failed:', data);
-                Alert.alert('错误', data.error || '删除失败');
-              }
-            } catch (error) {
-              console.error('Error deleting conversation:', error);
-              Alert.alert('错误', '删除失败，请稍后重试');
-            }
-          },
+    const confirmed = await confirmDelete();
+    if (!confirmed) {
+      console.log('Delete cancelled');
+      return;
+    }
+
+    console.log('Starting delete request for conversationId:', conversationId);
+    try {
+      /**
+       * 服务端文件：server/src/index.ts
+       * 接口：DELETE /api/v1/conversations/:id
+       * Path 参数：id: string
+       * Headers: Authorization: Bearer {token}
+       */
+      const response = await fetch(buildApiUrl(`/api/v1/conversations/${conversationId}`), {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
         },
-      ],
-      { cancelable: true }
-    );
+      });
+
+      console.log('Delete response status:', response.status);
+
+      if (response.ok) {
+        console.log('Delete successful, refreshing list...');
+        // Web 环境使用 alert，移动端使用 Alert.alert
+        if (Platform.OS === 'web') {
+          window.alert('对话已删除');
+        } else {
+          Alert.alert('成功', '对话已删除');
+        }
+        // 刷新列表
+        fetchConversations();
+      } else {
+        const data = await response.json();
+        console.error('Delete failed:', data);
+        const errorMsg = data.error || '删除失败';
+        if (Platform.OS === 'web') {
+          window.alert('错误：' + errorMsg);
+        } else {
+          Alert.alert('错误', errorMsg);
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+      if (Platform.OS === 'web') {
+        window.alert('错误：删除失败，请稍后重试');
+      } else {
+        Alert.alert('错误', '删除失败，请稍后重试');
+      }
+    }
   }, [token, fetchConversations]);
 
   useFocusEffect(
