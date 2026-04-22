@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
@@ -23,6 +23,49 @@ export default function ConversationHistoryScreen() {
 
   const router = useSafeRouter();
   const { token } = useAuth();
+
+  const handleDeleteConversation = useCallback((conversationId: string) => {
+    Alert.alert(
+      '删除对话',
+      '确定要删除这条对话记录吗？此操作不可恢复。',
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '删除',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              /**
+               * 服务端文件：server/src/index.ts
+               * 接口：DELETE /api/v1/conversations/:id
+               * Path 参数：id: string
+               * Headers: Authorization: Bearer {token}
+               */
+              const response = await fetch(buildApiUrl(`/api/v1/conversations/${conversationId}`), {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                },
+              });
+
+              if (response.ok) {
+                Alert.alert('成功', '对话已删除');
+                // 刷新列表
+                fetchConversations();
+              } else {
+                const data = await response.json();
+                Alert.alert('错误', data.error || '删除失败');
+              }
+            } catch (error) {
+              console.error('Error deleting conversation:', error);
+              Alert.alert('错误', '删除失败，请稍后重试');
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  }, [token]);
 
   const [background, surface, accent, foreground, muted, border] = useCSSVariable([
     '--color-background',
@@ -164,6 +207,13 @@ export default function ConversationHistoryScreen() {
                   <Text style={[styles.conversationTime, { color: muted }]}>
                     {formatDate(conversation.created_at)}
                   </Text>
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() => handleDeleteConversation(conversation.id)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <FontAwesome6 name="trash-can" size={16} color="#EF4444" />
+                  </TouchableOpacity>
                 </View>
                 <Text
                   style={[styles.userMessage, { color: foreground }]}
@@ -312,6 +362,14 @@ const styles = StyleSheet.create({
   conversationTime: {
     fontSize: 12,
     flex: 1,
+  },
+  deleteButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
   },
   userMessage: {
     fontSize: 15,

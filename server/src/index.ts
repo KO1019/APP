@@ -1171,6 +1171,42 @@ app.get('/api/v1/conversations', authenticateToken, async (req: any, res) => {
   }
 });
 
+// 删除对话
+app.delete('/api/v1/conversations/:id', authenticateToken, async (req: any, res) => {
+  try {
+    const { id } = req.params;
+
+    const client = getSupabaseClient();
+
+    // 先检查对话是否存在且属于当前用户
+    const { data: conversation, error: fetchError } = await client
+      .from('conversations')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', req.userId)
+      .single();
+
+    if (fetchError || !conversation) {
+      return res.status(404).json({ error: '对话不存在' });
+    }
+
+    // 删除对话
+    const { error: deleteError } = await client
+      .from('conversations')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) {
+      throw new Error(`Failed to delete conversation: ${deleteError.message}`);
+    }
+
+    res.json({ success: true, message: '对话删除成功' });
+  } catch (error: any) {
+    console.error('Error deleting conversation:', error);
+    res.status(500).json({ error: error.message || '删除对话失败' });
+  }
+});
+
 // ========== 辅助函数 ==========
 
 // 异步情绪分析函数
