@@ -408,56 +408,73 @@ async def check_update(request: VersionCheckRequest):
     检查APP更新
     返回是否有新版本、版本号、更新说明、下载链接等
     """
-    # 最新版本信息（实际应用中应该从数据库或配置文件读取）
-    latest_versions = {
-        "android": {
-            "version": "1.0.1",
-            "build_number": 101,
-            "force_update": False,  # 是否强制更新
-            "update_url": "https://play.google.com/store/apps/details?id=com.emotiondiary.app",
-            "release_notes": """1. 新增功能：从聊天记录生成日记
-2. 优化写日记界面，支持多种模板
-3. 添加天气、位置、图片等丰富信息
-4. 改进UI交互体验
-5. 修复已知问题""",
-            "release_date": "2026-04-22"
-        },
-        "ios": {
-            "version": "1.0.1",
-            "build_number": 101,
+    if not supabase:
+        # 没有配置数据库，返回无更新
+        return {
+            "has_update": False,
+            "current_version": request.current_version,
+            "latest_version": request.current_version,
             "force_update": False,
-            "update_url": "https://apps.apple.com/app/emotiondiary/id1234567890",
-            "release_notes": """1. 新增功能：从聊天记录生成日记
-2. 优化写日记界面，支持多种模板
-3. 添加天气、位置、图片等丰富信息
-4. 改进UI交互体验
-5. 修复已知问题""",
-            "release_date": "2026-04-22"
+            "update_url": "",
+            "release_notes": "",
+            "release_date": ""
         }
-    }
 
-    # 获取当前平台的最新版本信息
-    platform_versions = latest_versions.get(request.platform.lower())
-    if not platform_versions:
-        raise HTTPException(status_code=400, detail=f"不支持的平台: {request.platform}")
+    try:
+        # 获取当前平台的激活版本
+        result = supabase.table('app_versions').select('*').eq('platform', request.platform.lower()).eq('is_active', True).execute()
+    except Exception as e:
+        # 表不存在或其他错误，返回无更新
+        print(f"Error checking updates: {e}")
+        return {
+            "has_update": False,
+            "current_version": request.current_version,
+            "latest_version": request.current_version,
+            "force_update": False,
+            "update_url": "",
+            "release_notes": "",
+            "release_date": ""
+        }
+
+    if not result.data:
+        # 没有激活的版本，返回无更新
+        return {
+            "has_update": False,
+            "current_version": request.current_version,
+            "latest_version": request.current_version,
+            "force_update": False,
+            "update_url": "",
+            "release_notes": "",
+            "release_date": ""
+        }
+
+    latest_version = result.data[0]
 
     # 简单的版本比较逻辑（假设版本格式为 major.minor.patch）
     def version_to_tuple(version_str):
-        return tuple(map(int, version_str.split('.')))
+        parts = version_str.split('.')
+        return tuple(int(part) for part in parts if part.isdigit())
 
     current_tuple = version_to_tuple(request.current_version)
-    latest_tuple = version_to_tuple(platform_versions["version"])
+    latest_tuple = version_to_tuple(latest_version["version"])
 
     has_update = latest_tuple > current_tuple
+
+    # 如果构建号也提供了，也比较构建号
+    if request.build_number is not None:
+        if latest_version["build_number"] > request.build_number:
+            has_update = True
+        elif latest_version["build_number"] <= request.build_number:
+            has_update = False
 
     return {
         "has_update": has_update,
         "current_version": request.current_version,
-        "latest_version": platform_versions["version"],
-        "force_update": platform_versions["force_update"],
-        "update_url": platform_versions["update_url"],
-        "release_notes": platform_versions["release_notes"],
-        "release_date": platform_versions["release_date"]
+        "latest_version": latest_version["version"],
+        "force_update": latest_version["force_update"],
+        "update_url": latest_version.get("update_url", ""),
+        "release_notes": latest_version["release_notes"],
+        "release_date": latest_version["release_date"].isoformat() if latest_version["release_date"] else ""
     }
 
 
@@ -1195,6 +1212,158 @@ async def handle_client_message(websocket: WebSocket, client: RealtimeDialogClie
             print("✅ FinishSession sent")
         except Exception as e:
             print(f"Error finishing session: {e}")
+
+
+# ========== 版本管理API ==========
+
+class CreateVersion(BaseModel):
+    """创建版本"""
+    version: str
+    build_number: int
+    platform: str  # android 或 ios
+    force_update: bool = False
+    release_notes: str
+    update_url: Optional[str] = None
+
+
+class UpdateVersion(BaseModel):
+    """更新版本"""
+    version: Optional[str] = None
+    build_number: Optional[int] = None
+    force_update: Optional[bool] = None
+    release_notes: Optional[str] = None
+    update_url: Optional[str] = None
+
+
+@app.post('/api/v1/admin/versions')
+async def create_version(version_data: CreateVersion):
+    """创建新版本"""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    # 检查版本号是否已存在
+    existing = supabase.table('app_versions').select('*').eq('platform', version_data.platform).eq('version', version_data.version).execute()
+
+    if existing.data:
+        raise HTTPException(status_code=400, detail="该平台的此版本号已存在")
+
+    # 创建版本
+    result = supabase.table('app_versions').insert({
+        "version": version_data.version,
+        "build_number": version_data.build_number,
+        "platform": version_data.platform,
+        "force_update": version_data.force_update,
+        "release_notes": version_data.release_notes,
+        "update_url": version_data.update_url,
+        "is_active": False,  # 新版本默认不激活
+    }).execute()
+
+    return {"success": True, "version": result.data[0]}
+
+
+@app.get('/api/v1/admin/versions')
+async def get_all_versions(platform: Optional[str] = None):
+    """获取所有版本"""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    query = supabase.table('app_versions').select('*').order('release_date', desc=True)
+
+    if platform:
+        query = query.eq('platform', platform)
+
+    result = query.execute()
+
+    return {"success": True, "versions": result.data}
+
+
+@app.get('/api/v1/admin/versions/{version_id}')
+async def get_version(version_id: str):
+    """获取单个版本详情"""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    result = supabase.table('app_versions').select('*').eq('id', version_id).execute()
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="版本不存在")
+
+    return {"success": True, "version": result.data[0]}
+
+
+@app.put('/api/v1/admin/versions/{version_id}')
+async def update_version(version_id: str, version_data: UpdateVersion):
+    """更新版本"""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    # 构建更新数据
+    update_data = {}
+    if version_data.version is not None:
+        update_data['version'] = version_data.version
+    if version_data.build_number is not None:
+        update_data['build_number'] = version_data.build_number
+    if version_data.force_update is not None:
+        update_data['force_update'] = version_data.force_update
+    if version_data.release_notes is not None:
+        update_data['release_notes'] = version_data.release_notes
+    if version_data.update_url is not None:
+        update_data['update_url'] = version_data.update_url
+
+    result = supabase.table('app_versions').update(update_data).eq('id', version_id).execute()
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="版本不存在")
+
+    return {"success": True, "version": result.data[0]}
+
+
+@app.delete('/api/v1/admin/versions/{version_id}')
+async def delete_version(version_id: str):
+    """删除版本"""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    result = supabase.table('app_versions').delete().eq('id', version_id).execute()
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="版本不存在")
+
+    return {"success": True}
+
+
+@app.post('/api/v1/admin/versions/{version_id}/activate')
+async def activate_version(version_id: str):
+    """激活版本（推送给用户）"""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    # 获取要激活的版本
+    version_result = supabase.table('app_versions').select('*').eq('id', version_id).execute()
+
+    if not version_result.data:
+        raise HTTPException(status_code=404, detail="版本不存在")
+
+    version = version_result.data[0]
+
+    # 取消该平台所有版本的激活状态
+    supabase.table('app_versions').update({'is_active': False}).eq('platform', version['platform']).execute()
+
+    # 激活当前版本
+    result = supabase.table('app_versions').update({'is_active': True}).eq('id', version_id).execute()
+
+    return {"success": True, "version": result.data[0]}
+
+
+@app.get('/api/v1/admin/versions/active')
+async def get_active_versions():
+    """获取当前激活的版本"""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    result = supabase.table('app_versions').select('*').eq('is_active', True).execute()
+
+    return {"success": True, "versions": result.data}
 
 
 # ========== 主程序 ==========

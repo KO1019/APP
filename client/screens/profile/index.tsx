@@ -35,7 +35,7 @@ export default function ProfileScreen() {
     exportAllData,
     deleteAllData,
   } = usePassword();
-  const { checkAndShowUpdate, loading: updating } = useAppUpdate();
+  const { checkAndShowUpdate, loading: updating, UpdateModal } = useAppUpdate();
 
   const [showHealthTips, setShowHealthTips] = useState(false);
   const [healthTips, setHealthTips] = useState<any>(null);
@@ -457,6 +457,8 @@ export default function ProfileScreen() {
           </View>
         </TouchableOpacity>
       )}
+
+      <UpdateModal />
     </Screen>
   );
 }

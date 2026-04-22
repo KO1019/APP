@@ -60,7 +60,7 @@ export default function DiariesScreen() {
   const router = useSafeRouter();
   const { isLocked, hasPassword, lockApp, decryptData } = usePassword();
   const { isAuthenticated, isLoading: authLoading, token, logout, isOfflineMode, user } = useAuth();
-  const { checkAndShowUpdate } = useAppUpdate();
+  const { checkAutoUpdate, UpdateModal } = useAppUpdate();
 
   const [diaries, setDiaries] = useState<Diary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -226,20 +226,8 @@ export default function DiariesScreen() {
 
   const checkAppUpdate = async () => {
     try {
-      const lastCheckTime = await AsyncStorage.getItem('last_update_check_time');
-      const now = Date.now();
-      const oneDay = 24 * 60 * 60 * 1000; // 24小时
-
-      // 如果上次检查时间不足24小时，则跳过
-      if (lastCheckTime && now - parseInt(lastCheckTime) < oneDay) {
-        return;
-      }
-
-      // 检查更新
-      await checkAndShowUpdate();
-
-      // 记录检查时间
-      await AsyncStorage.setItem('last_update_check_time', now.toString());
+      // 检查更新（自动检查，每天一次）
+      await checkAutoUpdate();
     } catch (error) {
       console.error('检查更新失败:', error);
     }
@@ -349,6 +337,7 @@ export default function DiariesScreen() {
           <FontAwesome6 name="plus" size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
+      <UpdateModal />
     </Screen>
   );
 }

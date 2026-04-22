@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import * as Updates from 'expo-updates';
-import { Platform, Alert } from 'react-native';
+import * as Application from 'expo-application';
+import { Platform, Alert, Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, BackHandler } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface UpdateInfo {
   has_update: boolean;
@@ -16,6 +18,12 @@ export function useAppUpdate() {
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [showModal, setShowModal] = useState(false);
+
+  const STORAGE_KEYS = {
+    LAST_UPDATE_CHECK: 'last_update_check_time',
+    SKIP_UPDATE_UNTIL: 'skip_update_until',
+  };
 
   const checkForUpdate = async () => {
     // 如果在开发环境或网页端，不检查更新
@@ -25,42 +33,29 @@ export function useAppUpdate() {
 
     setLoading(true);
     try {
-      // 检查 expo-updates 是否可用
-      if (!Updates.isEmbeddedLaunch) {
-        console.log('Running in development mode, skipping update check');
-        return null;
-      }
+      const currentVersion = Application.nativeApplicationVersion || '1.0.0';
+      const backendBaseUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
 
-      // 检查更新
-      const update = await Updates.checkForUpdateAsync();
-
-      if (!update.isAvailable) {
-        console.log('No update available');
-        setUpdateInfo({
-          has_update: false,
-          current_version: Updates.runtimeVersion,
-          latest_version: Updates.runtimeVersion,
-          force_update: false,
-          update_url: '',
-          release_notes: '',
-          release_date: '',
-        });
-        return null;
-      }
-
-      // 获取清单信息（这里需要从后端获取详细的更新信息）
-      // 先返回基础信息，让应用显示更新对话框
-      setUpdateInfo({
-        has_update: true,
-        current_version: Updates.runtimeVersion,
-        latest_version: update.manifest?.version || 'Unknown',
-        force_update: false,
-        update_url: '',
-        release_notes: update.manifest?.releaseNotes || '新版本可用',
-        release_date: update.manifest?.createdAt || new Date().toISOString(),
+      const response = await fetch(`${backendBaseUrl}/api/v1/app/check-update`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          platform: Platform.OS === 'android' ? 'android' : 'ios',
+          current_version: currentVersion,
+          build_number: parseInt(Application.nativeBuildVersion || '100', 10),
+        }),
       });
 
-      return update;
+      if (!response.ok) {
+        throw new Error('检查更新失败');
+      }
+
+      const data = await response.json();
+      setUpdateInfo(data);
+
+      return data;
     } catch (error) {
       console.error('检查更新失败:', error);
       return null;
@@ -69,29 +64,28 @@ export function useAppUpdate() {
     }
   };
 
-  const downloadUpdate = async (update: any) => {
+  const downloadUpdate = async () => {
+    // 检查 expo-updates 是否可用
+    if (!Updates.isEmbeddedLaunch) {
+      console.log('Running in development mode, skipping update');
+      return false;
+    }
+
     setDownloading(true);
     try {
+      // 检查更新
+      const update = await Updates.checkForUpdateAsync();
+
+      if (!update.isAvailable) {
+        Alert.alert('提示', '没有可用的更新');
+        return false;
+      }
+
       // 下载更新
       await Updates.fetchUpdateAsync();
 
-      Alert.alert(
-        '下载完成',
-        '更新已下载完成，需要重启应用才能生效。是否现在重启？',
-        [
-          {
-            text: '稍后',
-            style: 'cancel',
-          },
-          {
-            text: '立即重启',
-            onPress: async () => {
-              // 重启应用
-              await Updates.reloadAsync();
-            },
-          },
-        ]
-      );
+      // 下载完成后自动重启
+      await Updates.reloadAsync();
 
       return true;
     } catch (error) {
@@ -103,77 +97,309 @@ export function useAppUpdate() {
     }
   };
 
-  const showUpdateDialog = (info: UpdateInfo) => {
-    const buttons = [
-      {
-        text: info.force_update ? '立即更新' : '稍后',
-        onPress: () => {
-          if (!info.force_update) return;
-        },
-        style: info.force_update ? 'default' : 'cancel' as const,
-      },
-      {
-        text: '立即更新',
-        onPress: async () => {
-          if (downloading) return;
-
-          // 再次检查是否有更新
-          const update = await checkForUpdate();
-          if (update) {
-            await downloadUpdate(update);
-          }
-        },
-        style: 'default' as const,
-      },
-    ];
-
-    // 如果不是强制更新，调整按钮顺序
-    if (!info.force_update) {
-      buttons.pop();
-      buttons.push(
-        {
-          text: '稍后',
-          onPress: () => {},
-          style: 'cancel' as const,
-        },
-        {
-          text: '立即更新',
-          onPress: async () => {
-            if (downloading) return;
-
-            const update = await checkForUpdate();
-            if (update) {
-              await downloadUpdate(update);
-            }
-          },
-          style: 'default' as const,
-        }
-      );
-    }
-
-    Alert.alert(
-      '发现新版本',
-      `当前版本: ${info.current_version}\n最新版本: ${info.latest_version}\n\n${info.release_notes}`,
-      buttons
-    );
+  const skipUpdate = async () => {
+    // 设置"下次继续"，24小时后再提醒
+    const skipUntil = Date.now() + 24 * 60 * 60 * 1000; // 24小时后
+    await AsyncStorage.setItem(STORAGE_KEYS.SKIP_UPDATE_UNTIL, skipUntil.toString());
+    setShowModal(false);
   };
 
   const checkAndShowUpdate = async () => {
-    const update = await checkForUpdate();
-    if (update && updateInfo && updateInfo.has_update) {
-      showUpdateDialog(updateInfo);
+    // 检查是否在跳过时间段内
+    const skipUntil = await AsyncStorage.getItem(STORAGE_KEYS.SKIP_UPDATE_UNTIL);
+    if (skipUntil && Date.now() < parseInt(skipUntil, 10)) {
+      console.log('用户选择下次继续，跳过更新检查');
+      return false;
+    }
+
+    const info = await checkForUpdate();
+    if (info && info.has_update) {
+      setShowModal(true);
       return true;
     }
     return false;
+  };
+
+  const checkAutoUpdate = async () => {
+    // 检查上次检查时间
+    const lastCheckTime = await AsyncStorage.getItem(STORAGE_KEYS.LAST_UPDATE_CHECK);
+    const now = Date.now();
+    const oneDay = 24 * 60 * 60 * 1000; // 24小时
+
+    // 如果上次检查时间不足24小时，则跳过
+    if (lastCheckTime && now - parseInt(lastCheckTime, 10) < oneDay) {
+      return false;
+    }
+
+    // 检查更新
+    const hasUpdate = await checkAndShowUpdate();
+
+    // 记录检查时间
+    await AsyncStorage.setItem(STORAGE_KEYS.LAST_UPDATE_CHECK, now.toString());
+
+    return hasUpdate;
+  };
+
+  // 处理强制更新时的返回键
+  const handleBackPress = () => {
+    if (updateInfo?.force_update && showModal) {
+      // 强制更新时，按下返回键显示退出确认
+      return true;
+    }
+    return false;
+  };
+
+  const forceExitApp = () => {
+    BackHandler.exitApp();
+  };
+
+  const UpdateModal = () => {
+    if (!updateInfo || !showModal) {
+      return null;
+    }
+
+    return (
+      <Modal
+        visible={showModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!updateInfo.force_update) {
+            setShowModal(false);
+          }
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            {/* Header */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>发现新版本</Text>
+              {!updateInfo.force_update && (
+                <TouchableOpacity onPress={() => setShowModal(false)} style={styles.closeButton}>
+                  <Text style={styles.closeButtonText}>✕</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Body */}
+            <ScrollView style={styles.modalBody}>
+              <View style={styles.versionInfo}>
+                <View style={styles.versionRow}>
+                  <Text style={styles.versionLabel}>当前版本:</Text>
+                  <Text style={styles.versionValue}>{updateInfo.current_version}</Text>
+                </View>
+                <View style={styles.versionRow}>
+                  <Text style={styles.versionLabel}>最新版本:</Text>
+                  <Text style={styles.versionValueHighlight}>{updateInfo.latest_version}</Text>
+                </View>
+                {updateInfo.force_update && (
+                  <View style={styles.forceUpdateBadge}>
+                    <Text style={styles.forceUpdateText}>⚠️ 强制更新</Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.divider} />
+
+              <Text style={styles.notesTitle}>更新内容:</Text>
+              <Text style={styles.releaseNotes}>{updateInfo.release_notes}</Text>
+            </ScrollView>
+
+            {/* Footer */}
+            <View style={styles.modalFooter}>
+              {downloading ? (
+                <View style={styles.downloadingContainer}>
+                  <ActivityIndicator size="large" color="#4F46E5" />
+                  <Text style={styles.downloadingText}>正在下载更新...</Text>
+                </View>
+              ) : (
+                <>
+                  {!updateInfo.force_update && (
+                    <TouchableOpacity
+                      style={[styles.button, styles.buttonSkip]}
+                      onPress={skipUpdate}
+                    >
+                      <Text style={styles.buttonSkipText}>下次继续</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity
+                    style={[styles.button, styles.buttonUpdate]}
+                    onPress={downloadUpdate}
+                  >
+                    <Text style={styles.buttonUpdateText}>立即更新</Text>
+                  </TouchableOpacity>
+                  {updateInfo.force_update && (
+                    <TouchableOpacity
+                      style={[styles.button, styles.buttonExit]}
+                      onPress={forceExitApp}
+                    >
+                      <Text style={styles.buttonExitText}>退出应用</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
   };
 
   return {
     loading,
     downloading,
     updateInfo,
+    showModal,
     checkForUpdate,
     downloadUpdate,
-    showUpdateDialog,
+    showUpdateDialog: () => setShowModal(true),
     checkAndShowUpdate,
+    checkAutoUpdate,
+    skipUpdate,
+    forceExitApp,
+    UpdateModal,
   };
 }
+
+const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '80%',
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 24,
+    color: '#9CA3AF',
+  },
+  modalBody: {
+    padding: 20,
+  },
+  versionInfo: {
+    marginBottom: 16,
+  },
+  versionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  versionLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  versionValue: {
+    fontSize: 14,
+    color: '#1F2937',
+    fontWeight: '500',
+  },
+  versionValueHighlight: {
+    fontSize: 14,
+    color: '#4F46E5',
+    fontWeight: 'bold',
+  },
+  forceUpdateBadge: {
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  forceUpdateText: {
+    fontSize: 13,
+    color: '#DC2626',
+    fontWeight: '600',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 12,
+  },
+  notesTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  releaseNotes: {
+    fontSize: 14,
+    color: '#4B5563',
+    lineHeight: 22,
+  },
+  modalFooter: {
+    padding: 20,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  downloadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+  },
+  downloadingText: {
+    marginLeft: 12,
+    fontSize: 16,
+    color: '#4F46E5',
+    fontWeight: '500',
+  },
+  button: {
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonSkip: {
+    backgroundColor: '#F3F4F6',
+  },
+  buttonSkipText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  buttonUpdate: {
+    backgroundColor: '#4F46E5',
+  },
+  buttonUpdateText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+  },
+  buttonExit: {
+    backgroundColor: '#DC2626',
+  },
+  buttonExitText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+  },
+});
