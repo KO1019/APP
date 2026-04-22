@@ -185,9 +185,17 @@ export default function ProfileScreen() {
 
   const menuItems: MenuItem[] = useMemo(() => [
     {
+      icon: 'user-pen',
+      title: '个人信息',
+      subtitle: '修改账户信息、密码',
+      action: () => {
+        router.push('/profile-info');
+      },
+    },
+    {
       icon: hasPassword ? 'key' : 'lock',
-      title: hasPassword ? '修改密码' : '设置密码',
-      subtitle: hasPassword ? '更改您的安全密码' : '设置密码以保护隐私',
+      title: hasPassword ? '修改应用锁密码' : '设置应用锁密码',
+      subtitle: hasPassword ? '更改APP进入密码' : '设置密码以保护APP',
       action: () => {
         if (hasPassword) {
           router.push('/change-password');
@@ -266,14 +274,6 @@ export default function ProfileScreen() {
       subtitle: '基于你的情绪状态',
       action: () => {
         fetchHealthTips();
-      },
-    },
-    {
-      icon: 'robot',
-      title: 'AI 陪伴',
-      subtitle: '与AI助手深度对话',
-      action: () => {
-        router.push('/chat');
       },
     },
     {
