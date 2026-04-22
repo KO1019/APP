@@ -1,6 +1,6 @@
 [project]
-entrypoint = "server.js"
-requires = [ "nodejs-24" ]
+entrypoint = "server/main.py"
+requires = [ "python3-12" ]
 template = "expo"
 version = "0.0.16"
 appliedPatches = [ ]

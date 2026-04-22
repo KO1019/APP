@@ -190,18 +190,21 @@ async def register(user: UserRegister):
     """用户注册"""
     # 参数校验
     if len(user.username) < 3 or len(user.username) > 20:
-        raise HTTPException(status_code=400, detail="Username must be 3-20 characters")
+        raise HTTPException(status_code=400, detail="用户名长度必须在3-20个字符之间")
 
     if len(user.password) < 6:
-        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+        raise HTTPException(status_code=400, detail="密码长度至少6个字符")
 
     if not supabase:
-        raise HTTPException(status_code=500, detail="Database not configured")
+        raise HTTPException(
+            status_code=503,
+            detail="数据库未配置，请在.env文件中配置SUPABASE_URL和SUPABASE_KEY"
+        )
 
     # 检查用户名是否存在
     existing = supabase.table('users').select('*').eq('username', user.username).execute()
     if existing.data:
-        raise HTTPException(status_code=400, detail="Username already exists")
+        raise HTTPException(status_code=400, detail="用户名已存在")
 
     # 创建用户
     password_hash = hash_password(user.password)
@@ -226,18 +229,21 @@ async def register(user: UserRegister):
 async def login(user: UserLogin):
     """用户登录"""
     if not supabase:
-        raise HTTPException(status_code=500, detail="Database not configured")
+        raise HTTPException(
+            status_code=503,
+            detail="数据库未配置，请在.env文件中配置SUPABASE_URL和SUPABASE_KEY"
+        )
 
     # 查找用户
     result = supabase.table('users').select('*').eq('username', user.username).execute()
     if not result.data:
-        raise HTTPException(status_code=401, detail="Invalid username or password")
+        raise HTTPException(status_code=401, detail="用户名或密码错误")
 
     user_data = result.data[0]
 
     # 验证密码
     if not verify_password(user.password, user_data['password_hash']):
-        raise HTTPException(status_code=401, detail="Invalid username or password")
+        raise HTTPException(status_code=401, detail="用户名或密码错误")
 
     # 生成JWT Token
     token = generate_token(user_data['id'])

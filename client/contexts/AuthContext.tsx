@@ -106,7 +106,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || '登录失败');
+        // FastAPI返回的错误格式是 {detail: "..."}
+        throw new Error(data.detail || data.error || '登录失败');
       }
 
       const { user, token: newToken } = data;
@@ -142,7 +143,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || '注册失败');
+        // FastAPI返回的错误格式是 {detail: "..."}
+        throw new Error(data.detail || data.error || '注册失败');
       }
 
       const { user, token: newToken } = data;
@@ -193,7 +195,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const responseData = await response.json();
 
       if (!response.ok) {
-        throw new Error(responseData.error || '更新失败');
+        // FastAPI返回的错误格式是 {detail: "..."}
+        throw new Error(responseData.detail || responseData.error || '更新失败');
       }
 
       const updatedUser = responseData.user;

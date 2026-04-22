@@ -173,15 +173,15 @@ check_command "bash"
 ensure_port SERVER_PORT "$SERVER_PORT"
 ensure_port EXPO_PORT "$EXPO_PORT"
 
-echo "==================== 启动 server 服务 ===================="
-echo "正在执行：pnpm run dev (server)"
-( pushd "$ROOT_DIR/server" > /dev/null && SERVER_PORT="$SERVER_PORT" nohup pnpm run dev; popd > /dev/null ) &
+echo "==================== 启动 Python 后端服务 ===================="
+echo "正在执行：python3 main.py (server)"
+( pushd "$ROOT_DIR/server" > /dev/null && SERVER_PORT="$SERVER_PORT" nohup python3 main.py; popd > /dev/null ) &
 SERVER_PID=$!
 disown $SERVER_PID 2>/dev/null || true
 if [ -z "${SERVER_PID}" ]; then
   echo "无法获取 server 后台进程 PID"
 fi
-echo "server 服务已启动，进程 ID：${SERVER_PID:-unknown}"
+echo "Python 后端服务已启动，进程 ID：${SERVER_PID:-unknown}"
 
 echo "==================== 启动 Expo 项目 ===================="
 echo "开始启动 Expo 服务，端口 ${EXPO_PORT}"
