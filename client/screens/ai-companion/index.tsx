@@ -1,11 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, TextInput, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, StyleSheet } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { Screen } from '@/components/Screen';
 import { useAuth } from '@/contexts/AuthContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system/legacy';
 
 interface Message {
   role: 'user' | 'ai';
@@ -13,86 +11,53 @@ interface Message {
   timestamp: Date;
 }
 
-export default function AICompanionScreen() {
+export default function AICompanion() {
   const router = useSafeRouter();
   const params = useSafeSearchParams<{ diaryId?: string }>();
-  const { user, token } = useAuth();
+  const { token } = useAuth();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+
   const scrollViewRef = useRef<ScrollView>(null);
+  const backendUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
 
-  const backendUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
-
-  // 加载对话历史
   useEffect(() => {
     loadConversationHistory();
   }, []);
 
-  // 如果是从日记打开的，自动发送第一条消息
-  useEffect(() => {
-    if (params.diaryId && messages.length === 0) {
-      loadDiaryAndInitChat();
-    }
-  }, [params.diaryId]);
-
   const loadConversationHistory = async () => {
     try {
+      setIsLoadingHistory(true);
       const response = await fetch(`${backendUrl}/api/v1/conversations`, {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          'Authorization': `Bearer ${token}`,
+        },
       });
 
       if (response.ok) {
         const data = await response.json();
-        const historyMessages: Message[] = data.map((conv: any) => [
-          {
-            role: 'user' as const,
-            content: conv.user_message,
-            timestamp: new Date(conv.created_at)
-          },
-          {
-            role: 'ai' as const,
-            content: conv.ai_message,
-            timestamp: new Date(conv.created_at)
-          }
-        ]).flat();
-
-        setMessages(historyMessages);
-        scrollToBottom();
-      }
-    } catch (error) {
-      console.error('加载对话历史失败:', error);
-    }
-  };
-
-  const loadDiaryAndInitChat = async () => {
-    try {
-      const response = await fetch(`${backendUrl}/api/v1/diaries/${params.diaryId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
+        if (data.conversations && data.conversations.length > 0) {
+          const latestConversation = data.conversations[0];
+          setMessages(latestConversation.messages || []);
         }
-      });
-
-      if (response.ok) {
-        const diary = await response.json();
-        const initMessage = `我刚刚写了一篇日记：\n标题：${diary.title}\n心情：${diary.mood}\n内容：${diary.content}\n\n你能帮我分析一下我的情绪状态吗？`;
-        await sendMessage(initMessage);
       }
     } catch (error) {
-      console.error('加载日记失败:', error);
+      console.error('Failed to load conversation history:', error);
+    } finally {
+      setIsLoadingHistory(false);
     }
   };
 
   const sendMessage = async (content: string) => {
-    if (!content.trim() || isTyping) return;
+    if (!content.trim()) return;
 
     const userMessage: Message = {
       role: 'user',
-      content,
-      timestamp: new Date()
+      content: content.trim(),
+      timestamp: new Date(),
     };
 
     setMessages(prev => [...prev, userMessage]);
@@ -110,7 +75,7 @@ export default function AICompanionScreen() {
         body: JSON.stringify({
           message: content,
           relatedDiaryId: params.diaryId,
-          conversationHistory: messages.slice(-10) // 只发送最近10条作为上下文
+          conversationHistory: messages.slice(-10)
         })
       });
 
@@ -160,101 +125,380 @@ export default function AICompanionScreen() {
 
   return (
     <Screen safeAreaEdges={['top', 'bottom']}>
-      <View className="flex-1 bg-gray-50">
-        {/* Header */}
-        <View className="bg-white border-b border-gray-200 px-4 py-3">
-          <View className="flex-row items-center justify-between">
-            <TouchableOpacity onPress={() => router.back()} className="mr-4">
-              <Text className="text-2xl text-gray-600">←</Text>
-            </TouchableOpacity>
-            <View className="flex-1">
-              <Text className="text-xl font-bold text-gray-900">AI 陪伴助手</Text>
-              {params.diaryId && (
-                <Text className="text-sm text-gray-500">正在分析您的日记...</Text>
-              )}
+      <View style={styles.container}>
+        {/* 顶部导航栏 */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.navButton}
+            activeOpacity={0.6}
+          >
+            <FontAwesome6 name="arrow-left" size={20} color="#6B7280" />
+          </TouchableOpacity>
+
+          <View style={styles.headerContent}>
+            <View style={styles.headerTitleContainer}>
+              <FontAwesome6 name="robot" size={24} color="#4F46E5" />
+              <Text style={styles.headerTitle}>AI陪伴助手</Text>
             </View>
-            <TouchableOpacity
-              onPress={startNewConversation}
-              className="bg-blue-500 px-3 py-1.5 rounded-lg"
-            >
-              <Text className="text-white text-sm">新建对话</Text>
-            </TouchableOpacity>
+            {params.diaryId && (
+              <View style={styles.headerSubtitle}>
+                <FontAwesome6 name="book-open" size={12} color="#9CA3AF" />
+                <Text style={styles.headerSubtitleText}>正在分析您的日记...</Text>
+              </View>
+            )}
           </View>
+
+          <TouchableOpacity
+            onPress={startNewConversation}
+            style={styles.newChatButton}
+            activeOpacity={0.7}
+          >
+            <FontAwesome6 name="plus" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
         </View>
 
-        {/* Messages */}
+        {/* 消息列表 */}
         <ScrollView
           ref={scrollViewRef}
-          className="flex-1 px-4 py-4"
+          style={styles.messageList}
+          contentContainerStyle={styles.messageListContent}
           showsVerticalScrollIndicator={false}
         >
-          {messages.length === 0 && (
-            <View className="flex-1 justify-center items-center py-20">
-              <FontAwesome6 name="robot" size={64} color="#9CA3AF" />
-              <Text className="text-lg text-gray-600 mb-2 mt-4">我是您的AI陪伴助手</Text>
-              <Text className="text-sm text-gray-400 text-center px-8">
+          {messages.length === 0 && !isLoadingHistory && (
+            <View style={styles.emptyState}>
+              <View style={styles.emptyStateIcon}>
+                <FontAwesome6 name="heart-circle-plus" size={64} color="#4F46E5" />
+              </View>
+              <Text style={styles.emptyStateTitle}>我是您的AI陪伴助手</Text>
+              <Text style={styles.emptyStateText}>
                 我会认真倾听您的心声，帮助您理解和管理情绪
               </Text>
+              <View style={styles.suggestionList}>
+                <TouchableOpacity
+                  style={styles.suggestionItem}
+                  onPress={() => sendMessage('我今天感觉有点低落')}
+                  activeOpacity={0.7}
+                >
+                  <FontAwesome6 name="lightbulb" size={16} color="#4F46E5" />
+                  <Text style={styles.suggestionText}>我今天感觉有点低落</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.suggestionItem}
+                  onPress={() => sendMessage('我想聊聊最近的压力')}
+                  activeOpacity={0.7}
+                >
+                  <FontAwesome6 name="lightbulb" size={16} color="#4F46E5" />
+                  <Text style={styles.suggestionText}>我想聊聊最近的压力</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
 
           {messages.map((msg, index) => (
             <View
               key={index}
-              className={`mb-4 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
+              style={[
+                styles.messageWrapper,
+                msg.role === 'user' ? styles.userMessageWrapper : styles.aiMessageWrapper
+              ]}
             >
+              {msg.role === 'ai' && (
+                <View style={styles.avatar}>
+                  <FontAwesome6 name="robot" size={20} color="#4F46E5" />
+                </View>
+              )}
               <View
-                className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                  msg.role === 'user'
-                    ? 'bg-blue-500 text-white rounded-br-md'
-                    : 'bg-white border border-gray-200 text-gray-800 rounded-bl-md'
-                }`}
+                style={[
+                  styles.messageBubble,
+                  msg.role === 'user' ? styles.userMessageBubble : styles.aiMessageBubble
+                ]}
               >
-                <Text className={`text-sm ${msg.role === 'user' ? 'text-white' : 'text-gray-800'}`}>
+                <Text
+                  style={[
+                    styles.messageText,
+                    msg.role === 'user' ? styles.userMessageText : styles.aiMessageText
+                  ]}
+                >
                   {msg.content}
                 </Text>
               </View>
-              <Text className="text-xs text-gray-400 mt-1">
-                {msg.timestamp.toLocaleTimeString('zh-CN', {
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </Text>
             </View>
           ))}
 
           {isTyping && (
-            <View className="mb-4 items-start">
-              <View className="bg-white border border-gray-200 rounded-2xl rounded-bl-md px-4 py-3">
-                <Text className="text-gray-400">正在输入...</Text>
+            <View style={[styles.messageWrapper, styles.aiMessageWrapper]}>
+              <View style={styles.avatar}>
+                <FontAwesome6 name="robot" size={20} color="#4F46E5" />
+              </View>
+              <View style={[styles.messageBubble, styles.aiMessageBubble]}>
+                <View style={styles.typingIndicator}>
+                  <View style={styles.typingDot} />
+                  <View style={styles.typingDot} />
+                  <View style={styles.typingDot} />
+                </View>
               </View>
             </View>
           )}
         </ScrollView>
 
-        {/* Input */}
-        <View className="bg-white border-t border-gray-200 px-4 py-3">
-          <View className="flex-row items-end bg-gray-100 rounded-2xl px-4 py-2">
-            <TextInput
-              className="flex-1 text-base text-gray-900 max-h-32"
-              placeholder="说点什么吧..."
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
-              textAlignVertical="top"
-            />
-            <TouchableOpacity
-              onPress={() => sendMessage(inputText)}
-              disabled={!inputText.trim() || isTyping}
-              className={`ml-2 w-10 h-10 rounded-full items-center justify-center ${
-                inputText.trim() && !isTyping ? 'bg-blue-500' : 'bg-gray-300'
-              }`}
-            >
-              <Text className="text-white font-bold">↑</Text>
-            </TouchableOpacity>
+        {/* 输入区域 */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        >
+          <View style={styles.inputContainer}>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.input}
+                placeholder="说点什么吧..."
+                placeholderTextColor="#9CA3AF"
+                value={inputText}
+                onChangeText={setInputText}
+                multiline
+                maxLength={500}
+                textAlignVertical="top"
+              />
+              <TouchableOpacity
+                onPress={() => sendMessage(inputText)}
+                disabled={!inputText.trim() || isTyping}
+                style={[
+                  styles.sendButton,
+                  (!inputText.trim() || isTyping) && styles.sendButtonDisabled
+                ]}
+                activeOpacity={0.7}
+              >
+                <FontAwesome6
+                  name="paper-plane"
+                  size={20}
+                  color={!inputText.trim() || isTyping ? '#9CA3AF' : '#FFFFFF'}
+                />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.inputHint}>{inputText.length}/500</Text>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </View>
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  navButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  headerTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  headerSubtitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  headerSubtitleText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  newChatButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#4F46E5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#4F46E5',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  messageList: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  messageListContent: {
+    padding: 16,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 80,
+  },
+  emptyStateIcon: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#EEF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  emptyStateTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 32,
+  },
+  suggestionList: {
+    width: '100%',
+    gap: 12,
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  suggestionText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#374151',
+  },
+  messageWrapper: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    maxWidth: '85%',
+  },
+  userMessageWrapper: {
+    alignSelf: 'flex-end',
+    flexDirection: 'row-reverse',
+  },
+  aiMessageWrapper: {
+    alignSelf: 'flex-start',
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#EEF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  messageBubble: {
+    maxWidth: '100%',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 18,
+  },
+  userMessageBubble: {
+    backgroundColor: '#4F46E5',
+    borderBottomRightRadius: 6,
+  },
+  aiMessageBubble: {
+    backgroundColor: '#FFFFFF',
+    borderBottomLeftRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  messageText: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  userMessageText: {
+    color: '#FFFFFF',
+  },
+  aiMessageText: {
+    color: '#1F2937',
+  },
+  typingIndicator: {
+    flexDirection: 'row',
+    gap: 4,
+    paddingHorizontal: 4,
+  },
+  typingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#9CA3AF',
+  },
+  inputContainer: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    color: '#1F2937',
+    minHeight: 36,
+    maxHeight: 120,
+  },
+  sendButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#4F46E5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+    marginBottom: 4,
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#F3F4F6',
+  },
+  inputHint: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    textAlign: 'right',
+    marginTop: 6,
+  },
+});

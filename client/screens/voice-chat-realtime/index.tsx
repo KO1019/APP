@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Animated, Dimensions, StatusBar, Alert, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
@@ -10,105 +11,229 @@ import { useCSSVariable } from 'uniwind';
 import Toast from 'react-native-toast-message';
 import * as KeepAwake from 'expo-keep-awake';
 
-interface ConversationMessage {
-  role: 'user' | 'assistant' | 'user_interim';
-  content: string;
-}
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-export default function VoiceChatRealtimeScreen() {
+export default function VoiceChatRealtime() {
   const router = useSafeRouter();
-  const { token } = useAuth();
-
-  // 核心状态
-  const [isRecording, setIsRecording] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
-  const [recordMode, setRecordMode] = useState(false);
-  const [isAiSpeaking, setIsAiSpeaking] = useState(false);
-
-  // 对话历史
-  const [messages, setMessages] = useState<ConversationMessage[]>([]);
-  const [currentInterimText, setCurrentInterimText] = useState('');
-  const [latestAiMessage, setLatestAiMessage] = useState('');
-
-  const recordingRef = useRef<Audio.Recording | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
-  const audioBufferRef = useRef<Buffer[] | null>(null);
-  const audioIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const audioFileNameCounterRef = useRef(0);
-  const handleMessageRef = useRef<((message: any) => void | Promise<void>) | undefined>(() => undefined);
-
-  const [background, surface, accent, foreground, muted, border] = useCSSVariable([
+  const [background, foreground, surface, accent, muted, border] = useCSSVariable([
     '--color-background',
+    '--color-foreground',
     '--color-surface',
     '--color-accent',
-    '--color-foreground',
     '--color-muted',
     '--color-border',
   ]) as string[];
 
-  // 声波动画值
+  const insets = useSafeAreaInsets();
+
+  const { token } = useAuth();
+
+  const [isConnected, setIsConnected] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isAiSpeaking, setIsAiSpeaking] = useState(false);
+  const [recordMode, setRecordMode] = useState(false);
+  const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant', content: string }>>([]);
+  const [latestAiMessage, setLatestAiMessage] = useState('');
+  const [currentInterimText, setCurrentInterimText] = useState('');
+
+  const wsRef = useRef<WebSocket | null>(null);
+  const recordingRef = useRef<Audio.Recording | null>(null);
+  const soundRef = useRef<Audio.Sound | null>(null);
+  const audioBufferRef = useRef<Buffer[] | null>(null);
+  const audioIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const handleMessageRef = useRef<any>(null);
+
+  const { width: screenWidth } = Dimensions.get('window');
   const waveAnimations = useMemo(() => [
-    new Animated.Value(1),
-    new Animated.Value(1),
-    new Animated.Value(1),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
   ], []);
 
-  // 声波动画循环
-  useEffect(() => {
-    if (isAiSpeaking) {
-      const animate = () => {
-        Animated.parallel([
-          Animated.sequence([
-            Animated.timing(waveAnimations[0], { toValue: 1.5, duration: 1000, useNativeDriver: true }),
-            Animated.timing(waveAnimations[0], { toValue: 1, duration: 1000, useNativeDriver: true }),
-          ]),
-          Animated.sequence([
-            Animated.timing(waveAnimations[1], { toValue: 1.3, duration: 800, useNativeDriver: true, delay: 200 }),
-            Animated.timing(waveAnimations[1], { toValue: 1, duration: 800, useNativeDriver: true }),
-          ]),
-          Animated.sequence([
-            Animated.timing(waveAnimations[2], { toValue: 1.7, duration: 1200, useNativeDriver: true, delay: 400 }),
-            Animated.timing(waveAnimations[2], { toValue: 1, duration: 1200, useNativeDriver: true }),
-          ]),
-        ]).start(() => {
-          if (isAiSpeaking) {
-            animate();
-          }
-        });
-      };
-      animate();
-    } else {
-      waveAnimations.forEach(anim => anim.setValue(1));
-    }
-  }, [isAiSpeaking, waveAnimations]);
+  const aiPan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  const recordingPulseAnim = useRef(new Animated.Value(0)).current;
 
-  // 保持屏幕常亮
   useEffect(() => {
-    KeepAwake.activateKeepAwakeAsync('tag-voice-chat');
+    const startAnimations = () => {
+      waveAnimations.forEach((anim) => {
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(anim, {
+              toValue: 1.5,
+              duration: 1500,
+              useNativeDriver: false,
+            }),
+            Animated.timing(anim, {
+              toValue: 1,
+              duration: 1500,
+              useNativeDriver: false,
+            }),
+          ])
+        ).start();
+      });
+    };
+
+    startAnimations();
+
+    return () => {
+      waveAnimations.forEach((anim) => {
+        (anim as any).stop();
+      });
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+      if (soundRef.current) {
+        soundRef.current.unloadAsync();
+      }
+    };
+  }, [waveAnimations]);
+
+  useEffect(() => {
+    const pulseAnim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(recordingPulseAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: false,
+        }),
+        Animated.timing(recordingPulseAnim, {
+          toValue: 0,
+          duration: 800,
+          useNativeDriver: false,
+        }),
+      ])
+    );
+    pulseAnim.start();
+    return () => pulseAnim.stop();
   }, []);
 
-  // 保存对话为日记
-  const saveConversationAsDiary = useCallback(async () => {
+  const connectWebSocket = useCallback(() => {
     try {
-      const userMessages = messages.filter(m => m.role === 'user');
-      const aiMessages = messages.filter(m => m.role === 'assistant');
+      const backendUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
+      let wsProtocol = 'ws://';
+      if (backendUrl.startsWith('https://')) {
+        wsProtocol = 'wss://';
+      } else if (backendUrl.startsWith('http://')) {
+        wsProtocol = 'ws://';
+      }
 
-      if (userMessages.length === 0) return;
+      let hostname = backendUrl.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
 
-      const lastUserMessage = userMessages[userMessages.length - 1];
-      const lastAiMessage = aiMessages[aiMessages.length - 1];
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && hostname === 'localhost:9091') {
+        const currentHost = window.location.hostname;
+        const currentProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsProtocol = currentProtocol + '//';
+        hostname = currentHost + ':9091';
+      }
 
-      const diaryContent = `语音对话记录：\n\n我：${lastUserMessage.content}\n\nAI：${lastAiMessage?.content || ''}`;
+      const wsUrl = `${wsProtocol}${hostname}/api/v1/voice/realtime`;
 
-      /**
-       * 服务端文件：server/src/index.ts
-       * 接口：POST /api/v1/diaries
-       * Body 参数：content: string, emotion: string, title: string
-       */
+      console.log('[VOICE] Attempting to connect to WebSocket...');
+      console.log('[VOICE] WebSocket URL:', wsUrl);
+
+      const ws = new WebSocket(wsUrl) as any;
+
+      ws.onopen = () => {
+        console.log('[VOICE] WebSocket connected successfully!');
+        setIsConnected(true);
+        KeepAwake.activateKeepAwake();
+      };
+
+      ws.onmessage = (event: any) => {
+        try {
+          const message = JSON.parse(event.data);
+          if (handleMessageRef.current) {
+            handleMessageRef.current(message);
+          }
+        } catch (error) {
+          console.error('[VOICE] Failed to parse message:', error);
+        }
+      };
+
+      ws.onerror = (error: Event) => {
+        console.error('[VOICE] WebSocket error event triggered');
+      };
+
+      ws.onclose = (event: CloseEvent) => {
+        if (event.code === 1000) {
+          console.log('[VOICE] WebSocket closed normally');
+        } else {
+          console.error('[VOICE] WebSocket closed abnormally:', event.code);
+        }
+        setIsConnected(false);
+
+        if (event.code !== 1000) {
+          let errorDetail = '';
+          switch (event.code) {
+            case 1001: errorDetail = '连接被服务器主动关闭'; break;
+            case 1006: errorDetail = '连接异常断开，可能是网络问题'; break;
+            default: errorDetail = `未知错误 (代码: ${event.code})`;
+          }
+          if (errorDetail) {
+            Toast.show({
+              type: 'error',
+              text1: '连接断开',
+              text2: errorDetail,
+              position: 'bottom',
+            });
+          }
+        }
+
+        setTimeout(() => connectWebSocket(), 3000);
+      };
+
+      wsRef.current = ws;
+    } catch (error) {
+      console.error('[VOICE] Failed to connect WebSocket:', error);
+      setTimeout(() => connectWebSocket(), 3000);
+    }
+  }, []);
+
+  const playCollectedAudio = async () => {
+    if (!audioBufferRef.current || audioBufferRef.current.length === 0) return;
+
+    try {
+      const audioData = Buffer.concat(audioBufferRef.current);
+      audioBufferRef.current = null;
+
+      const base64Audio = audioData.toString('base64');
+      const tempDir = (FileSystem as any).documentDirectory || (FileSystem as any).cacheDirectory || '';
+      const tempUri = `${tempDir}temp_audio_${Date.now()}.mp3`;
+
+      await (FileSystem as any).writeAsStringAsync(tempUri, base64Audio, {
+        encoding: 'base64',
+      });
+
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: tempUri },
+        { shouldPlay: true }
+      );
+
+      soundRef.current = sound;
+      setIsAiSpeaking(true);
+
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          setIsAiSpeaking(false);
+          sound.unloadAsync();
+          FileSystem.deleteAsync(tempUri).catch(console.error);
+        }
+      });
+
+      await sound.playAsync();
+    } catch (error) {
+      console.error('[VOICE] Failed to play audio:', error);
+      setIsAiSpeaking(false);
+    }
+  };
+
+  const saveConversationAsDiary = async () => {
+    if (messages.length === 0) return;
+
+    try {
+      const content = messages
+        .map((msg) => `${msg.role === 'user' ? '我' : 'AI'}: ${msg.content}`)
+        .join('\n\n');
+
       const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/diaries`, {
         method: 'POST',
         headers: {
@@ -116,9 +241,10 @@ export default function VoiceChatRealtimeScreen() {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          content: diaryContent,
-          emotion: 'neutral',
-          title: '语音对话日记',
+          title: '语音对话记录',
+          content: content,
+          mood: 'neutral',
+          tags: ['语音对话'],
         }),
       });
 
@@ -130,335 +256,18 @@ export default function VoiceChatRealtimeScreen() {
         });
       }
     } catch (error) {
-      console.error('Failed to save diary:', error);
-    }
-  }, [messages, token]);
-
-  // 播放收集的音频
-  const playCollectedAudio = async () => {
-    if (!audioBufferRef.current || audioBufferRef.current.length === 0) return;
-
-    try {
-      const totalLength = audioBufferRef.current.reduce((sum, buf) => sum + buf.length, 0);
-      const combinedBuffer = Buffer.alloc(totalLength);
-      let offset = 0;
-      for (const buf of audioBufferRef.current) {
-        buf.copy(combinedBuffer, offset);
-        offset += buf.length;
-      }
-
-      const tempDir = (FileSystem as any).documentDirectory!;
-      audioFileNameCounterRef.current += 1;
-      const fileName = `tts_${audioFileNameCounterRef.current}.mp3`;
-      const tempFile = `${tempDir}${fileName}`;
-      await (FileSystem as any).writeAsStringAsync(
-        tempFile,
-        combinedBuffer.toString('base64'),
-        { encoding: 'base64' }
-      );
-
-      await playAudio(tempFile);
-      audioBufferRef.current = null;
-    } catch (error) {
-      console.error('Failed to play audio:', error);
-      audioBufferRef.current = null;
+      console.error('[VOICE] Failed to save conversation:', error);
     }
   };
 
-  // 播放音频
-  const playAudio = async (audioUri: string) => {
-    try {
-      if (soundRef.current) {
-        await soundRef.current.unloadAsync();
-      }
-
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: audioUri },
-        {},
-        (status) => {
-          if (status.isLoaded && status.didJustFinish) {
-            console.log('Audio playback finished');
-            setIsAiSpeaking(false);
-          }
-        }
-      );
-
-      soundRef.current = sound;
-      setIsAiSpeaking(true);
-      await sound.playAsync();
-    } catch (error) {
-      console.error('Error playing audio:', error);
-      setIsAiSpeaking(false);
+  const handleRecordingPress = useCallback(async () => {
+    if (isRecording) {
+      await stopRecording();
+    } else {
+      await startRecording();
     }
-  };
+  }, [isRecording]);
 
-  // WebSocket连接函数
-  const connectWebSocket = useCallback(() => {
-    try {
-      // 动态构建WebSocket URL，根据当前环境自动选择协议和地址
-      const backendUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
-
-      // 将HTTP/HTTPS转换为WS/WSS协议
-      let wsProtocol = 'ws://';
-      if (backendUrl.startsWith('https://')) {
-        wsProtocol = 'wss://';
-      } else if (backendUrl.startsWith('http://')) {
-        wsProtocol = 'ws://';
-      }
-
-      // 提取域名和端口
-      let hostname = backendUrl.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-
-      // 在Web环境下，如果是localhost，使用当前页面的域名（如果代理配置了）
-      if (Platform.OS === 'web' && typeof window !== 'undefined' && hostname === 'localhost:9091') {
-        const currentHost = window.location.hostname;
-        const currentProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        wsProtocol = currentProtocol + '//';
-        hostname = currentHost + ':9091';
-      }
-
-      const wsUrl = `${wsProtocol}${hostname}/api/v1/voice/realtime`;
-
-      console.log('========================================');
-      console.log('[VOICE] Attempting to connect to WebSocket...');
-      console.log('[VOICE] Backend URL:', backendUrl);
-      console.log('[VOICE] WebSocket URL:', wsUrl);
-      console.log('[VOICE] Current time:', new Date().toISOString());
-      console.log('========================================');
-
-      const ws = new WebSocket(wsUrl) as any;
-
-      ws.onopen = () => {
-        console.log('[VOICE] WebSocket connected successfully!');
-        console.log('[VOICE] WebSocket readyState:', ws.readyState);
-        console.log('[VOICE] Connection time:', new Date().toISOString());
-        setIsConnected(true);
-      };
-
-      ws.onmessage = (event: any) => {
-        try {
-          const message = JSON.parse(event.data);
-          console.log('[VOICE] WebSocket message received:', message);
-
-          // 处理错误消息
-          if (message.type === 'error') {
-            console.error('[VOICE] WebSocket error from server:', message.message);
-            Toast.show({
-              type: 'error',
-              text1: '连接失败',
-              text2: message.message || '语音服务暂时不可用',
-              position: 'bottom',
-            });
-            setIsConnected(false);
-            return;
-          }
-
-          if (handleMessageRef.current) {
-            handleMessageRef.current(message);
-          }
-        } catch (error) {
-          console.error('[VOICE] Failed to parse message:', error);
-        }
-      };
-
-      ws.onerror = (error: Event) => {
-        // WebSocket 的 onerror 事件通常不会提供详细的错误信息
-        // 真正的错误信息会在 onclose 事件的 code 和 reason 中
-        console.error('[VOICE] WebSocket error event triggered');
-        console.error('[VOICE] WebSocket readyState:', ws.readyState);
-        console.error('[VOICE] WebSocket URL:', ws.url);
-
-        // 不要在这里设置 setIsConnected(false)，因为 onclose 也会触发
-        // 避免重复设置状态
-      };
-
-      ws.onclose = (event: CloseEvent) => {
-        // 使用 info 级别记录正常关闭，使用 error 级别记录异常关闭
-        if (event.code === 1000) {
-          // 正常关闭，使用 info 级别
-          console.log('[VOICE] WebSocket closed normally:', {
-            code: event.code,
-            reason: event.reason || 'normal closure',
-            wasClean: event.wasClean,
-          });
-        } else {
-          // 异常关闭，使用 error 级别
-          console.error('[VOICE] WebSocket closed abnormally:', {
-            code: event.code,
-            reason: event.reason,
-            wasClean: event.wasClean,
-          });
-        }
-
-        setIsConnected(false);
-
-        // 正常关闭（1000）不显示错误提示
-        if (event.code === 1000) {
-          return;
-        }
-
-        // 根据关闭代码提供详细的错误提示
-        const errorMessage = '语音服务连接已断开';
-        let errorDetail = '';
-
-        // 常见的WebSocket关闭代码
-        switch (event.code) {
-          case 1001:
-            errorDetail = '连接被服务器主动关闭';
-            break;
-
-          case 1002:
-            errorDetail = '协议错误：服务器不支持该协议';
-            break;
-
-          case 1003:
-            errorDetail = '数据类型不被支持';
-            break;
-
-          case 1006:
-            errorDetail = '连接异常断开，可能是网络问题或服务器不可用';
-            break;
-
-          case 1007:
-            errorDetail = '消息数据格式错误';
-            break;
-
-          case 1008:
-            errorDetail = '违反服务器策略';
-            break;
-
-          case 1009:
-            errorDetail = '消息数据过大';
-            break;
-
-          case 1010:
-            errorDetail = '缺少必需的扩展字段';
-            break;
-
-          case 1011:
-            errorDetail = '服务器内部错误';
-            break;
-
-          case 1015:
-            errorDetail = 'TLS握手失败';
-            break;
-
-          default:
-            if (event.reason && !event.reason.includes('close 1000') && !event.reason.includes('normal')) {
-              // 过滤掉正常关闭相关的reason消息
-              errorDetail = event.reason;
-            } else {
-              errorDetail = `未知错误 (代码: ${event.code})`;
-            }
-        }
-
-        // 如果有错误详情，显示Toast提示
-        if (errorDetail) {
-          console.error('[VOICE] WebSocket close error:', errorDetail);
-          Toast.show({
-            type: 'error',
-            text1: errorMessage,
-            text2: errorDetail,
-            position: 'bottom',
-          });
-        }
-      };
-
-      wsRef.current = ws;
-    } catch (error) {
-      console.error('Failed to connect WebSocket:', error);
-      Toast.show({
-        type: 'error',
-        text1: '连接失败',
-        text2: '无法连接到语音服务',
-        position: 'bottom',
-      });
-    }
-  }, []);
-
-  // 处理WebSocket消息
-  const handleMessage = useCallback(async (message: any) => {
-    console.log('Received message:', message.type);
-
-    switch (message.type) {
-      case 'asr_result':
-        // 语音识别结果
-        if (message.data && message.data.results && message.data.results.length > 0) {
-          const result = message.data.results[0];
-          if (result.text) {
-            if (result.is_interim) {
-              setCurrentInterimText(result.text);
-            } else {
-              setCurrentInterimText('');
-              setMessages(prev => [...prev, { role: 'user', content: result.text }]);
-            }
-          }
-        }
-        break;
-
-      case 'chat_response': {
-        // AI回复
-        const aiContent = message.data.content;
-        setLatestAiMessage(aiContent);
-        setMessages(prev => [...prev, { role: 'assistant', content: aiContent }]);
-
-        // 如果开启记录模式，自动保存日记
-        if (recordMode) {
-          saveConversationAsDiary();
-        }
-        break;
-      }
-
-      case 'tts_audio':
-        // 音频数据
-        if (audioBufferRef.current === null) {
-          audioBufferRef.current = [];
-          setTimeout(() => playCollectedAudio(), 500);
-        }
-        audioBufferRef.current.push(Buffer.from(message.data, 'base64'));
-        break;
-
-      case 'tts_ended':
-        // 音频播放结束
-        if (audioBufferRef.current && audioBufferRef.current.length > 0) {
-          await playCollectedAudio();
-        }
-        break;
-
-      case 'asr_ended':
-        // 语音识别结束
-        setIsProcessing(false);
-        break;
-
-      case 'error':
-        Toast.show({ type: 'error', text1: '错误', text2: message.message });
-        setIsProcessing(false);
-        break;
-
-      case 'connection_closed':
-        setIsConnected(false);
-        Toast.show({ type: 'info', text1: '连接已断开，正在重连...' });
-        setTimeout(() => connectWebSocket(), 3000);
-        break;
-    }
-  }, [recordMode, saveConversationAsDiary, connectWebSocket]);
-
-  // 更新 handleMessage ref
-  useEffect(() => {
-    handleMessageRef.current = handleMessage;
-  }, [handleMessage]);
-
-  // 初始化WebSocket连接
-  useEffect(() => {
-    connectWebSocket();
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
-  }, [connectWebSocket]);
-
-  // 开始录音
   const startRecording = async () => {
     try {
       if (!isConnected) {
@@ -480,19 +289,19 @@ export default function VoiceChatRealtimeScreen() {
       const recording = new Audio.Recording();
       recordingRef.current = recording;
 
-      const recordingOptions = {
+      await recording.prepareToRecordAsync({
         android: {
           extension: '.m4a',
-          outputFormat: Audio.AndroidOutputFormat.MPEG_4,
-          audioEncoder: Audio.AndroidAudioEncoder.AAC,
+          outputFormat: 6,
+          audioEncoder: 3,
           sampleRate: 16000,
           numberOfChannels: 1,
           bitRate: 128000,
         },
         ios: {
           extension: '.m4a',
-          outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
-          audioQuality: Audio.IOSAudioQuality.HIGH,
+          outputFormat: 'mp4',
+          audioQuality: 127,
           sampleRate: 16000,
           numberOfChannels: 1,
           bitRate: 128000,
@@ -501,20 +310,17 @@ export default function VoiceChatRealtimeScreen() {
           mimeType: 'audio/webm',
           bitsPerSecond: 128000,
         },
-      };
+      });
 
-      await recording.prepareToRecordAsync(recordingOptions);
       await recording.startAsync();
-
       setIsRecording(true);
       setIsProcessing(true);
     } catch (error) {
-      console.error('Failed to start recording:', error);
+      console.error('[VOICE] Failed to start recording:', error);
       Toast.show({ type: 'error', text1: '录音失败' });
     }
   };
 
-  // 停止录音
   const stopRecording = async () => {
     try {
       if (!recordingRef.current) return;
@@ -526,72 +332,111 @@ export default function VoiceChatRealtimeScreen() {
 
       await recordingRef.current.stopAndUnloadAsync();
       recordingRef.current = null;
-
       setIsRecording(false);
     } catch (error) {
-      console.error('Failed to stop recording:', error);
+      console.error('[VOICE] Failed to stop recording:', error);
       setIsRecording(false);
       setIsProcessing(false);
     }
   };
 
-  // 发送音频数据
-  const sendAudioData = async () => {
-    try {
-      if (!recordingRef.current || !wsRef.current) return;
-
-      const status = await recordingRef.current.getStatusAsync();
-
-      if (!status.isRecording || !status.uri) return;
-
-      const audioData = await (FileSystem as any).readAsStringAsync(status.uri, {
-        encoding: 'base64',
-      });
-
-      if (wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(Buffer.from(audioData, 'base64'));
-      }
-    } catch (error) {
-      console.error('Failed to send audio data:', error);
-    }
-  };
-
-  // 处理录音按钮点击
-  const handleRecordingPress = () => {
-    if (isRecording) {
-      stopRecording();
-    } else {
-      startRecording();
-    }
-  };
-
-  // 关闭通话（显示浮悬窗）
   const handleEndCall = () => {
-    if (wsRef.current) {
-      wsRef.current.close();
-    }
-    router.back();
-    Toast.show({
-      type: 'info',
-      text1: '通话已结束',
-      text2: '浮悬窗已开启',
-    });
+    Alert.alert(
+      '结束通话',
+      '确定要结束通话吗？',
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '确定',
+          onPress: () => {
+            if (wsRef.current) {
+              wsRef.current.close();
+            }
+            router.back();
+          }
+        }
+      ]
+    );
   };
+
+  const handleMessage = useCallback((message: any) => {
+    switch (message.type) {
+      case 'asr_text':
+        const text = message.data.text;
+        if (message.data.is_final) {
+          setCurrentInterimText('');
+          setMessages(prev => [...prev, { role: 'user', content: text }]);
+        } else {
+          setCurrentInterimText(text);
+        }
+        break;
+
+      case 'llm_response':
+        const aiContent = message.data.content;
+        setLatestAiMessage(aiContent);
+        setMessages(prev => [...prev, { role: 'assistant', content: aiContent }]);
+        if (recordMode) {
+          saveConversationAsDiary();
+        }
+        break;
+
+      case 'tts_audio':
+        if (audioBufferRef.current === null) {
+          audioBufferRef.current = [];
+          setTimeout(() => playCollectedAudio(), 500);
+        }
+        audioBufferRef.current.push(Buffer.from(message.data, 'base64'));
+        break;
+
+      case 'tts_ended':
+        if (audioBufferRef.current && audioBufferRef.current.length > 0) {
+          playCollectedAudio();
+        }
+        break;
+
+      case 'asr_ended':
+        setIsProcessing(false);
+        break;
+
+      case 'error':
+        Toast.show({ type: 'error', text1: '错误', text2: message.message });
+        setIsProcessing(false);
+        break;
+
+      case 'connection_closed':
+        setIsConnected(false);
+        Toast.show({ type: 'info', text1: '连接已断开，正在重连...' });
+        break;
+    }
+  }, [recordMode, saveConversationAsDiary, connectWebSocket]);
+
+  useEffect(() => {
+    handleMessageRef.current = handleMessage;
+  }, [handleMessage]);
+
+  useEffect(() => {
+    connectWebSocket();
+  }, [connectWebSocket]);
 
   return (
     <Screen>
       <StatusBar hidden />
       <View style={[styles.container, { backgroundColor: background }]}>
-        {/* 顶部状态栏 */}
-        <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <FontAwesome6 name="chevron-down" size={24} color={foreground} />
+        {/* 顶部导航栏 */}
+        <View style={[styles.topBar, { paddingTop: insets.top }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.navButton}>
+            <View style={[styles.navButtonInner, { backgroundColor: `${foreground}10` }]}>
+              <FontAwesome6 name="chevron-down" size={20} color={foreground} />
+            </View>
           </TouchableOpacity>
-          <Text style={[styles.statusText, { color: foreground }]}>
-            {isConnected ? '通话中' : '连接中...'}
-          </Text>
+          <View style={styles.statusContainer}>
+            <View style={[styles.statusDot, { backgroundColor: isConnected ? '#10B981' : '#F59E0B' }]} />
+            <Text style={[styles.statusText, { color: foreground }]}>
+              {isConnected ? '通话中' : '连接中...'}
+            </Text>
+          </View>
           <TouchableOpacity
-            style={styles.recordModeButton}
+            style={[styles.recordModeButton, recordMode && styles.recordModeButtonActive]}
             onPress={() => {
               setRecordMode(!recordMode);
               Toast.show({
@@ -602,25 +447,28 @@ export default function VoiceChatRealtimeScreen() {
             }}
           >
             <FontAwesome6
-              name={recordMode ? 'file-lines' : 'file'}
+              name={recordMode ? 'file-circle-check' : 'file-lines'}
               size={20}
-              color={recordMode ? accent : muted}
+              color={recordMode ? '#FFFFFF' : accent}
             />
           </TouchableOpacity>
         </View>
 
         {/* 配置提示 */}
         {!isConnected && (
-          <View style={[styles.configWarning, { backgroundColor: '#E3F2FD', borderColor: '#2196F3', borderWidth: 1 }]}>
-            <FontAwesome6 name="spinner" size={16} color="#1976D2" />
-            <Text style={[styles.configWarningText, { color: '#1976D2' }]}>
+          <View style={[styles.configWarning, { backgroundColor: `${accent}10`, borderColor: accent, borderWidth: 1 }]}>
+            <FontAwesome6 name="spinner" size={16} color={accent} />
+            <Text style={[styles.configWarningText, { color: accent }]}>
               正在连接语音服务...
             </Text>
           </View>
         )}
 
-        {/* AI人物头像区域 */}
+        {/* AI陪伴形象 */}
         <View style={styles.avatarContainer}>
+          {/* 背景光晕 */}
+          <View style={[styles.avatarGlow, { backgroundColor: `${accent}20` }]} />
+
           {/* 声波动画 */}
           {waveAnimations.map((anim, index) => (
             <Animated.View
@@ -630,53 +478,71 @@ export default function VoiceChatRealtimeScreen() {
                 {
                   borderColor: accent,
                   transform: [{ scale: anim }],
-                  opacity: isAiSpeaking ? 0.3 : 0,
+                  opacity: isAiSpeaking ? 0.4 : 0,
                 },
               ]}
             />
           ))}
 
-          {/* 可爱陪伴机器人 */}
-          <View style={[styles.robotHead, { backgroundColor: surface }]}>
-            {/* 天线 */}
-            <View style={[styles.antenna, { backgroundColor: accent }]} />
-            <View style={[styles.antennaBall, { backgroundColor: '#FF6B9D' }]} />
+          {/* 温暖的AI形象 */}
+          <View style={[styles.aiAvatar, { backgroundColor: surface }]}>
+            {/* 左耳朵 */}
+            <View style={[styles.aiEar, { backgroundColor: `${accent}30`, left: -8 }]} />
 
-            {/* 左耳 */}
-            <View style={[styles.ear, { backgroundColor: `${accent}40`, left: -15 }]} />
-
-            {/* 右耳 */}
-            <View style={[styles.ear, { backgroundColor: `${accent}40`, right: -15 }]} />
+            {/* 右耳朵 */}
+            <View style={[styles.aiEar, { backgroundColor: `${accent}30`, right: -8 }]} />
 
             {/* 左眼 */}
-            <View style={[styles.eye, { backgroundColor: foreground, left: 45 }]} />
+            <View style={[styles.aiEye, { backgroundColor: foreground, left: 38 }]} />
+            <View style={[styles.aiEyeShine, { backgroundColor: '#FFFFFF', left: 42, top: 82 }]} />
 
             {/* 右眼 */}
-            <View style={[styles.eye, { backgroundColor: foreground, right: 45 }]} />
+            <View style={[styles.aiEye, { backgroundColor: foreground, right: 38 }]} />
+            <View style={[styles.aiEyeShine, { backgroundColor: '#FFFFFF', right: 42, top: 82 }]} />
 
-            {/* 眼睛高光 */}
-            <View style={[styles.eyeShine, { backgroundColor: '#FFFFFF', left: 50, top: 105 }]} />
-            <View style={[styles.eyeShine, { backgroundColor: '#FFFFFF', right: 50, top: 105 }]} />
-
-            {/* 微笑嘴巴 */}
-            <View style={[styles.mouth, { borderColor: '#FF6B9D' }]}>
-              <View style={[styles.tongue, { backgroundColor: '#FF6B9D' }]} />
-            </View>
+            {/* 微笑 */}
+            <View style={[styles.aiSmile, { borderColor: '#EC4899' }]} />
 
             {/* 脸颊红晕 */}
-            <View style={[styles.cheek, { backgroundColor: '#FF6B9D30', left: 30, top: 130 }]} />
-            <View style={[styles.cheek, { backgroundColor: '#FF6B9D30', right: 30, top: 130 }]} />
+            <Animated.View
+              style={[
+                styles.aiCheek,
+                {
+                  backgroundColor: '#EC489940',
+                  left: 20,
+                  opacity: isRecording ? 0.8 : 0.3
+                }
+              ]}
+            />
+            <Animated.View
+              style={[
+                styles.aiCheek,
+                {
+                  backgroundColor: '#EC489940',
+                  right: 20,
+                  opacity: isRecording ? 0.8 : 0.3
+                }
+              ]}
+            />
 
-            {/* 录音指示器 */}
+            {/* 录音状态指示 */}
             {isRecording && (
-              <View style={[styles.recordingIndicator, { backgroundColor: '#EF4444' }]}>
-                <FontAwesome6 name="circle" size={8} color="#FFFFFF" />
-              </View>
+              <Animated.View
+                style={[
+                  styles.recordingIndicator,
+                  { backgroundColor: '#EF4444' },
+                  {
+                    opacity: recordingPulseAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [1, 0.5]
+                    })
+                  }
+                ]}
+              >
+                <FontAwesome6 name="microphone" size={10} color="#FFFFFF" />
+              </Animated.View>
             )}
           </View>
-
-          {/* 阴影效果 */}
-          <View style={[styles.avatarShadow, { backgroundColor: `${foreground}10` }]} />
         </View>
 
         {/* 实时文字显示 */}
@@ -704,35 +570,47 @@ export default function VoiceChatRealtimeScreen() {
         </View>
 
         {/* 底部控制栏 */}
-        <View style={[styles.footer, { backgroundColor: surface, borderTopColor: border, borderTopWidth: 1 }]}>
+        <View style={[styles.footer, { backgroundColor: surface, borderTopColor: `${foreground}05`, borderTopWidth: 1 }]}>
           {/* 挂断按钮 */}
           <TouchableOpacity
-            style={[styles.endButton, { backgroundColor: '#EF4444' }]}
+            style={[styles.controlButton, styles.endButton, { backgroundColor: '#EF444420' }]}
             onPress={handleEndCall}
+            activeOpacity={0.7}
           >
-            <FontAwesome6 name="phone-slash" size={24} color="#FFFFFF" />
+            <FontAwesome6 name="phone-slash" size={24} color="#EF4444" />
+            <Text style={[styles.controlButtonText, { color: '#EF4444' }]}>挂断</Text>
           </TouchableOpacity>
 
-          {/* 录音按钮 */}
+          {/* 主录音按钮 */}
           <TouchableOpacity
             style={[
-              styles.recordButton,
-              { backgroundColor: isRecording ? '#EF4444' : accent },
+              styles.mainRecordButton,
+              { backgroundColor: isRecording ? '#EF4444' : `${accent}10`, borderColor: isRecording ? '#EF4444' : accent, borderWidth: 2 },
             ]}
             onPress={handleRecordingPress}
             disabled={!isConnected}
             activeOpacity={0.8}
           >
             {isRecording ? (
-              <FontAwesome6 name="stop" size={40} color="#FFFFFF" />
+              <>
+                <FontAwesome6 name="stop" size={32} color="#FFFFFF" />
+                <Text style={styles.mainRecordText}>停止</Text>
+              </>
             ) : (
-              <FontAwesome6 name="microphone" size={40} color="#FFFFFF" />
+              <>
+                <FontAwesome6 name="microphone" size={32} color={accent} />
+                <Text style={[styles.mainRecordText, { color: accent }]}>说话</Text>
+              </>
             )}
           </TouchableOpacity>
 
           {/* 麦克风静音按钮 */}
-          <TouchableOpacity style={[styles.muteButton, { backgroundColor: `${surface}`, borderColor: border, borderWidth: 1 }]}>
+          <TouchableOpacity
+            style={[styles.controlButton, styles.muteButton, { backgroundColor: `${foreground}05` }]}
+            activeOpacity={0.7}
+          >
             <FontAwesome6 name="microphone-slash" size={24} color={muted} />
+            <Text style={[styles.controlButtonText, { color: muted }]}>静音</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -749,18 +627,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 60,
     paddingBottom: 20,
   },
-  backButton: {
+  navButton: {
     padding: 8,
   },
+  navButtonInner: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
   statusText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
   },
   recordModeButton: {
-    padding: 8,
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  recordModeButtonActive: {
+    backgroundColor: '#10B981',
+    borderColor: '#10B981',
   },
   configWarning: {
     flexDirection: 'row',
@@ -769,10 +670,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 8,
     marginHorizontal: 16,
-    marginTop: 12,
+    marginTop: 8,
   },
   configWarningText: {
     fontSize: 13,
+    fontWeight: '500',
     flex: 1,
   },
   avatarContainer: {
@@ -781,115 +683,79 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
   },
+  avatarGlow: {
+    position: 'absolute',
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    filter: 'blur(40px)',
+  },
   wave: {
     position: 'absolute',
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    borderWidth: 3,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    borderWidth: 2,
   },
-  robotHead: {
-    width: 180,
-    height: 200,
-    borderRadius: 90,
+  aiAvatar: {
+    width: 160,
+    height: 160,
+    borderRadius: 80,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
-    borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.3)',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 10,
   },
-  antenna: {
+  aiEar: {
     position: 'absolute',
-    top: -30,
-    width: 4,
-    height: 35,
-    borderRadius: 2,
+    width: 24,
+    height: 40,
+    borderRadius: 12,
+    top: 60,
   },
-  antennaBall: {
+  aiEye: {
     position: 'absolute',
-    top: -40,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    top: 65,
   },
-  ear: {
-    position: 'absolute',
-    width: 30,
-    height: 50,
-    borderRadius: 15,
-    top: 70,
-  },
-  eye: {
-    position: 'absolute',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    top: 75,
-  },
-  eyeShine: {
+  aiEyeShine: {
     position: 'absolute',
     width: 8,
     height: 8,
     borderRadius: 4,
-    top: 80,
+    top: 70,
   },
-  mouth: {
+  aiSmile: {
     position: 'absolute',
-    width: 60,
-    height: 30,
-    borderRadius: 30,
-    bottom: 40,
-    borderTopWidth: 4,
-    borderBottomWidth: 0,
-    borderLeftWidth: 0,
-    borderRightWidth: 0,
-    overflow: 'hidden',
-  },
-  tongue: {
-    position: 'absolute',
-    bottom: 0,
-    left: 15,
-    width: 30,
-    height: 15,
-    borderRadius: 15,
-  },
-  cheek: {
-    position: 'absolute',
-    width: 25,
+    bottom: 45,
+    width: 40,
     height: 20,
-    borderRadius: 12.5,
+    borderTopWidth: 3,
+    borderRadius: 20,
+  },
+  aiCheek: {
+    position: 'absolute',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    top: 100,
   },
   recordingIndicator: {
     position: 'absolute',
-    top: -10,
-    right: -10,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
+    bottom: 15,
+    backgroundColor: '#EF4444',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  avatarShadow: {
-    position: 'absolute',
-    width: 160,
-    height: 20,
-    borderRadius: 80,
-    bottom: -30,
+    gap: 6,
   },
   textContainer: {
     paddingHorizontal: 40,
@@ -925,30 +791,37 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  endButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  controlButton: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 4,
   },
-  recordButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+  controlButtonText: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  endButton: {
   },
   muteButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  },
+  mainRecordButton: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  mainRecordText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });
