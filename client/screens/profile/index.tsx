@@ -8,6 +8,7 @@ import { usePassword } from '@/contexts/PasswordContext';
 import { useCSSVariable } from 'uniwind';
 import Toast from 'react-native-toast-message';
 import { buildApiUrl } from '@/utils';
+import { useAppUpdate } from '@/hooks/useAppUpdate';
 import {
   getLocalDiaries,
   getLocalChatMessages,
@@ -34,6 +35,7 @@ export default function ProfileScreen() {
     exportAllData,
     deleteAllData,
   } = usePassword();
+  const { checkAndShowUpdate, loading: updating } = useAppUpdate();
 
   const [showHealthTips, setShowHealthTips] = useState(false);
   const [healthTips, setHealthTips] = useState<any>(null);
@@ -326,6 +328,23 @@ export default function ProfileScreen() {
       },
     },
     {
+      icon: 'rotate',
+      title: '检查更新',
+      subtitle: updating ? '检查中...' : '检查APP更新',
+      action: () => {
+        if (updating) return;
+        checkAndShowUpdate().then((hasUpdate) => {
+          if (!hasUpdate) {
+            Toast.show({
+              type: 'success',
+              text1: '已是最新版本',
+              text2: '当前版本已经是最新版本',
+            });
+          }
+        });
+      },
+    },
+    {
       icon: 'info-circle',
       title: '关于',
       subtitle: '版本信息、隐私政策',
@@ -333,7 +352,7 @@ export default function ProfileScreen() {
         router.push('/about');
       },
     },
-  ], [hasPassword, canUseBiometric, biometricEnabled, isOfflineMode, syncing, router, syncToCloud, fetchHealthTips, deleteAllData, exportAllData]);
+  ], [hasPassword, canUseBiometric, biometricEnabled, isOfflineMode, syncing, router, syncToCloud, fetchHealthTips, deleteAllData, exportAllData, updating, checkAndShowUpdate]);
 
   const renderMenuItem = (item: MenuItem, index: number) => (
     <TouchableOpacity

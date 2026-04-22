@@ -395,6 +395,72 @@ async def get_about_info():
     }
 
 
+class VersionCheckRequest(BaseModel):
+    """版本检查请求"""
+    platform: str  # android 或 ios
+    current_version: str
+    build_number: Optional[int] = None
+
+
+@app.post('/api/v1/app/check-update')
+async def check_update(request: VersionCheckRequest):
+    """
+    检查APP更新
+    返回是否有新版本、版本号、更新说明、下载链接等
+    """
+    # 最新版本信息（实际应用中应该从数据库或配置文件读取）
+    latest_versions = {
+        "android": {
+            "version": "1.0.1",
+            "build_number": 101,
+            "force_update": False,  # 是否强制更新
+            "update_url": "https://play.google.com/store/apps/details?id=com.emotiondiary.app",
+            "release_notes": """1. 新增功能：从聊天记录生成日记
+2. 优化写日记界面，支持多种模板
+3. 添加天气、位置、图片等丰富信息
+4. 改进UI交互体验
+5. 修复已知问题""",
+            "release_date": "2026-04-22"
+        },
+        "ios": {
+            "version": "1.0.1",
+            "build_number": 101,
+            "force_update": False,
+            "update_url": "https://apps.apple.com/app/emotiondiary/id1234567890",
+            "release_notes": """1. 新增功能：从聊天记录生成日记
+2. 优化写日记界面，支持多种模板
+3. 添加天气、位置、图片等丰富信息
+4. 改进UI交互体验
+5. 修复已知问题""",
+            "release_date": "2026-04-22"
+        }
+    }
+
+    # 获取当前平台的最新版本信息
+    platform_versions = latest_versions.get(request.platform.lower())
+    if not platform_versions:
+        raise HTTPException(status_code=400, detail=f"不支持的平台: {request.platform}")
+
+    # 简单的版本比较逻辑（假设版本格式为 major.minor.patch）
+    def version_to_tuple(version_str):
+        return tuple(map(int, version_str.split('.')))
+
+    current_tuple = version_to_tuple(request.current_version)
+    latest_tuple = version_to_tuple(platform_versions["version"])
+
+    has_update = latest_tuple > current_tuple
+
+    return {
+        "has_update": has_update,
+        "current_version": request.current_version,
+        "latest_version": platform_versions["version"],
+        "force_update": platform_versions["force_update"],
+        "update_url": platform_versions["update_url"],
+        "release_notes": platform_versions["release_notes"],
+        "release_date": platform_versions["release_date"]
+    }
+
+
 @app.post('/api/v1/diaries')
 async def create_diary(diary: DiaryCreate, user_id: str = Depends(get_user_id)):
     """创建日记"""

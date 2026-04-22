@@ -28,6 +28,7 @@
     "crypto-js": "^4.2.0",
     "dayjs": "^1.11.19",
     "expo": "54.0.33",
+    "expo-application": "~7.0.8",
     "expo-auth-session": "~7.0.10",
     "expo-av": "~16.0.8",
     "expo-blur": "~15.0.8",

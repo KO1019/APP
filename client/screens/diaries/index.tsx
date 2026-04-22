@@ -8,6 +8,8 @@ import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
 import { buildApiUrl } from '@/utils';
+import { useAppUpdate } from '@/hooks/useAppUpdate';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getLocalDiaries,
   type LocalDiary,
@@ -58,6 +60,7 @@ export default function DiariesScreen() {
   const router = useSafeRouter();
   const { isLocked, hasPassword, lockApp, decryptData } = usePassword();
   const { isAuthenticated, isLoading: authLoading, token, logout, isOfflineMode, user } = useAuth();
+  const { checkAndShowUpdate } = useAppUpdate();
 
   const [diaries, setDiaries] = useState<Diary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -214,9 +217,33 @@ export default function DiariesScreen() {
       // 已登录，加载数据
       if (!authLoading && isAuthenticated) {
         fetchDiaries();
+
+        // 检查APP更新（每天最多检查一次）
+        checkAppUpdate();
       }
     }, [authLoading, isAuthenticated])
   );
+
+  const checkAppUpdate = async () => {
+    try {
+      const lastCheckTime = await AsyncStorage.getItem('last_update_check_time');
+      const now = Date.now();
+      const oneDay = 24 * 60 * 60 * 1000; // 24小时
+
+      // 如果上次检查时间不足24小时，则跳过
+      if (lastCheckTime && now - parseInt(lastCheckTime) < oneDay) {
+        return;
+      }
+
+      // 检查更新
+      await checkAndShowUpdate();
+
+      // 记录检查时间
+      await AsyncStorage.setItem('last_update_check_time', now.toString());
+    } catch (error) {
+      console.error('检查更新失败:', error);
+    }
+  };
 
   const onRefresh = () => {
     setRefreshing(true);
