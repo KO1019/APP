@@ -65,17 +65,24 @@ const streamProxy = createProxyMiddleware({
   ws: true,
   proxyTimeout: 86400000,
   onProxyReq: (proxyReq, req) => {
+    console.log('[Stream Proxy] Proxying request:', req.url, 'Headers:', JSON.stringify(req.headers));
     const upgrade = req.headers.upgrade;
     const accept = req.headers.accept || '';
     if (upgrade && upgrade.toLowerCase() === 'websocket') {
       proxyReq.setHeader('Connection', 'upgrade');
       proxyReq.setHeader('Upgrade', req.headers.upgrade);
+      console.log('[Stream Proxy] WebSocket upgrade request');
     } else if (accept.includes('text/event-stream')) {
       proxyReq.setHeader('accept-encoding', 'identity');
       proxyReq.setHeader('Connection', 'keep-alive');
+      console.log('[Stream Proxy] SSE request');
     }
   },
+  onError: (err, req, res) => {
+    console.error('[Stream Proxy] Error:', err);
+  },
   onProxyRes: (proxyRes, req, res) => {
+    console.log('[Stream Proxy] Response status:', proxyRes.statusCode);
     const contentType = proxyRes.headers['content-type'] || '';
     if (contentType.includes('text/event-stream') || contentType.includes('application/stream')) {
       res.setHeader('Cache-Control', 'no-cache');

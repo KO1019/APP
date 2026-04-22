@@ -1318,6 +1318,7 @@ const server = app.listen(port, () => {
 server.on('upgrade', (request, socket, head) => {
   console.log('🔌 WebSocket upgrade request received');
   console.log('Request URL:', request.url);
+  console.log('Request method:', request.method);
   console.log('Request headers:', JSON.stringify(request.headers, null, 2));
 
   // 只处理 /api/v1/voice/realtime 路径的WebSocket请求
