@@ -230,6 +230,23 @@ export default function WriteDiaryScreen() {
               <FontAwesome6 name="xmark" size={24} color={foreground} />
             </TouchableOpacity>
             <Text style={[styles.title, { color: foreground }]}>写日记</Text>
+
+            {/* AI小精灵开关 */}
+            <TouchableOpacity
+              style={[styles.aiToggle, { backgroundColor: aiAssistantVisible ? accent : 'transparent', borderColor: aiAssistantVisible ? accent : border }]}
+              onPress={() => setAiAssistantVisible(!aiAssistantVisible)}
+              activeOpacity={0.6}
+            >
+              <FontAwesome6
+                name="robot"
+                size={18}
+                color={aiAssistantVisible ? '#FFFFFF' : muted}
+              />
+              <Text style={[styles.aiToggleText, { color: aiAssistantVisible ? '#FFFFFF' : muted }]}>
+                AI助手
+              </Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={[styles.saveButton, submitting && styles.saveButtonDisabled]}
               onPress={handleSubmit}
@@ -355,17 +372,77 @@ export default function WriteDiaryScreen() {
               )}
             </View>
 
-            {/* AI小精灵助手 */}
-            {isAnalyzing && emotionResult && (
-            <View style={styles.aiAssistant}>
-              <View style={[styles.aiBubble, { backgroundColor: surface }]}>
-                <FontAwesome6 name="robot" size={24} color={accent} />
-                <Text style={[styles.aiText, { color: foreground }]}>
-                  {emotionResult.summary || '我感受到你的情绪了...'}
-                </Text>
-              </View>
-            </View>
-          )}
+            {/* AI小精灵助手 - 可拖动浮窗 */}
+            {aiAssistantVisible && (
+              <Animated.View
+                style={[
+                  styles.aiAssistantFloating,
+                  {
+                    transform: [
+                      { translateX: aiPan.x },
+                      { translateY: aiPan.y }
+                    ]
+                  }
+                ]}
+                {...aiPanResponder.panHandlers}
+              >
+                <TouchableOpacity
+                  style={[styles.aiBubble, { backgroundColor: surface, borderColor: border }]}
+                  activeOpacity={1}
+                >
+                  <View style={styles.aiBubbleHeader}>
+                    <View style={styles.aiBubbleTitle}>
+                      <FontAwesome6 name="robot" size={16} color={accent} />
+                      <Text style={[styles.aiBubbleTitleText, { color: foreground }]}>
+                        AI情绪助手
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => setAiAssistantVisible(false)}
+                      style={styles.aiBubbleClose}
+                    >
+                      <FontAwesome6 name="xmark" size={14} color={muted} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.aiBubbleContent}>
+                    {isAnalyzing ? (
+                      <View style={styles.aiAnalyzing}>
+                        <Text style={[styles.aiAnalyzingText, { color: muted }]}>
+                          正在分析情绪...
+                        </Text>
+                      </View>
+                    ) : emotionResult?.summary ? (
+                      <View style={styles.aiResult}>
+                        <Text style={[styles.aiResultText, { color: foreground }]}>
+                          {emotionResult.summary}
+                        </Text>
+                        <TouchableOpacity
+                          style={[styles.aiChatButton, { backgroundColor: accent }]}
+                          onPress={() => {
+                            // 跳转到AI陪伴页面
+                            router.push('/ai-companion');
+                          }}
+                        >
+                          <FontAwesome6 name="comments" size={14} color="#FFFFFF" />
+                          <Text style={styles.aiChatButtonText}>继续对话</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <View style={styles.aiWelcome}>
+                        <FontAwesome6 name="heart" size={32} color={accent} style={styles.aiHeart} />
+                        <Text style={[styles.aiWelcomeText, { color: foreground }]}>
+                          我正在关注你的情绪...
+                        </Text>
+                        <Text style={[styles.aiWelcomeSubtext, { color: muted }]}>
+                          写下你的想法，我会帮你分析
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </Animated.View>
+            )}
           </ScrollView>
         </KeyboardAvoidingView>
       </View>
@@ -536,21 +613,106 @@ const styles = StyleSheet.create({
   removeTag: {
     marginLeft: 4,
   },
-  aiAssistant: {
-    marginTop: 20,
-    paddingHorizontal: 16,
+  aiAssistantFloating: {
+    position: 'absolute',
+    right: 16,
+    bottom: 100,
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
   aiBubble: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 12,
+    minWidth: 200,
+    maxWidth: 280,
+  },
+  aiBubbleHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 16,
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  aiBubbleTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  aiBubbleTitleText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  aiBubbleClose: {
+    padding: 4,
+  },
+  aiBubbleContent: {
+    minHeight: 60,
+  },
+  aiAnalyzing: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  aiAnalyzingText: {
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  aiResult: {
     gap: 12,
   },
-  aiText: {
-    flex: 1,
-    fontSize: 14,
+  aiResultText: {
+    fontSize: 13,
     lineHeight: 20,
+  },
+  aiChatButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 6,
+  },
+  aiChatButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  aiWelcome: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    gap: 8,
+  },
+  aiHeart: {
+    marginBottom: 4,
+  },
+  aiWelcomeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  aiWelcomeSubtext: {
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  aiToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  aiToggleText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
 });
 
