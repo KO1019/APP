@@ -409,7 +409,9 @@ export default function VoiceChatRealtime() {
   // 暴露给外部调用
   useEffect(() => {
     // 可以通过 ref 暴露给其他组件使用
-    (wsRef.current as any).sendTextMessage = sendTextMessage;
+    if (wsRef.current) {
+      (wsRef.current as any).sendTextMessage = sendTextMessage;
+    }
   }, [sendTextMessage]);
 
   const handleRecordingPress = useCallback(async () => {
