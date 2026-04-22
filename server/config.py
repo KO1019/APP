@@ -17,16 +17,12 @@ ws_connect_config = {
 start_session_req = {
     "asr": {
         "extra": {
-            "end_smooth_window_ms": 1500,
+            "end_smooth_window_ms": 1500,  # 1.5秒后豆包判断用户停止说话
+            "enable_custom_vad": False,  # 使用豆包内置VAD
         },
     },
     "tts": {
         "speaker": "zh_female_vv_jupiter_bigtts",  # 活泼灵动的女声（O2.0版本）
-        # "speaker": "zh_female_xiaohe_jupiter_bigtts",  # 甜美活泼的女声
-        # "speaker": "zh_male_yunzhou_jupiter_bigtts",  # 清爽沉稳的男声
-        # "speaker": "zh_male_xiaotian_jupiter_bigtts",  # 清爽磁性的男声
-        # "speaker": "S_XXXXXX",  # 指定自定义的复刻音色
-        # "speaker": "ICL_zh_female_aojiaonvyou_tob"  # 指定官方复刻音色
         "audio_config": {
             "channel": 1,
             "format": "pcm",
@@ -36,13 +32,14 @@ start_session_req = {
     "dialog": {
         "model": "1.2.1.1",  # O2.0版本
         "bot_name": "豆包",
-        "system_role": "你是一个温暖、友好的心理陪伴助手",
+        "system_role": "你是一个温暖、友好的心理陪伴助手。如果用户长时间不说话（超过10秒），你会主动问候或询问，保持对话的流畅性。",
         "speaking_style": "温柔、耐心",
         "extra": {
             "strict_audit": False,
             "audit_response": "",
             "recv_timeout": 120,  # 参数范围[10,120]，麦克风模式使用最大值
-            "input_mod": "keep_alive"  # 支持text/audio/keep_alive/push_to_talk/audio_file
+            "input_mod": "keep_alive",  # 实时通话模式，持续发送音频
+            "enable_user_query_exit": True,  # 开启用户退出意图识别
         }
     }
 }

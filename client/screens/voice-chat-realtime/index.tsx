@@ -487,7 +487,7 @@ export default function VoiceChatRealtime() {
           setIsRecording(true);
           setIsProcessing(true);
 
-          // 实时发送音频数据
+          // 实时发送音频数据（按照豆包官方最佳实践：20ms一包）
           audioIntervalRef.current = setInterval(async () => {
             try {
               if (webRecorder && webRecorder.chunks.length > 0) {
@@ -515,7 +515,7 @@ export default function VoiceChatRealtime() {
             } catch (error) {
               console.error('[VOICE] Web: Failed to send audio chunk:', error);
             }
-          }, 100);
+          }, 20); // 20ms一包（豆包官方最佳实践）
 
         } catch (error) {
           console.error('[VOICE] Web: Failed to start recording:', error);
@@ -564,11 +564,11 @@ export default function VoiceChatRealtime() {
         setIsRecording(true);
         setIsProcessing(true);
 
-        // 实时发送录音数据
+        // 实时发送录音数据（按照豆包官方最佳实践：20ms一包）
         audioIntervalRef.current = setInterval(async () => {
           try {
             const status = await recording.getStatusAsync();
-            if (status.isRecording && status.durationMillis > 100) { // 每100ms发送一次
+            if (status.isRecording && status.durationMillis > 20) { // 每20ms发送一次
               const uri = status.uri;
               const audioData = await (FileSystem as any).readAsStringAsync(uri, {
                 encoding: 'base64',
@@ -599,7 +599,7 @@ export default function VoiceChatRealtime() {
           } catch (error) {
             console.error('[VOICE] Mobile: Failed to send audio chunk:', error);
           }
-        }, 100); // 每100ms发送一次
+        }, 20); // 20ms一包（豆包官方最佳实践）
       }
 
     } catch (error) {
@@ -1011,7 +1011,7 @@ export default function VoiceChatRealtime() {
                   <FontAwesome6 name="microphone" size={20} color="#EF4444" />
                 )}
                 <Text style={[styles.statusText, { color: muted }]}>
-                  {isAiSpeaking ? 'AI正在说话...' : '正在录音，请直接说话...'}
+                  {isAiSpeaking ? 'AI正在说话...' : '持续录音中，请直接说话...'}
                 </Text>
               </>
             ) : (
