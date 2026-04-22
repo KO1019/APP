@@ -5,6 +5,7 @@ import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
+import { useAuth } from '@/contexts/AuthContext';
 import { buildApiUrl } from '@/utils';
 
 interface Conversation {
@@ -19,6 +20,7 @@ export default function ConversationHistoryScreen() {
   const [loading, setLoading] = useState(true);
 
   const router = useSafeRouter();
+  const { token } = useAuth();
 
   const [background, surface, accent, foreground, muted, border] = useCSSVariable([
     '--color-background',
@@ -36,8 +38,13 @@ export default function ConversationHistoryScreen() {
        * 服务端文件：server/src/index.ts
        * 接口：GET /api/v1/conversations
        * Query 参数：diaryId?: string
+       * Headers: Authorization: Bearer {token}
        */
-      const response = await fetch(buildApiUrl('/api/v1/conversations'));
+      const response = await fetch(buildApiUrl('/api/v1/conversations'), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
