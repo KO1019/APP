@@ -24,7 +24,52 @@ export default function ConversationHistoryScreen() {
   const router = useSafeRouter();
   const { token } = useAuth();
 
-  const handleDeleteConversation = useCallback((conversationId: string) => {
+  const [background, surface, accent, foreground, muted, border] = useCSSVariable([
+    '--color-background',
+    '--color-surface',
+    '--color-accent',
+    '--color-foreground',
+    '--color-muted',
+    '--color-border',
+  ]) as string[];
+
+  const fetchConversations = useCallback(async () => {
+    try {
+      setLoading(true);
+      /**
+       * 服务端文件：server/src/index.ts
+       * 接口：GET /api/v1/conversations
+       * Query 参数：diaryId?: string
+       * Headers: Authorization: Bearer {token}
+       */
+      const response = await fetch(buildApiUrl('/api/v1/conversations'), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // 确保返回的是数组
+      if (Array.isArray(data)) {
+        setConversations(data);
+      } else {
+        console.error('Unexpected response format:', data);
+        setConversations([]);
+      }
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+      setConversations([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  const handleDeleteConversation = useCallback(async (conversationId: string) => {
     Alert.alert(
       '删除对话',
       '确定要删除这条对话记录吗？此操作不可恢复。',
@@ -65,57 +110,12 @@ export default function ConversationHistoryScreen() {
       ],
       { cancelable: true }
     );
-  }, [token]);
-
-  const [background, surface, accent, foreground, muted, border] = useCSSVariable([
-    '--color-background',
-    '--color-surface',
-    '--color-accent',
-    '--color-foreground',
-    '--color-muted',
-    '--color-border',
-  ]) as string[];
-
-  const fetchConversations = async () => {
-    try {
-      setLoading(true);
-      /**
-       * 服务端文件：server/src/index.ts
-       * 接口：GET /api/v1/conversations
-       * Query 参数：diaryId?: string
-       * Headers: Authorization: Bearer {token}
-       */
-      const response = await fetch(buildApiUrl('/api/v1/conversations'), {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      // 确保返回的是数组
-      if (Array.isArray(data)) {
-        setConversations(data);
-      } else {
-        console.error('Unexpected response format:', data);
-        setConversations([]);
-      }
-    } catch (error) {
-      console.error('Error fetching conversations:', error);
-      setConversations([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [token, fetchConversations]);
 
   useFocusEffect(
     useCallback(() => {
       fetchConversations();
-    }, [])
+    }, [fetchConversations])
   );
 
   const formatDate = (dateString: string) => {
@@ -209,7 +209,10 @@ export default function ConversationHistoryScreen() {
                   </Text>
                   <TouchableOpacity
                     style={styles.deleteButton}
-                    onPress={() => handleDeleteConversation(conversation.id)}
+                    onPress={() => {
+                      handleDeleteConversation(conversation.id);
+                    }}
+                    activeOpacity={0.6}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
                     <FontAwesome6 name="trash-can" size={16} color="#EF4444" />
