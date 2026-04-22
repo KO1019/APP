@@ -15,13 +15,6 @@ interface MenuItem {
   action?: () => void;
 }
 
-interface MenuItem {
-  icon: string;
-  title: string;
-  subtitle?: string;
-  action?: () => void;
-}
-
 export default function ProfileScreen() {
   const router = useSafeRouter();
   const {
@@ -80,7 +73,7 @@ export default function ProfileScreen() {
       subtitle: hasPassword ? '更改您的安全密码' : '设置密码以保护隐私',
       action: () => {
         if (hasPassword) {
-          Toast.show({ type: 'info', text1: '修改密码功能开发中' });
+          router.push('/change-password');
         } else {
           router.push('/setup-password');
         }
@@ -161,7 +154,9 @@ export default function ProfileScreen() {
       icon: 'shield-halved',
       title: '隐私设置',
       subtitle: '数据加密、安全防护',
-      action: () => Toast.show({ type: 'info', text1: '功能开发中' }),
+      action: () => {
+        router.push('/privacy-settings');
+      },
     },
     {
       icon: 'download',
@@ -208,7 +203,9 @@ export default function ProfileScreen() {
       icon: 'info-circle',
       title: '关于',
       subtitle: '版本信息、隐私政策',
-      action: () => Toast.show({ type: 'info', text1: '功能开发中' }),
+      action: () => {
+        router.push('/about');
+      },
     },
   ];
 

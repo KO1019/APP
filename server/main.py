@@ -100,6 +100,26 @@ class TextInput(BaseModel):
     text: str
 
 
+class ChangePassword(BaseModel):
+    """修改密码"""
+    old_password: str
+    new_password: str
+
+
+class PrivacySettings(BaseModel):
+    """隐私设置"""
+    cloud_sync_enabled: bool
+    data_encryption_enabled: bool
+    anonymous_analytics: bool
+
+
+class UpdateProfile(BaseModel):
+    """更新用户资料"""
+    nickname: Optional[str] = None
+    email: Optional[str] = None
+    avatar: Optional[str] = None
+
+
 # ========== 辅助函数 ==========
 
 def get_user_id(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
@@ -269,12 +289,110 @@ async def get_current_user(user_id: str = Depends(get_user_id)):
     if not supabase:
         raise HTTPException(status_code=500, detail="Database not configured")
 
-    result = supabase.table('users').select('id, username, email, nickname, avatar, cloud_sync_enabled, created_at').eq('id', user_id).single().execute()
+    result = supabase.table('users').select('id, username, email, nickname, avatar, cloud_sync_enabled, data_encryption_enabled, anonymous_analytics, created_at').eq('id', user_id).single().execute()
 
     if not result.data:
         raise HTTPException(status_code=404, detail="User not found")
 
     return {"user": result.data}
+
+
+@app.post('/api/v1/auth/change-password')
+async def change_password(data: ChangePassword, user_id: str = Depends(get_user_id)):
+    """修改密码"""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    # 参数校验
+    if len(data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="新密码长度至少6个字符")
+
+    # 获取用户信息
+    result = supabase.table('users').select('id, password_hash').eq('id', user_id).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    user_data = result.data[0]
+
+    # 验证旧密码
+    if not verify_password(data.old_password, user_data['password_hash']):
+        raise HTTPException(status_code=401, detail="旧密码错误")
+
+    # 更新密码
+    new_password_hash = hash_password(data.new_password)
+    supabase.table('users').update({'password_hash': new_password_hash}).eq('id', user_id).execute()
+
+    return {"message": "密码修改成功"}
+
+
+@app.post('/api/v1/auth/privacy-settings')
+async def update_privacy_settings(settings: PrivacySettings, user_id: str = Depends(get_user_id)):
+    """更新隐私设置"""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    # 更新隐私设置
+    supabase.table('users').update({
+        'cloud_sync_enabled': settings.cloud_sync_enabled,
+        'data_encryption_enabled': settings.data_encryption_enabled,
+        'anonymous_analytics': settings.anonymous_analytics
+    }).eq('id', user_id).execute()
+
+    return {"message": "隐私设置更新成功"}
+
+
+@app.get('/api/v1/auth/privacy-settings')
+async def get_privacy_settings(user_id: str = Depends(get_user_id)):
+    """获取隐私设置"""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    result = supabase.table('users').select('cloud_sync_enabled, data_encryption_enabled, anonymous_analytics').eq('id', user_id).single().execute()
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    return {"settings": result.data}
+
+
+@app.post('/api/v1/auth/profile')
+async def update_profile(profile: UpdateProfile, user_id: str = Depends(get_user_id)):
+    """更新用户资料"""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    # 构建更新数据
+    update_data = {}
+    if profile.nickname is not None:
+        update_data['nickname'] = profile.nickname
+    if profile.email is not None:
+        update_data['email'] = profile.email
+    if profile.avatar is not None:
+        update_data['avatar'] = profile.avatar
+
+    # 更新用户资料
+    if update_data:
+        supabase.table('users').update(update_data).eq('id', user_id).execute()
+
+    return {"message": "资料更新成功"}
+
+
+@app.get('/api/v1/app/about')
+async def get_about_info():
+    """获取关于信息"""
+    return {
+        "app_name": "情绪日记",
+        "version": "1.0.0",
+        "description": "用心记录，温暖陪伴",
+        "features": [
+            "情绪日记记录",
+            "AI智能陪伴",
+            "心理健康建议",
+            "数据加密保护"
+        ],
+        "privacy_policy": "我们重视您的隐私，所有数据均经过加密处理，您可以随时删除自己的数据。",
+        "contact": "support@example.com"
+    }
 
 
 @app.post('/api/v1/diaries')

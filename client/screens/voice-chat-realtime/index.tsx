@@ -766,7 +766,7 @@ export default function VoiceChatRealtime() {
         break;
       }
 
-      case 'llm_response':
+      case 'llm_response': {
         setCallStatus('speaking'); // AI开始回复
         const aiContent = message.data.content;
         setLatestAiMessage(aiContent);
@@ -776,8 +776,9 @@ export default function VoiceChatRealtime() {
         }
         console.log('[VOICE] Status: speaking');
         break;
+      }
 
-      case 'tts_audio':
+      case 'tts_audio': {
         if (audioBufferRef.current === null) {
           audioBufferRef.current = [];
           setTimeout(() => playCollectedAudio(), 500);
@@ -797,6 +798,7 @@ export default function VoiceChatRealtime() {
         }
         audioBufferRef.current.push(Buffer.from(audioData, 'base64'));
         break;
+      }
 
       case 'tts_ended':
         if (audioBufferRef.current && audioBufferRef.current.length > 0) {
@@ -1257,13 +1259,5 @@ const styles = StyleSheet.create({
   endButton: {
   },
   muteButton: {
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  statusText: {
-    fontSize: 14,
   },
 });
