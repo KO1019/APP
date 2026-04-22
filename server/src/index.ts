@@ -1520,6 +1520,7 @@ wss.on('connection', (ws: WebSocket, request) => {
               },
             },
             dialog: {
+              model: '1.2.1.1',  // O2.0版本（规范版本号）- 必需字段
               bot_name: '豆包',
               system_role: '你是一个温暖、友好的心理陪伴助手',
               speaking_style: '温柔、耐心',
