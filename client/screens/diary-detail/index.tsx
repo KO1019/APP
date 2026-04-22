@@ -1,12 +1,12 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { useFocusEffect } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
-import { buildApiUrl } from '@/utils';
+import { buildApiUrl, getLocalDiaries, saveLocalDiary } from '@/utils';
 
 interface DiaryDetail {
   id: string;
@@ -17,6 +17,10 @@ interface DiaryDetail {
   mood_analysis: any;
   tags: string[] | null;
   created_at: string;
+  images?: string[] | null;
+  location?: { lat: number; lng: number; address?: string } | null;
+  weather?: string | null;
+  template_id?: string | null;
 }
 
 const emotionColors: Record<string, string> = {
@@ -67,10 +71,45 @@ export default function DiaryDetailScreen() {
   ]) as string[];
 
   const fetchDiaryDetail = useCallback(async () => {
-    if (!id || !token) return;
+    if (!id) {
+      console.error('[DiaryDetail] No diary id provided');
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
+
+      // 检查是否为本地日记（以"local_"开头的ID）
+      if (id.startsWith('local_')) {
+        console.log('[DiaryDetail] Loading from local storage');
+
+        // 从本地存储加载日记
+        const localDiaries = await getLocalDiaries();
+        const localDiary = localDiaries.find(d => d.id === id);
+
+        if (localDiary) {
+          console.log('[DiaryDetail] Loaded from local storage');
+          setDiary(localDiary as DiaryDetail);
+          return;
+        } else {
+          console.error('[DiaryDetail] Diary not found in local storage');
+          Alert.alert('错误', '日记不存在');
+          router.back();
+          return;
+        }
+      }
+
+      // 从后端加载日记
+      if (!token) {
+        console.error('[DiaryDetail] No auth token available for remote diary');
+        Alert.alert('错误', '需要登录才能查看此日记');
+        router.back();
+        return;
+      }
+
+      const apiUrl = buildApiUrl(`/api/v1/diaries/${id}`);
+      console.log('[DiaryDetail] Fetching diary from:', apiUrl);
 
       /**
        * 服务端文件：server/main.py
@@ -78,20 +117,27 @@ export default function DiaryDetailScreen() {
        * Path 参数：diary_id: string
        * Headers: Authorization: Bearer {token}
        */
-      const response = await fetch(buildApiUrl(`/api/v1/diaries/${id}`), {
+      const response = await fetch(apiUrl, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
 
+      console.log('[DiaryDetail] Response status:', response.status);
+
       if (!response.ok) {
-        throw new Error('Failed to fetch diary');
+        const errorText = await response.text();
+        console.error('[DiaryDetail] Fetch failed:', response.status, errorText);
+        throw new Error(`Failed to fetch diary: ${response.status} ${errorText}`);
       }
 
       const data = await response.json();
+      console.log('[DiaryDetail] Diary data loaded:', data);
       setDiary(data);
     } catch (error) {
-      console.error('Error fetching diary detail:', error);
+      console.error('[DiaryDetail] Error fetching diary detail:', error);
+      Alert.alert('错误', '加载日记失败');
+      router.back();
     } finally {
       setLoading(false);
     }
