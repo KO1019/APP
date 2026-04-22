@@ -5,6 +5,7 @@ import { useFocusEffect } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
+import { buildApiUrl } from '@/utils';
 
 interface DiaryDetail {
   id: string;
@@ -74,7 +75,7 @@ export default function DiaryDetailScreen() {
        * 接口：GET /api/v1/diaries/:id
        * Path 参数：id: string
        */
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/diaries/${id}`);
+      const response = await fetch(buildApiUrl(`/api/v1/diaries/${id}`));
 
       if (!response.ok) {
         throw new Error('Failed to fetch diary');

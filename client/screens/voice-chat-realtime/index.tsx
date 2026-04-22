@@ -10,6 +10,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
 import Toast from 'react-native-toast-message';
 import * as KeepAwake from 'expo-keep-awake';
+import { buildApiUrl } from '@/utils';
 
 export default function VoiceChatRealtime() {
   const router = useSafeRouter();
@@ -113,23 +114,25 @@ export default function VoiceChatRealtime() {
   const connectWebSocket = () => {
     try {
       const backendUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
-      let wsProtocol = 'ws://';
-      if (backendUrl.startsWith('https://')) {
-        wsProtocol = 'wss://';
-      } else if (backendUrl.startsWith('http://')) {
-        wsProtocol = 'ws://';
+
+      let wsUrl: string;
+
+      if (Platform.OS === 'web') {
+        // Web环境下使用相对路径，让Metro代理拦截
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsUrl = `${protocol}//${window.location.host}/api/v1/voice/realtime`;
+      } else {
+        // 移动端环境下使用完整URL
+        let wsProtocol = 'ws://';
+        if (backendUrl.startsWith('https://')) {
+          wsProtocol = 'wss://';
+        } else if (backendUrl.startsWith('http://')) {
+          wsProtocol = 'ws://';
+        }
+
+        const hostname = backendUrl.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+        wsUrl = `${wsProtocol}${hostname}/api/v1/voice/realtime`;
       }
-
-      let hostname = backendUrl.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-
-      if (Platform.OS === 'web' && typeof window !== 'undefined' && hostname === 'localhost:9091') {
-        const currentHost = window.location.hostname;
-        const currentProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        wsProtocol = currentProtocol + '//';
-        hostname = currentHost + ':9091';
-      }
-
-      const wsUrl = `${wsProtocol}${hostname}/api/v1/voice/realtime`;
 
       console.log('[VOICE] Attempting to connect to WebSocket...');
       console.log('[VOICE] WebSocket URL:', wsUrl);
@@ -238,7 +241,12 @@ export default function VoiceChatRealtime() {
         .map((msg) => `${msg.role === 'user' ? '我' : 'AI'}: ${msg.content}`)
         .join('\n\n');
 
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/diaries`, {
+      /**
+       * 服务端文件：server/src/index.ts
+       * 接口：POST /api/v1/diaries
+       * Body 参数：title: string, content: string, mood: string, tags: string[]
+       */
+      const response = await fetch(buildApiUrl('/api/v1/diaries'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

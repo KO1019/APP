@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePassword } from '@/contexts/PasswordContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Screen } from '@/components/Screen';
+import { buildApiUrl } from '@/utils';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
 
@@ -109,7 +110,7 @@ export default function WriteDiaryScreen() {
        * 接口：POST /api/v1/diaries
        * Body 参数：title: string, content: string, mood: string, tags: string[]
        */
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/diaries`, {
+      const response = await fetch(buildApiUrl('/api/v1/diaries'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -166,7 +167,7 @@ export default function WriteDiaryScreen() {
          * 接口：POST /api/v1/ai-companion/chat
          * Body 参数：message: string
          */
-        const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/ai-companion/chat`, {
+        const response = await fetch(buildApiUrl('/api/v1/ai-companion/chat'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

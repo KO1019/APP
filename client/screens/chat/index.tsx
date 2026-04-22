@@ -7,6 +7,7 @@ import { useCSSVariable } from 'uniwind';
 import RNSSE from 'react-native-sse';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 import { useAuth } from '@/contexts/AuthContext';
+import { buildApiUrl } from '@/utils';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -46,7 +47,7 @@ export default function ChatScreen() {
        * 接口：GET /api/v1/chat/topics
        * Headers: Authorization: Bearer {token}
        */
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/chat/topics`, {
+      const response = await fetch(buildApiUrl('/api/v1/chat/topics'), {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -86,7 +87,7 @@ export default function ChatScreen() {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const sse = new RNSSE(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/chat`, {
+      const sse = new RNSSE(buildApiUrl('/api/v1/chat'), {
         method: 'POST',
         headers,
         body: JSON.stringify({ message: userMessage }),

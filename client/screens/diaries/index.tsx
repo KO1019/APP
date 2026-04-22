@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
+import { buildApiUrl } from '@/utils';
 
 interface Diary {
   id: string;
@@ -87,7 +88,7 @@ export default function DiariesScreen() {
         return;
       }
 
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/diaries`, {
+      const response = await fetch(buildApiUrl('/api/v1/diaries'), {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

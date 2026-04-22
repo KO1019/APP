@@ -5,6 +5,7 @@ import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
 import { useAuth } from '@/contexts/AuthContext';
+import { buildApiUrl } from '@/utils';
 
 interface Diary {
   id: string;
@@ -43,7 +44,7 @@ export default function StatsScreen() {
        * 接口：GET /api/v1/diaries
        * Headers: Authorization: Bearer {token}
        */
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/diaries`, {
+      const response = await fetch(buildApiUrl('/api/v1/diaries'), {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

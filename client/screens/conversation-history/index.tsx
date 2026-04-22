@@ -5,6 +5,7 @@ import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
+import { buildApiUrl } from '@/utils';
 
 interface Conversation {
   id: string;
@@ -36,7 +37,7 @@ export default function ConversationHistoryScreen() {
        * 接口：GET /api/v1/conversations
        * Query 参数：diaryId?: string
        */
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/conversations`);
+      const response = await fetch(buildApiUrl('/api/v1/conversations'));
       const data = await response.json();
       setConversations(data || []);
     } catch (error) {

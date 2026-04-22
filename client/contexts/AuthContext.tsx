@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { buildApiUrl } from '@/utils';
 
 interface User {
   id: string;
@@ -67,7 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
        * 接口：GET /api/v1/auth/me
        * Headers: Authorization: Bearer {token}
        */
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/auth/me`, {
+      const response = await fetch(buildApiUrl('/api/v1/auth/me'), {
         headers: {
           'Authorization': `Bearer ${authToken}`,
         },
@@ -94,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
        * 接口：POST /api/v1/auth/login
        * Body 参数：username: string, password: string
        */
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/auth/login`, {
+      const response = await fetch(buildApiUrl('/api/v1/auth/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -130,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
        * 接口：POST /api/v1/auth/register
        * Body 参数：username: string, password: string, email?: string, nickname?: string
        */
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/auth/register`, {
+      const response = await fetch(buildApiUrl('/api/v1/auth/register'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -180,7 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
        * Headers: Authorization: Bearer {token}
        * Body 参数：nickname?: string, email?: string, avatar?: string, cloud_sync_enabled?: boolean
        */
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/auth/me`, {
+      const response = await fetch(buildApiUrl('/api/v1/auth/me'), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

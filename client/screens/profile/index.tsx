@@ -6,6 +6,7 @@ import { useSafeRouter } from '@/hooks/useSafeRouter';
 import { usePassword } from '@/contexts/PasswordContext';
 import { useCSSVariable } from 'uniwind';
 import Toast from 'react-native-toast-message';
+import { buildApiUrl } from '@/utils';
 
 interface MenuItem {
   icon: string;
@@ -55,7 +56,7 @@ export default function ProfileScreen() {
        * 服务端文件：server/src/index.ts
        * 接口：GET /api/v1/health-tips
        */
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/health-tips`);
+      const response = await fetch(buildApiUrl('/api/v1/health-tips'));
       const data = await response.json();
       setHealthTips(data);
       setShowHealthTips(true);

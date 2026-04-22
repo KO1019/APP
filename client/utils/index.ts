@@ -6,6 +6,25 @@ dayjs.extend(utc);
 const API_BASE = (process.env.EXPO_PUBLIC_API_BASE ?? '').replace(/\/$/, '');
 
 /**
+ * 构建API URL
+ * 在Web环境下使用相对路径，让Metro代理拦截请求
+ * 在移动端环境下使用完整URL
+ * @param path API路径，如 '/api/v1/auth/me'
+ * @returns 完整或相对的API URL
+ */
+export const buildApiUrl = (path: string): string => {
+  const backendUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
+
+  if (Platform.OS === 'web') {
+    // Web环境下使用相对路径，让Metro代理拦截
+    return path;
+  }
+
+  // 移动端环境下使用完整URL
+  return `${backendUrl}${path}`;
+};
+
+/**
  * 创建跨平台兼容的文件对象，用于 FormData.append()
  * - Web 端返回 File 对象
  * - 移动端返回 { uri, type, name } 对象（RN fetch 会自动处理）

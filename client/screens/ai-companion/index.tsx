@@ -4,6 +4,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { Screen } from '@/components/Screen';
 import { useAuth } from '@/contexts/AuthContext';
+import { buildApiUrl } from '@/utils';
 
 interface Message {
   role: 'user' | 'ai';
@@ -22,7 +23,6 @@ export default function AICompanion() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
 
   const scrollViewRef = useRef<ScrollView>(null);
-  const backendUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
 
   useEffect(() => {
     loadConversationHistory();
@@ -31,7 +31,12 @@ export default function AICompanion() {
   const loadConversationHistory = async () => {
     try {
       setIsLoadingHistory(true);
-      const response = await fetch(`${backendUrl}/api/v1/conversations`, {
+      /**
+       * 服务端文件：server/src/index.ts
+       * 接口：GET /api/v1/conversations
+       * Query 参数：diaryId?: string
+       */
+      const response = await fetch(buildApiUrl('/api/v1/conversations'), {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -66,7 +71,12 @@ export default function AICompanion() {
     setIsTyping(true);
 
     try {
-      const response = await fetch(`${backendUrl}/api/v1/ai-companion/chat`, {
+      /**
+       * 服务端文件：server/src/index.ts
+       * 接口：POST /api/v1/ai-companion/chat
+       * Body 参数：message: string, relatedDiaryId?: string, conversationHistory?: Array<{role: string, content: string}>
+       */
+      const response = await fetch(buildApiUrl('/api/v1/ai-companion/chat'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

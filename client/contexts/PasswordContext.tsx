@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CryptoJS from 'crypto-js';
+import { buildApiUrl } from '@/utils';
 
 // 动态导入 SecureStore（仅移动端）
 let SecureStore: any = null;
@@ -247,7 +248,7 @@ export function PasswordProvider({ children }: { children: React.ReactNode }) {
 
   const exportAllData = async (): Promise<string> => {
     try {
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/diaries`);
+      const response = await fetch(buildApiUrl('/api/v1/diaries'));
       const diaries = await response.json();
 
       const exportData = {
@@ -270,11 +271,11 @@ export function PasswordProvider({ children }: { children: React.ReactNode }) {
 
   const deleteAllData = async (): Promise<void> => {
     try {
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/diaries`);
+      const response = await fetch(buildApiUrl('/api/v1/diaries'));
       const diaries = await response.json();
 
       for (const diary of diaries) {
-        await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/diaries/${diary.id}`, {
+        await fetch(buildApiUrl(`/api/v1/diaries/${diary.id}`), {
           method: 'DELETE',
         });
       }
