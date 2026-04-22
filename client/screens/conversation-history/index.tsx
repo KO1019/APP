@@ -209,7 +209,8 @@ export default function ConversationHistoryScreen() {
                   </Text>
                   <TouchableOpacity
                     style={styles.deleteButton}
-                    onPress={() => {
+                    onPress={(e) => {
+                      e.stopPropagation();
                       handleDeleteConversation(conversation.id);
                     }}
                     activeOpacity={0.6}
