@@ -298,13 +298,7 @@ export default function ChatScreen() {
   };
 
   const handleBackToHome = () => {
-    // 如果已经在空状态（没有消息且没有conversationId），就导航到Tab首页
-    if (messages.length === 0 && !params.conversationId) {
-      router.navigate('/');
-      return;
-    }
-
-    // 否则清空消息并重新加载空状态
+    // 清空消息并重新加载空状态
     setMessages([]);
     setInputText('');
     fetchSuggestedTopics();
@@ -326,9 +320,11 @@ export default function ChatScreen() {
         <View style={[styles.container, { backgroundColor: background }]}>
           <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <TouchableOpacity onPress={handleBackToHome} style={styles.backButton}>
-              <FontAwesome6 name="arrow-left" size={24} color={foreground} />
-            </TouchableOpacity>
+            {(messages.length > 0 || params.conversationId) && (
+              <TouchableOpacity onPress={handleBackToHome} style={styles.backButton}>
+                <FontAwesome6 name="arrow-left" size={24} color={foreground} />
+              </TouchableOpacity>
+            )}
           </View>
 
           <View style={styles.headerCenter}>
