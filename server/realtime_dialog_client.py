@@ -24,10 +24,14 @@ class RealtimeDialogClient:
         print(f"url: {self.config['base_url']}, headers: {self.config['headers']}")
         self.ws = await websockets.connect(
             self.config['base_url'],
-            extra_headers=self.config['headers'],
+            additional_headers=self.config['headers'],
             ping_interval=None
         )
-        self.logid = self.ws.response_headers.get("X-Tt-Logid")
+        # websockets 15.x 不再支持 response_headers 属性
+        try:
+            self.logid = self.ws.response_headers.get("X-Tt-Logid") if hasattr(self.ws, 'response_headers') else ""
+        except:
+            self.logid = ""
         print(f"dialog server response logid: {self.logid}")
 
         # StartConnection request

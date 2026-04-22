@@ -562,10 +562,12 @@ async def handle_client_message(websocket: WebSocket, client: RealtimeDialogClie
 
 if __name__ == '__main__':
     print("🚀 Starting Python backend server...")
-    print(f"📦 Port: {os.getenv('PORT', 9091)}")
+    # 优先读取 SERVER_PORT（启动脚本设置），其次读取 PORT，默认使用 9091
+    port = int(os.getenv('SERVER_PORT') or os.getenv('PORT') or '9091')
+    print(f"📦 Port: {port}")
     print(f"🔗 ARK API Key: {'✅ Configured' if ARK_API_KEY else '❌ Not configured'}")
     print(f"🎤 Volcengine APP ID: {'✅ Configured' if VOLCENGINE_SPEECH_APP_ID else '❌ Not configured'}")
     print(f"🎤 Volcengine Access Token: {'✅ Configured' if VOLCENGINE_ACCESS_TOKEN else '❌ Not configured'}")
     print(f"🗄️  Supabase: {'✅ Configured' if supabase else '❌ Not configured'}")
 
-    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv('PORT', 9091)))
+    uvicorn.run(app, host="0.0.0.0", port=port)
