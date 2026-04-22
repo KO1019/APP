@@ -504,20 +504,14 @@ export default function VoiceChatRealtime() {
   }, [sendTextMessage]);
 
   const handleRecordingPress = useCallback(async () => {
-    if (isMuted) {
-      // 取消静音 - 继续录音
-      setIsMuted(false);
-      if (!isRecording && isConnected) {
-        await startRecording();
-      }
+    if (isRecording) {
+      // 停止录音
+      await stopRecording();
     } else {
-      // 静音 - 停止录音但不结束通话
-      setIsMuted(true);
-      if (isRecording) {
-        await stopRecording();
-      }
+      // 开始录音
+      await startRecording();
     }
-  }, [isMuted, isRecording, isConnected, startRecording, stopRecording]);
+  }, [isRecording, startRecording, stopRecording]);
 
   const handleEndCall = () => {
     Alert.alert(
@@ -626,16 +620,12 @@ export default function VoiceChatRealtime() {
   }, [handleMessage]);
 
   useEffect(() => {
-    // 组件挂载时只连接一次，不依赖connectWebSocket
+    // 组件挂载时只连接一次
     const connectOnce = async () => {
       try {
         await connectWebSocket();
-        // 连接成功后自动开始录音（真正的实时通话）
-        setTimeout(() => {
-          if (!isRecording && isConnected) {
-            startRecording();
-          }
-        }, 1000); // 等待1秒后开始录音
+        // 连接成功后不自动开始录音，改为手动录音
+        console.log('[VOICE] Connected successfully, ready to record');
       } catch (error) {
         console.error('[VOICE] Failed to connect:', error);
       }
@@ -825,26 +815,21 @@ export default function VoiceChatRealtime() {
           <TouchableOpacity
             style={[
               styles.mainRecordButton,
-              { backgroundColor: isMuted ? '#6B7280' : isRecording ? `${accent}` : `${accent}10`, borderColor: isMuted ? '#6B7280' : accent, borderWidth: 2 },
+              { backgroundColor: isRecording ? '#EF4444' : `${accent}10`, borderColor: isRecording ? '#EF4444' : accent, borderWidth: 2 },
             ]}
             onPress={handleRecordingPress}
             disabled={!isConnected}
             activeOpacity={0.8}
           >
-            {isMuted ? (
+            {isRecording ? (
               <>
-                <FontAwesome6 name="microphone-slash" size={32} color="#FFFFFF" />
-                <Text style={styles.mainRecordText}>已静音</Text>
-              </>
-            ) : isRecording ? (
-              <>
-                <FontAwesome6 name="microphone" size={32} color="#FFFFFF" />
-                <Text style={styles.mainRecordText}>通话中</Text>
+                <FontAwesome6 name="stop" size={32} color="#FFFFFF" />
+                <Text style={styles.mainRecordText}>停止录音</Text>
               </>
             ) : (
               <>
                 <FontAwesome6 name="microphone" size={32} color={accent} />
-                <Text style={[styles.mainRecordText, { color: accent }]}>正在录音</Text>
+                <Text style={[styles.mainRecordText, { color: accent }]}>点击说话</Text>
               </>
             )}
           </TouchableOpacity>
