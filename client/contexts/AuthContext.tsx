@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUserInfo = async (authToken: string) => {
     try {
       /**
-       * 服务端文件：server/src/index.ts
+       * 服务端文件：server/main.py
        * 接口：GET /api/v1/auth/me
        * Headers: Authorization: Bearer {token}
        */
@@ -91,7 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (username: string, password: string) => {
     try {
       /**
-       * 服务端文件：server/src/index.ts
+       * 服务端文件：server/main.py
        * 接口：POST /api/v1/auth/login
        * Body 参数：username: string, password: string
        */
@@ -103,13 +103,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ username, password }),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        // FastAPI返回的错误格式是 {detail: "..."}
-        throw new Error(data.detail || data.error || '登录失败');
+        // 尝试解析错误响应
+        let errorMessage = '登录失败';
+        try {
+          const data = await response.json();
+          errorMessage = data.detail || data.error || errorMessage;
+        } catch {
+          // 如果响应不是JSON，尝试读取文本
+          const text = await response.text();
+          errorMessage = text || `登录失败 (${response.status})`;
+        }
+        throw new Error(errorMessage);
       }
 
+      const data = await response.json();
       const { user, token: newToken } = data;
 
       // 保存到本地存储
@@ -128,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (username: string, password: string, email?: string, nickname?: string) => {
     try {
       /**
-       * 服务端文件：server/src/index.ts
+       * 服务端文件：server/main.py
        * 接口：POST /api/v1/auth/register
        * Body 参数：username: string, password: string, email?: string, nickname?: string
        */
@@ -140,13 +148,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ username, password, email, nickname }),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        // FastAPI返回的错误格式是 {detail: "..."}
-        throw new Error(data.detail || data.error || '注册失败');
+        // 尝试解析错误响应
+        let errorMessage = '注册失败';
+        try {
+          const data = await response.json();
+          errorMessage = data.detail || data.error || errorMessage;
+        } catch {
+          // 如果响应不是JSON，尝试读取文本
+          const text = await response.text();
+          errorMessage = text || `注册失败 (${response.status})`;
+        }
+        throw new Error(errorMessage);
       }
 
+      const data = await response.json();
       const { user, token: newToken } = data;
 
       // 保存到本地存储
@@ -178,7 +194,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!token) throw new Error('Not authenticated');
 
       /**
-       * 服务端文件：server/src/index.ts
+       * 服务端文件：server/main.py
        * 接口：PUT /api/v1/auth/me
        * Headers: Authorization: Bearer {token}
        * Body 参数：nickname?: string, email?: string, avatar?: string, cloud_sync_enabled?: boolean
@@ -192,13 +208,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify(data),
       });
 
-      const responseData = await response.json();
-
       if (!response.ok) {
-        // FastAPI返回的错误格式是 {detail: "..."}
-        throw new Error(responseData.detail || responseData.error || '更新失败');
+        // 尝试解析错误响应
+        let errorMessage = '更新失败';
+        try {
+          const responseData = await response.json();
+          errorMessage = responseData.detail || responseData.error || errorMessage;
+        } catch {
+          // 如果响应不是JSON，尝试读取文本
+          const text = await response.text();
+          errorMessage = text || `更新失败 (${response.status})`;
+        }
+        throw new Error(errorMessage);
       }
 
+      const responseData = await response.json();
       const updatedUser = responseData.user;
 
       // 更新本地存储

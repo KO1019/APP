@@ -249,6 +249,11 @@ export function PasswordProvider({ children }: { children: React.ReactNode }) {
   const exportAllData = async (): Promise<string> => {
     try {
       const response = await fetch(buildApiUrl('/api/v1/diaries'));
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch diaries (${response.status})`);
+      }
+
       const diaries = await response.json();
 
       const exportData = {
@@ -272,6 +277,11 @@ export function PasswordProvider({ children }: { children: React.ReactNode }) {
   const deleteAllData = async (): Promise<void> => {
     try {
       const response = await fetch(buildApiUrl('/api/v1/diaries'));
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch diaries (${response.status})`);
+      }
+
       const diaries = await response.json();
 
       for (const diary of diaries) {

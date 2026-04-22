@@ -428,7 +428,7 @@ export default function VoiceChatRealtime() {
         setIsProcessing(false);
         break;
 
-      case 'connection_closed':
+      case 'connection_closed': {
         setIsConnected(false);
         const errorMsg = message.reason ? `连接已断开: ${message.reason} (代码: ${message.code})` : '连接已断开，正在重连...';
         Toast.show({
@@ -437,6 +437,8 @@ export default function VoiceChatRealtime() {
           text2: errorMsg,
           position: 'bottom',
         });
+        break;
+      }
         console.error('[VOICE] Connection closed:', message);
         break;
     }

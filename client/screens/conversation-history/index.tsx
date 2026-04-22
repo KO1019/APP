@@ -126,13 +126,23 @@ export default function ConversationHistoryScreen() {
         // 刷新列表
         fetchConversations();
       } else {
-        const data = await response.json();
-        console.error('Delete failed:', data);
-        const errorMsg = data.error || '删除失败';
-        if (Platform.OS === 'web') {
-          window.alert('错误：' + errorMsg);
-        } else {
-          Alert.alert('错误', errorMsg);
+        // 尝试解析错误响应
+        try {
+          const data = await response.json();
+          console.error('Delete failed:', data);
+          const errorMsg = data.error || '删除失败';
+          if (Platform.OS === 'web') {
+            window.alert('错误：' + errorMsg);
+          } else {
+            Alert.alert('错误', errorMsg);
+          }
+        } catch {
+          // 如果响应不是JSON，使用通用错误消息
+          if (Platform.OS === 'web') {
+            window.alert(`错误：删除失败 (${response.status})`);
+          } else {
+            Alert.alert('错误', `删除失败 (${response.status})`);
+          }
         }
       }
     } catch (error) {

@@ -53,10 +53,15 @@ export default function ProfileScreen() {
     try {
       setLoadingTips(true);
       /**
-       * 服务端文件：server/src/index.ts
+       * 服务端文件：server/main.py
        * 接口：GET /api/v1/health-tips
        */
       const response = await fetch(buildApiUrl('/api/v1/health-tips'));
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch health tips (${response.status})`);
+      }
+
       const data = await response.json();
       setHealthTips(data);
       setShowHealthTips(true);
