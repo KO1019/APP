@@ -1,17 +1,14 @@
 #!/usr/bin/env python3
 """
 AI情绪日记 & 心理状态智能陪伴系统 - Python后端服务
-使用FastAPI + WebSocket + 火山引擎RealtimeAPI
+使用FastAPI + WebSocket + 火山引擎RealtimeAPI（官方Python示例）
 """
 
 import os
-import json
 import uuid
 import hashlib
 import asyncio
-import struct
-import zlib
-from datetime import datetime, timedelta
+import json
 from typing import Optional, List, Dict, Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, status, UploadFile, File, Form
@@ -20,9 +17,12 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
-import websockets
 import httpx
 from supabase import create_client, Client
+from dotenv import load_dotenv
+
+# 加载.env文件
+load_dotenv()
 
 # 环境变量配置
 JWT_SECRET = os.getenv('JWT_SECRET', 'your-secret-key-change-in-production')
@@ -32,15 +32,15 @@ ARK_BASE_URL = os.getenv('ARK_BASE_URL', 'https://ark.cn-beijing.volces.com/api/
 ARK_API_KEY = os.getenv('ARK_API_KEY', '')
 ARK_CHAT_MODEL = os.getenv('ARK_CHAT_MODEL', 'ep-20250212215003-7j9f8')
 
-# 豆包语音API配置（从环境变量读取）
-VOLCENGINE_SPEECH_APP_ID = os.getenv('VOLCENGINE_SPEECH_APP_ID', '') or os.getenv('COZE_VOLCENGINE_SPEECH_APP_ID', '')
-VOLCENGINE_SPEECH_SECRET_KEY = os.getenv('VOLCENGINE_SPEECH_SECRET_KEY', '') or os.getenv('COZE_VOLCENGINE_SPEECH_SECRET_KEY', '')
-VOLCENGINE_ACCESS_TOKEN = os.getenv('VOLCENGINE_ACCESS_TOKEN', '') or os.getenv('COZE_VOLCENGINE_ACCESS_TOKEN', '')
-VOLCENGINE_API_KEY = os.getenv('VOLCENGINE_API_KEY', '') or os.getenv('COZE_VOLCENGINE_API_KEY', '')
+# 豆包语音API配置（从.env文件读取）
+VOLCENGINE_SPEECH_APP_ID = os.getenv('VOLCENGINE_SPEECH_APP_ID', '')
+VOLCENGINE_SPEECH_SECRET_KEY = os.getenv('VOLCENGINE_SPEECH_SECRET_KEY', '')
+VOLCENGINE_ACCESS_TOKEN = os.getenv('VOLCENGINE_ACCESS_TOKEN', '')
+VOLCENGINE_API_KEY = os.getenv('VOLCENGINE_API_KEY', '')
 
-# Supabase配置
-SUPABASE_URL = os.getenv('SUPABASE_URL', '') or os.getenv('COZE_SUPABASE_URL', '')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY', '') or os.getenv('COZE_SUPABASE_ANON_KEY', '')
+# Supabase配置（从环境变量读取）
+SUPABASE_URL = os.getenv('SUPABASE_URL', '')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY', '')
 
 # 初始化FastAPI应用
 app = FastAPI(title="AI情绪日记 & 心理状态智能陪伴系统", version="1.0.0")
@@ -61,6 +61,12 @@ security = HTTPBearer()
 supabase: Optional[Client] = None
 if SUPABASE_URL and SUPABASE_KEY:
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+
+# ========== 导入实时语音客户端 ==========
+import config
+import protocol
+from realtime_dialog_client import RealtimeDialogClient
 
 
 # ========== 数据模型 ==========
@@ -120,337 +126,6 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, hashed: str) -> bool:
     """验证密码"""
     return hashlib.sha256(password.encode()).hexdigest() == hashed
-
-
-# ========== 火山引擎RealtimeAPI二进制协议实现 ==========
-
-class VolcengineProtocol:
-    """火山引擎实时语音API二进制协议"""
-
-    # 协议常量
-    PROTOCOL_VERSION = 0b0001
-
-    # Message Type
-    CLIENT_FULL_REQUEST = 0b0001
-    CLIENT_AUDIO_ONLY_REQUEST = 0b0010
-    SERVER_FULL_RESPONSE = 0b1001
-    SERVER_ACK = 0b1011
-    SERVER_ERROR_RESPONSE = 0b1111
-
-    # Message Type Specific Flags
-    NO_SEQUENCE = 0b0000
-    POS_SEQUENCE = 0b0001
-    NEG_SEQUENCE = 0b0010
-    NEG_SEQUENCE_1 = 0b0011
-    MSG_WITH_EVENT = 0b0100
-
-    # Message Serialization
-    NO_SERIALIZATION = 0b0000
-    JSON_SERIALIZATION = 0b0001
-    THRIFT = 0b0011
-    CUSTOM_TYPE = 0b1111
-
-    # Message Compression
-    NO_COMPRESSION = 0b0000
-    GZIP = 0b0001
-    CUSTOM_COMPRESSION = 0b1111
-
-    # 事件ID
-    StartConnection = 1
-    StartSession = 100
-    FinishSession = 102
-    TaskRequest = 200
-    SayHello = 300
-    EndASR = 400
-    ChatTTSText = 500
-    ChatTextQuery = 501
-    ChatRAGText = 502
-    UpdateConfig = 201
-    ConnectionStarted = 50
-    ConnectionFailed = 51
-    SessionStarted = 150
-    SessionFailed = 153
-    UsageResponse = 154
-    TTSResponse = 352
-    ASRInfo = 450
-    ASRResponse = 451
-    ASREnded = 459
-    ChatResponse = 550
-    ChatEnded = 559
-    DialogCommonError = 599
-
-    @staticmethod
-    def generate_header(
-        message_type: int = CLIENT_FULL_REQUEST,
-        message_type_specific_flags: int = MSG_WITH_EVENT,
-        serial_method: int = JSON_SERIALIZATION,
-        compression_type: int = GZIP,
-        extension_header: bytes = b''
-    ) -> bytes:
-        """构建二进制header"""
-        header_size = (len(extension_header) // 4) + 1
-        header = bytearray(4 + len(extension_header))
-
-        # byte0: protocol version + header size
-        header[0] = (VolcengineProtocol.PROTOCOL_VERSION << 4) | header_size
-
-        # byte1: message type + flags
-        header[1] = (message_type << 4) | message_type_specific_flags
-
-        # byte2: serialization + compression
-        header[2] = (serial_method << 4) | compression_type
-
-        # byte3: reserved
-        header[3] = 0x00
-
-        # extension header
-        if extension_header:
-            header[4:] = extension_header
-
-        return bytes(header)
-
-    @staticmethod
-    def build_start_connection_frame() -> bytes:
-        """构建StartConnection帧"""
-        use_compression = False
-
-        header = VolcengineProtocol.generate_header(
-            message_type=VolcengineProtocol.CLIENT_FULL_REQUEST,
-            message_type_specific_flags=VolcengineProtocol.MSG_WITH_EVENT,
-            serial_method=VolcengineProtocol.JSON_SERIALIZATION,
-            compression_type=VolcengineProtocol.GZIP if use_compression else VolcengineProtocol.NO_COMPRESSION
-        )
-
-        # event id
-        event_id = VolcengineProtocol.StartConnection
-        event_bytes = struct.pack('>I', event_id)
-
-        # payload
-        payload = json.dumps({}).encode('utf-8')
-        if use_compression:
-            payload = zlib.compress(payload)
-
-        # payload size
-        payload_size_bytes = struct.pack('>I', len(payload))
-
-        return header + event_bytes + payload_size_bytes + payload
-
-    @staticmethod
-    def build_start_session_frame(session_id: str, dialog_config: Dict[str, Any]) -> bytes:
-        """构建StartSession帧"""
-        use_compression = False
-
-        header = VolcengineProtocol.generate_header(
-            message_type=VolcengineProtocol.CLIENT_FULL_REQUEST,
-            message_type_specific_flags=VolcengineProtocol.MSG_WITH_EVENT,
-            serial_method=VolcengineProtocol.JSON_SERIALIZATION,
-            compression_type=VolcengineProtocol.GZIP if use_compression else VolcengineProtocol.NO_COMPRESSION
-        )
-
-        # event id
-        event_id = VolcengineProtocol.StartSession
-        event_bytes = struct.pack('>I', event_id)
-
-        # session id
-        session_id_bytes = session_id.encode('utf-8')
-        session_id_size_bytes = struct.pack('>I', len(session_id_bytes))
-
-        # payload
-        payload = json.dumps({"dialog": dialog_config}).encode('utf-8')
-        if use_compression:
-            payload = zlib.compress(payload)
-
-        # payload size
-        payload_size_bytes = struct.pack('>I', len(payload))
-
-        return header + event_bytes + session_id_size_bytes + session_id_bytes + payload_size_bytes + payload
-
-    @staticmethod
-    def build_chat_text_query_frame(session_id: str, text: str) -> bytes:
-        """构建ChatTextQuery帧（文本输入）"""
-        use_compression = False
-
-        header = VolcengineProtocol.generate_header(
-            message_type=VolcengineProtocol.CLIENT_FULL_REQUEST,
-            message_type_specific_flags=VolcengineProtocol.MSG_WITH_EVENT,
-            serial_method=VolcengineProtocol.JSON_SERIALIZATION,
-            compression_type=VolcengineProtocol.GZIP if use_compression else VolcengineProtocol.NO_COMPRESSION
-        )
-
-        # event id
-        event_id = VolcengineProtocol.ChatTextQuery
-        event_bytes = struct.pack('>I', event_id)
-
-        # payload
-        payload = json.dumps({"content": text}).encode('utf-8')
-        if use_compression:
-            payload = zlib.compress(payload)
-
-        # session id
-        session_id_bytes = session_id.encode('utf-8')
-        session_id_size_bytes = struct.pack('>I', len(session_id_bytes))
-
-        # payload size
-        payload_size_bytes = struct.pack('>I', len(payload))
-
-        return header + event_bytes + session_id_size_bytes + session_id_bytes + payload_size_bytes + payload
-
-    @staticmethod
-    def build_task_request_frame(session_id: str, audio_data: bytes) -> bytes:
-        """构建TaskRequest帧（音频上传）"""
-        use_compression = False
-
-        header = VolcengineProtocol.generate_header(
-            message_type=VolcengineProtocol.CLIENT_AUDIO_ONLY_REQUEST,
-            message_type_specific_flags=VolcengineProtocol.MSG_WITH_EVENT,
-            serial_method=VolcengineProtocol.NO_SERIALIZATION,
-            compression_type=VolcengineProtocol.GZIP if use_compression else VolcengineProtocol.NO_COMPRESSION
-        )
-
-        # event id
-        event_id = VolcengineProtocol.TaskRequest
-        event_bytes = struct.pack('>I', event_id)
-
-        # session id
-        session_id_bytes = session_id.encode('utf-8')
-        session_id_size_bytes = struct.pack('>I', len(session_id_bytes))
-
-        # payload
-        payload = audio_data
-        if use_compression:
-            payload = zlib.compress(payload)
-
-        # payload size
-        payload_size_bytes = struct.pack('>I', len(payload))
-
-        return header + event_bytes + session_id_size_bytes + session_id_bytes + payload_size_bytes + payload
-
-    @staticmethod
-    def build_finish_session_frame(session_id: str) -> bytes:
-        """构建FinishSession帧"""
-        use_compression = False
-
-        header = VolcengineProtocol.generate_header(
-            message_type=VolcengineProtocol.CLIENT_FULL_REQUEST,
-            message_type_specific_flags=VolcengineProtocol.MSG_WITH_EVENT,
-            serial_method=VolcengineProtocol.JSON_SERIALIZATION,
-            compression_type=VolcengineProtocol.GZIP if use_compression else VolcengineProtocol.NO_COMPRESSION
-        )
-
-        # event id
-        event_id = VolcengineProtocol.FinishSession
-        event_bytes = struct.pack('>I', event_id)
-
-        # payload
-        payload = json.dumps({}).encode('utf-8')
-        if use_compression:
-            payload = zlib.compress(payload)
-
-        # session id
-        session_id_bytes = session_id.encode('utf-8')
-        session_id_size_bytes = struct.pack('>I', len(session_id_bytes))
-
-        # payload size
-        payload_size_bytes = struct.pack('>I', len(payload))
-
-        return header + event_bytes + session_id_size_bytes + session_id_bytes + payload_size_bytes + payload
-
-    @staticmethod
-    def parse_binary_frame(data: bytes) -> Optional[Dict[str, Any]]:
-        """解析二进制帧"""
-        try:
-            # byte0: protocol + header size
-            header_size_words = data[0] & 0x0F
-            header_size_bytes = header_size_words * 4
-
-            # byte1: message type + flags
-            message_type = (data[1] >> 4) & 0x0F
-            flags = data[1] & 0x0F
-
-            # byte2: serialization + compression
-            serialization_method = (data[2] >> 4) & 0x0F
-            compression_type = data[2] & 0x0F
-
-            # payload starts after header
-            payload = data[header_size_bytes:]
-            event_id = None
-
-            # parse event id if present
-            if flags & VolcengineProtocol.MSG_WITH_EVENT:
-                if len(payload) < 4:
-                    return None
-                event_id = struct.unpack('>I', payload[0:4])[0]
-                payload = payload[4:]
-
-            # parse session id and payload for server responses
-            if message_type in [VolcengineProtocol.SERVER_FULL_RESPONSE, VolcengineProtocol.SERVER_ACK]:
-                if len(payload) < 4:
-                    return None
-                session_id_size = struct.unpack('>I', payload[0:4])[0]
-                payload = payload[4:]
-
-                if len(payload) < session_id_size:
-                    return None
-                session_id = payload[0:session_id_size].decode('utf-8')
-                payload = payload[session_id_size:]
-
-                if len(payload) < 4:
-                    return None
-                payload_size = struct.unpack('>I', payload[0:4])[0]
-                payload = payload[4:]
-
-                if len(payload) < payload_size:
-                    return None
-                payload = payload[0:payload_size]
-
-                # decompress if needed
-                if compression_type == VolcengineProtocol.GZIP:
-                    payload = zlib.decompress(payload)
-
-                return {
-                    "messageType": message_type,
-                    "flags": flags,
-                    "eventId": event_id,
-                    "sessionId": session_id,
-                    "payload": payload
-                }
-
-            elif message_type == VolcengineProtocol.SERVER_ERROR_RESPONSE:
-                # error frame: code + payload_size + payload
-                if len(payload) < 8:
-                    return None
-                error_code = struct.unpack('>I', payload[0:4])[0]
-                payload = payload[4:]
-
-                payload_size = struct.unpack('>I', payload[0:4])[0]
-                payload = payload[4:]
-
-                if len(payload) < payload_size:
-                    return None
-                payload = payload[0:payload_size]
-
-                # decompress if needed
-                if compression_type == VolcengineProtocol.GZIP:
-                    payload = zlib.decompress(payload)
-
-                return {
-                    "messageType": message_type,
-                    "flags": flags,
-                    "eventId": event_id,
-                    "errorCode": error_code,
-                    "payload": payload
-                }
-
-            return {
-                "messageType": message_type,
-                "flags": flags,
-                "eventId": event_id,
-                "payload": payload
-            }
-
-        except Exception as e:
-            print(f"Failed to parse binary frame: {e}")
-            return None
 
 
 # ========== LLM API调用 ==========
@@ -708,64 +383,55 @@ async def get_conversations(user_id: str = Depends(get_user_id)):
     return result.data or []
 
 
-# ========== WebSocket实时语音对话 ==========
+# ========== WebSocket实时语音对话（使用官方Python示例） ==========
 
 @app.websocket('/api/v1/voice/realtime')
 async def websocket_voice_realtime(websocket: WebSocket):
-    """WebSocket实时语音对话"""
+    """WebSocket实时语音对话 - 使用火山引擎官方Python示例"""
     await websocket.accept()
 
-    volc_ws: Optional[websockets.WebSocketClientProtocol] = None
     session_id = str(uuid.uuid4())
 
     try:
-        # 连接到豆包实时语音API
-        if not VOLCENGINE_SPEECH_APP_ID:
+        # 检查配置
+        if not VOLCENGINE_SPEECH_APP_ID or not VOLCENGINE_ACCESS_TOKEN:
             await websocket.send_json({
                 "type": "error",
-                "message": "豆包语音API配置缺失，请在环境变量中配置VOLCENGINE_SPEECH_APP_ID"
+                "message": "豆包语音API配置缺失，请在.env文件中配置VOLCENGINE_SPEECH_APP_ID和VOLCENGINE_ACCESS_TOKEN"
             })
             return
 
-        access_token = VOLCENGINE_ACCESS_TOKEN
-        if not access_token:
-            # TODO: 使用Secret Key获取Access Token
-            pass
-
-        # 连接到豆包API
-        volc_ws = await websockets.connect(
-            'wss://openspeech.bytedance.com/api/v3/realtime/dialogue',
-            extra_headers={
-                'X-Api-App-ID': VOLCENGINE_SPEECH_APP_ID,
-                'X-Api-Access-Key': access_token,
-                'X-Api-Resource-Id': 'volc.speech.dialog',
-                'X-Api-App-Key': 'PlgvMymc7f3tQnJ6',
-            }
+        # 创建实时语音客户端
+        client = RealtimeDialogClient(
+            config=config.ws_connect_config,
+            session_id=session_id,
+            output_audio_format="pcm",
+            mod="text",  # 使用文本输入模式
+            recv_timeout=60  # 超时时间60秒
         )
 
+        # 连接到豆包API
+        await client.connect()
         print(f"✅ Connected to Volcengine API, session_id: {session_id}")
 
-        # 发送StartConnection
-        start_connection_frame = VolcengineProtocol.build_start_connection_frame()
-        await volc_ws.send(start_connection_frame)
-        print("✅ StartConnection sent")
+        # 通知客户端连接就绪
+        await websocket.send_json({
+            "type": "connection_ready",
+            "sessionId": session_id
+        })
 
         # 监听豆包API响应
         async def listen_volcengine():
             try:
                 while True:
-                    data = await volc_ws.recv()
-                    if isinstance(data, bytes):
-                        frame = VolcengineProtocol.parse_binary_frame(data)
-                        if frame:
-                            await handle_volcengine_frame(websocket, frame)
-            except websockets.exceptions.ConnectionClosed:
-                print("Volcengine connection closed")
+                    response = await client.receive_server_response()
+                    await handle_volcengine_response(websocket, response)
             except Exception as e:
                 print(f"Error listening to Volcengine: {e}")
-
-        # 启动监听任务
-        listen_task = asyncio.create_task(listen_volcengine())
+                await websocket.send_json({
+                    "type": "error",
+                    "message": f"监听豆包API错误: {str(e)}"
+                })
 
         # 监听客户端消息
         async def listen_client():
@@ -774,21 +440,21 @@ async def websocket_voice_realtime(websocket: WebSocket):
                     data = await websocket.receive()
                     if 'text' in data:
                         message = json.loads(data['text'])
-                        await handle_client_message(websocket, volc_ws, session_id, message)
+                        await handle_client_message(websocket, client, message)
                     elif 'bytes' in data:
-                        # 音频数据
-                        audio_frame = VolcengineProtocol.build_task_request_frame(session_id, data['bytes'])
-                        await volc_ws.send(audio_frame)
+                        # 音频数据 - 使用TaskRequest
+                        await client.task_request(data['bytes'])
             except WebSocketDisconnect:
                 print("Client disconnected")
             except Exception as e:
                 print(f"Error listening to client: {e}")
 
         # 启动监听任务
+        listen_volcengine_task = asyncio.create_task(listen_volcengine())
         listen_client_task = asyncio.create_task(listen_client())
 
         # 等待任一任务完成
-        await asyncio.wait([listen_task, listen_client_task], return_when=asyncio.FIRST_COMPLETED)
+        await asyncio.wait([listen_volcengine_task, listen_client_task], return_when=asyncio.FIRST_COMPLETED)
 
     except Exception as e:
         print(f"WebSocket error: {e}")
@@ -798,129 +464,91 @@ async def websocket_voice_realtime(websocket: WebSocket):
         })
     finally:
         # 关闭连接
-        if volc_ws:
-            try:
-                finish_frame = VolcengineProtocol.build_finish_session_frame(session_id)
-                await volc_ws.send(finish_frame)
-                await volc_ws.close()
-            except:
-                pass
+        try:
+            if 'client' in locals():
+                await client.finish_session()
+                await client.close()
+        except:
+            pass
         await websocket.close()
 
 
-async def handle_volcengine_frame(websocket: WebSocket, frame: Dict[str, Any]):
-    """处理豆包API返回的帧"""
-    event_id = frame.get('eventId')
-    payload = frame.get('payload', b'')
-
+async def handle_volcengine_response(websocket: WebSocket, response: Dict[str, Any]):
+    """处理豆包API返回的响应"""
     try:
-        if event_id == VolcengineProtocol.ConnectionStarted:
+        message_type = response.get('message_type', '')
+        payload_msg = response.get('payload_msg')
+        event = response.get('event')
+
+        # 打印响应信息
+        print(f"📥 Volcengine response: message_type={message_type}, event={event}")
+
+        if event == 50:  # ConnectionStarted
             print("✅ ConnectionStarted")
-            # 发送StartSession
-            dialog_config = {
-                "asr": {
-                    "extra": {
-                        "end_smooth_window_ms": 1500,
-                    },
-                },
-                "tts": {
-                    "speaker": "zh_female_yunxia_moon_bigtts",
-                    "audio_config": {
-                        "channel": 1,
-                        "format": "pcm",
-                        "sample_rate": 24000,
-                    },
-                },
-                "dialog": {
-                    "model": "1.2.1.1",
-                    "bot_name": "豆包",
-                    "system_role": "你是一个温暖、友好的心理陪伴助手",
-                    "speaking_style": "温柔、耐心",
-                    "extra": {
-                        "strict_audit": False,
-                        "audit_response": "",
-                        "input_mod": "text",  # 纯文本输入模式
-                        "enable_conversation_truncate": False,
-                        "enable_loudness_norm": False,
-                    },
-                },
-            }
 
-            # 获取session_id
-            session_id = frame.get('sessionId', str(uuid.uuid4()))
-
-            start_session_frame = VolcengineProtocol.build_start_session_frame(session_id, dialog_config)
-            await websocket._send_websocket_message(start_session_frame)  # 发送到豆包
-            print("✅ StartSession sent")
-
-            # 通知客户端
-            await websocket.send_json({
-                "type": "connection_ready",
-                "sessionId": session_id
-            })
-
-        elif event_id == VolcengineProtocol.SessionStarted:
+        elif event == 150:  # SessionStarted
             print("✅ SessionStarted")
-            session_info = json.loads(payload.decode('utf-8'))
             await websocket.send_json({
                 "type": "session_ready",
-                "sessionId": session_info.get('dialog_id')
+                "dialog_id": payload_msg.get('dialog_id') if isinstance(payload_msg, dict) else None
             })
 
-        elif event_id == VolcengineProtocol.ChatResponse:
+        elif event == 550:  # ChatResponse
             # AI回复文本
-            chat_response = json.loads(payload.decode('utf-8'))
+            print(f"💬 ChatResponse: {payload_msg}")
             await websocket.send_json({
                 "type": "chat_response",
-                "data": chat_response
+                "data": payload_msg
             })
 
-        elif event_id == VolcengineProtocol.TTSResponse:
-            # 音频数据
-            await websocket.send_json({
-                "type": "tts_audio",
-                "data": payload.hex()  # 发送hex字符串，避免base64编码问题
-            })
+        elif event == 352:  # TTSResponse
+            # 音频数据 - payload_msg是二进制数据
+            if isinstance(payload_msg, bytes):
+                print(f"🎵 TTSResponse: {len(payload_msg)} bytes")
+                await websocket.send_json({
+                    "type": "tts_audio",
+                    "data": payload_msg.hex()  # 发送hex字符串
+                })
 
-        elif event_id == VolcengineProtocol.ChatEnded:
+        elif event == 559:  # ChatEnded
             # 聊天结束
-            chat_ended = json.loads(payload.decode('utf-8'))
+            print("🔚 ChatEnded")
             await websocket.send_json({
                 "type": "chat_ended",
-                "data": chat_ended
+                "data": payload_msg
             })
 
-        elif frame.get('messageType') == VolcengineProtocol.SERVER_ERROR_RESPONSE:
-            # 错误帧
-            error_info = json.loads(payload.decode('utf-8'))
+        elif message_type == 'SERVER_ERROR_RESPONSE' or 'code' in response:
+            # 错误响应
+            error_msg = payload_msg if isinstance(payload_msg, str) else str(payload_msg)
+            print(f"❌ Server Error: {response.get('code')} - {error_msg}")
             await websocket.send_json({
                 "type": "error",
-                "message": f"豆包API错误: {error_info.get('error', '未知错误')}",
-                "details": error_info
+                "message": f"豆包API错误 [{response.get('code')}]: {error_msg}"
             })
 
     except Exception as e:
-        print(f"Error handling Volcengine frame: {e}")
+        print(f"Error handling Volcengine response: {e}")
 
 
-async def handle_client_message(websocket: WebSocket, volc_ws: websockets.WebSocketClientProtocol, session_id: str, message: Dict[str, Any]):
+async def handle_client_message(websocket: WebSocket, client: RealtimeDialogClient, message: Dict[str, Any]):
     """处理客户端消息"""
     msg_type = message.get('type')
 
     if msg_type == 'text_input':
-        # 文本输入
+        # 文本输入 - 使用ChatTextQuery
         text = message.get('text')
-        if text and volc_ws:
-            chat_text_query_frame = VolcengineProtocol.build_chat_text_query_frame(session_id, text)
-            await volc_ws.send(chat_text_query_frame)
+        if text:
+            await client.chat_text_query(text)
             print(f"✅ ChatTextQuery sent: {text}")
 
     elif msg_type == 'end_session':
         # 结束会话
-        if volc_ws:
-            finish_frame = VolcengineProtocol.build_finish_session_frame(session_id)
-            await volc_ws.send(finish_frame)
+        try:
+            await client.finish_session()
             print("✅ FinishSession sent")
+        except Exception as e:
+            print(f"Error finishing session: {e}")
 
 
 # ========== 主程序 ==========
@@ -930,6 +558,7 @@ if __name__ == '__main__':
     print(f"📦 Port: {os.getenv('PORT', 9091)}")
     print(f"🔗 ARK API Key: {'✅ Configured' if ARK_API_KEY else '❌ Not configured'}")
     print(f"🎤 Volcengine APP ID: {'✅ Configured' if VOLCENGINE_SPEECH_APP_ID else '❌ Not configured'}")
+    print(f"🎤 Volcengine Access Token: {'✅ Configured' if VOLCENGINE_ACCESS_TOKEN else '❌ Not configured'}")
     print(f"🗄️  Supabase: {'✅ Configured' if supabase else '❌ Not configured'}")
 
     uvicorn.run(app, host="0.0.0.0", port=int(os.getenv('PORT', 9091)))
