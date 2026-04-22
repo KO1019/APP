@@ -14,6 +14,13 @@ interface Message {
   content: string;
 }
 
+interface Conversation {
+  id: string;
+  user_message: string;
+  ai_message: string;
+  created_at: string;
+}
+
 export default function ChatScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -22,6 +29,7 @@ export default function ChatScreen() {
   const [apiConfigured, setApiConfigured] = useState(true);
   const scrollViewRef = useRef<ScrollView>(null);
   const [showMenu, setShowMenu] = useState(false);
+  const [recentConversations, setRecentConversations] = useState<Conversation[]>([]);
 
   const router = useSafeRouter();
   const { token } = useAuth();
@@ -99,6 +107,37 @@ export default function ChatScreen() {
     } catch (error) {
       console.error('Error fetching suggested topics:', error);
       setSuggestedTopics([]);
+    }
+  }, [token]);
+
+  const fetchRecentConversations = useCallback(async () => {
+    try {
+      if (!token) {
+        setRecentConversations([]);
+        return;
+      }
+
+      /**
+       * 服务端文件：server/src/index.ts
+       * 接口：GET /api/v1/conversations
+       * Headers: Authorization: Bearer {token}
+       */
+      const response = await fetch(buildApiUrl('/api/v1/conversations'), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // 只取最近2条对话
+        setRecentConversations(data.slice(0, 2));
+      } else {
+        setRecentConversations([]);
+      }
+    } catch (error) {
+      console.error('Error fetching recent conversations:', error);
+      setRecentConversations([]);
     }
   }, [token]);
 
@@ -190,10 +229,12 @@ export default function ChatScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      // 页面聚焦时加载建议话题
-      setMessages([]);
-      fetchSuggestedTopics();
-    }, [fetchSuggestedTopics])
+      // 只有在没有消息且没有对话ID时才加载空状态数据
+      if (messages.length === 0 && !params.conversationId) {
+        fetchSuggestedTopics();
+        fetchRecentConversations();
+      }
+    }, [messages.length, params.conversationId, fetchSuggestedTopics, fetchRecentConversations])
   );
 
   const renderMessage = (message: Message, index: number) => {
@@ -232,20 +273,28 @@ export default function ChatScreen() {
   };
 
   const handleNewChat = () => {
-    Alert.alert(
-      '新建对话',
-      '确定要开始新的对话吗？当前对话记录将被清空。',
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '确定',
-          onPress: () => {
-            setMessages([]);
-            setInputText('');
+    if (messages.length > 0) {
+      Alert.alert(
+        '新建对话',
+        '确定要开始新的对话吗？当前对话记录将被清空。',
+        [
+          { text: '取消', style: 'cancel' },
+          {
+            text: '确定',
+            onPress: () => {
+              setMessages([]);
+              setInputText('');
+              fetchSuggestedTopics();
+              fetchRecentConversations();
+            }
           }
-        }
-      ]
-    );
+        ]
+      );
+    } else {
+      // 如果没有消息，直接重新加载空状态
+      fetchSuggestedTopics();
+      fetchRecentConversations();
+    }
   };
 
   const handleViewHistory = () => {
@@ -307,7 +356,31 @@ export default function ChatScreen() {
                 <Text style={[styles.welcomeText, { color: muted }]}>
                   随时和我聊聊你的心情，我会在这里倾听和陪伴你
                 </Text>
+
+                {/* 显示最近的历史对话 */}
+                {recentConversations.length > 0 && (
+                  <View style={styles.recentConversations}>
+                    <Text style={[styles.sectionTitle, { color: muted }]}>最近对话</Text>
+                    {recentConversations.map((conv) => (
+                      <TouchableOpacity
+                        key={conv.id}
+                        style={[styles.conversationCard, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}
+                        onPress={() => router.push('/chat', { conversationId: conv.id })}
+                      >
+                        <Text style={[styles.conversationUserMsg, { color: foreground }]} numberOfLines={1}>
+                          {conv.user_message}
+                        </Text>
+                        <Text style={[styles.conversationAiMsg, { color: muted }]} numberOfLines={2}>
+                          {conv.ai_message}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
+                {/* 建议话题 */}
                 <View style={styles.quickPrompts}>
+                  <Text style={[styles.sectionTitle, { color: muted }]}>开始聊天</Text>
                   {suggestedTopics.length > 0 ? (
                     suggestedTopics.map((prompt, index) => (
                       <TouchableOpacity
@@ -467,6 +540,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  recentConversations: {
+    width: '100%',
+    gap: 8,
+    marginBottom: 24,
+  },
+  conversationCard: {
+    padding: 16,
+    borderRadius: 12,
+    gap: 6,
+  },
+  conversationUserMsg: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  conversationAiMsg: {
+    fontSize: 13,
   },
   quickPrompts: {
     width: '100%',

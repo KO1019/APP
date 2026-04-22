@@ -111,7 +111,7 @@ export default function ProfileScreen() {
       },
     },
     {
-      icon: offlineMode ? 'wifi' : 'wifi-slash',
+      icon: offlineMode ? 'wifi' : 'power-off',
       title: '离线模式',
       subtitle: offlineMode ? '已开启' : '已关闭',
       action: () => {
