@@ -149,7 +149,7 @@ export default function ProfileScreen() {
       title: 'AI 陪伴',
       subtitle: '与AI助手深度对话',
       action: () => {
-        router.push('/ai-companion');
+        router.push('/chat');
       },
     },
     {

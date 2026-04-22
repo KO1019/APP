@@ -422,7 +422,7 @@ export default function WriteDiaryScreen() {
                           style={[styles.aiChatButton, { backgroundColor: accent }]}
                           onPress={() => {
                             // 跳转到AI陪伴页面
-                            router.push('/ai-companion');
+                            router.push('/chat');
                           }}
                         >
                           <FontAwesome6 name="comments" size={14} color="#FFFFFF" />

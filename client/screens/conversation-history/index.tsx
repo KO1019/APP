@@ -136,7 +136,7 @@ export default function ConversationHistoryScreen() {
 
   const handleConversationPress = (conversation: Conversation) => {
     // 跳转到聊天页面，并传递对话ID以便加载完整历史
-    router.push('/ai-companion', { conversationId: conversation.id });
+    router.push('/chat', { conversationId: conversation.id });
   };
 
   if (loading) {
