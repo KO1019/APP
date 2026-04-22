@@ -312,7 +312,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     toggleCloudSync,
     toggleOfflineMode,
   };
-  };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

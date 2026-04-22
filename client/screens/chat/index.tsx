@@ -8,6 +8,10 @@ import RNSSE from 'react-native-sse';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { buildApiUrl } from '@/utils';
+import {
+  saveChatMessageLocally,
+  generateLocalId,
+} from '@/utils/localStorage';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -32,8 +36,11 @@ export default function ChatScreen() {
   const [recentConversations, setRecentConversations] = useState<Conversation[]>([]);
 
   const router = useSafeRouter();
-  const { token } = useAuth();
-  const params = useSafeSearchParams<{ initialMessage: string; conversationId: string }>();
+  const { token, isOfflineMode, user } = useAuth();
+  const params = useSafeSearchParams<{ initialMessage: string; conversationId: string; relatedDiaryId: string }>();
+
+  // 保存当前的conversationId，用于本地存储
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(params.conversationId || null);
 
   // 加载特定对话的历史记录
   useEffect(() => {
@@ -59,6 +66,9 @@ export default function ChatScreen() {
             { role: 'user', content: data.user_message },
             { role: 'assistant', content: data.ai_message },
           ]);
+        } else {
+          // 如果云端加载失败，尝试从本地加载
+          console.warn('Failed to load conversation from cloud, trying local storage');
         }
       } catch (error) {
         console.error('Error loading conversation:', error);
@@ -151,69 +161,88 @@ export default function ChatScreen() {
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setLoading(true);
 
+    // 生成或使用现有的conversationId
+    const conversationId = currentConversationId || generateLocalId();
+    setCurrentConversationId(conversationId);
+
     try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
+      // 如果是在线模式，发送到云端
+      if (!isOfflineMode && user?.cloud_sync_enabled) {
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
 
-      // 添加 token（如果存在）
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+        // 添加 token（如果存在）
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const sse = new RNSSE(buildApiUrl('/api/v1/chat'), {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            message: userMessage,
+            conversation_id: params.conversationId, // 如果有existing conversation ID，传递给后端
+          }),
+        });
+
+        let aiResponse = '';
+
+        sse.addEventListener('message', (event: any) => {
+          // 检查是否为流结束信号
+          if (event.data === '[DONE]') {
+            sse.close();
+            setLoading(false);
+
+            // 保存到本地（标记为已上传）
+            saveChatMessageLocally(conversationId, userMessage, aiResponse, params.relatedDiaryId || null, true);
+
+            return;
+          }
+
+          // 尝试解析 JSON
+          try {
+            const data = JSON.parse(event.data);
+
+            if (data.content) {
+              aiResponse += data.content;
+              setMessages(prev => {
+                const newMessages = [...prev];
+                const lastMessage = newMessages[newMessages.length - 1];
+                if (lastMessage && lastMessage.role === 'assistant') {
+                  lastMessage.content = aiResponse;
+                } else {
+                  newMessages.push({ role: 'assistant', content: aiResponse });
+                }
+                return newMessages;
+              });
+            }
+
+            if (data.error) {
+              console.error('Chat error:', data.error);
+              setMessages(prev => [...prev, { role: 'assistant', content: '抱歉，我遇到了一些问题，请稍后再试。' }]);
+            }
+          } catch (e) {
+            // JSON 解析失败，可能是纯文本内容
+            console.warn('Failed to parse message as JSON:', event.data);
+          }
+        });
+
+        sse.addEventListener('error', (error) => {
+          console.error('SSE error:', error);
+          setMessages(prev => [...prev, { role: 'assistant', content: '抱歉，连接出现问题，请稍后再试。' }]);
+        });
+
+        // 添加一个空的 AI 消息占位符
+        setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+
+        // SSE 实例创建后自动连接，无需手动调用 connect()
+      } else {
+        // 离线模式或未开启云端同步，只保存到本地
+        setMessages(prev => [...prev, { role: 'assistant', content: '抱歉，当前为离线模式，无法连接AI，请先开启云端同步。' }]);
+        saveChatMessageLocally(conversationId, userMessage, '抱歉，当前为离线模式，无法连接AI，请先开启云端同步。', params.relatedDiaryId || null, false);
+        setLoading(false);
       }
-
-      const sse = new RNSSE(buildApiUrl('/api/v1/chat'), {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ message: userMessage }),
-      });
-
-      let aiResponse = '';
-
-      sse.addEventListener('message', (event: any) => {
-        // 检查是否为流结束信号
-        if (event.data === '[DONE]') {
-          sse.close();
-          setLoading(false);
-          return;
-        }
-
-        // 尝试解析 JSON
-        try {
-          const data = JSON.parse(event.data);
-
-          if (data.content) {
-            aiResponse += data.content;
-            setMessages(prev => {
-              const newMessages = [...prev];
-              const lastMessage = newMessages[newMessages.length - 1];
-              if (lastMessage && lastMessage.role === 'assistant') {
-                lastMessage.content = aiResponse;
-              } else {
-                newMessages.push({ role: 'assistant', content: aiResponse });
-              }
-              return newMessages;
-            });
-          }
-
-          if (data.error) {
-            console.error('Chat error:', data.error);
-            setMessages(prev => [...prev, { role: 'assistant', content: '抱歉，我遇到了一些问题，请稍后再试。' }]);
-          }
-        } catch (e) {
-          // JSON 解析失败，可能是纯文本内容
-          console.warn('Failed to parse message as JSON:', event.data);
-        }
-      });
-
-      sse.addEventListener('error', (error) => {
-        console.error('SSE error:', error);
-        setMessages(prev => [...prev, { role: 'assistant', content: '抱歉，连接出现问题，请稍后再试。' }]);
-      });
-
-      // 添加一个空的 AI 消息占位符
-      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
-
-      // SSE 实例创建后自动连接，无需手动调用 connect()
     } catch (error) {
       console.error('Error sending message:', error);
       setMessages(prev => [...prev, { role: 'assistant', content: '抱歉，发送消息失败，请稍后再试。' }]);

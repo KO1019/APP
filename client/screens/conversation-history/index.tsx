@@ -7,6 +7,10 @@ import { useCSSVariable } from 'uniwind';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { buildApiUrl } from '@/utils';
+import {
+  getLocalChatMessages,
+  deleteLocalChatMessage,
+} from '@/utils/localStorage';
 
 interface Conversation {
   id: string;
@@ -15,6 +19,7 @@ interface Conversation {
   related_diary_id: string | null;
   created_at: string;
   user_id: string;
+  is_uploaded?: boolean; // 标记是否已上传到云端
 }
 
 export default function ConversationHistoryScreen() {
@@ -22,7 +27,7 @@ export default function ConversationHistoryScreen() {
   const [loading, setLoading] = useState(true);
 
   const router = useSafeRouter();
-  const { token } = useAuth();
+  const { token, isOfflineMode, user, logout } = useAuth();
 
   const [background, surface, accent, foreground, muted, border] = useCSSVariable([
     '--color-background',
@@ -36,30 +41,128 @@ export default function ConversationHistoryScreen() {
   const fetchConversations = useCallback(async () => {
     try {
       setLoading(true);
-      /**
-       * 服务端文件：server/src/index.ts
-       * 接口：GET /api/v1/conversations
-       * Query 参数：diaryId?: string
-       * Headers: Authorization: Bearer {token}
-       */
-      const response = await fetch(buildApiUrl('/api/v1/conversations'), {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // 检查是否已登录
+      if (!token) {
+        setLoading(false);
+        return;
       }
 
-      const data = await response.json();
+      // 1. 先从本地加载聊天记录
+      const localConversations = await getLocalChatMessages();
 
-      // 确保返回的是数组
-      if (Array.isArray(data)) {
-        setConversations(data);
+      // 2. 如果是在线模式且用户开启了云端同步，从云端加载并合并
+      if (!isOfflineMode && user?.cloud_sync_enabled) {
+        try {
+          /**
+           * 服务端文件：server/src/index.ts
+           * 接口：GET /api/v1/conversations
+           * Query 参数：diaryId?: string
+           * Headers: Authorization: Bearer {token}
+           */
+          const response = await fetch(buildApiUrl('/api/v1/conversations'), {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+
+          if (!response.ok) {
+            // 处理 401 或 403 错误，自动登出
+            if (response.status === 401 || response.status === 403) {
+              console.error('Token invalid, logging out');
+              logout();
+              router.replace('/login');
+              return;
+            }
+
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const data = await response.json();
+
+          // 确保返回的是数组
+          if (Array.isArray(data)) {
+            // 标记云端数据为已上传，并转换类型
+            const cloudConversations: Conversation[] = data.map((conv: any) => ({
+              id: conv.id,
+              user_message: conv.user_message,
+              ai_message: conv.ai_message,
+              related_diary_id: conv.related_diary_id || null,
+              created_at: conv.created_at,
+              user_id: conv.user_id || user?.id || '',
+              is_uploaded: true,
+            }));
+
+            // 将本地数据转换为Conversation类型
+            const localConversationsConverted: Conversation[] = localConversations.map((conv: any) => ({
+              id: conv.id,
+              user_message: conv.user_message,
+              ai_message: conv.ai_message,
+              related_diary_id: conv.related_diary_id || null,
+              created_at: conv.created_at,
+              user_id: user?.id || '', // 使用当前用户的ID
+              is_uploaded: conv.is_uploaded || false,
+            }));
+
+            // 合并本地和云端数据，去重（以云端数据为准）
+            const mergedConversations = [...localConversationsConverted];
+
+            // 将云端数据合并到本地
+            cloudConversations.forEach((cloudConv: Conversation) => {
+              const existingIndex = mergedConversations.findIndex(c => c.id === cloudConv.id);
+              if (existingIndex >= 0) {
+                mergedConversations[existingIndex] = cloudConv;
+              } else {
+                mergedConversations.push(cloudConv);
+              }
+            });
+
+            setConversations(mergedConversations);
+          } else {
+            console.error('Unexpected response format:', data);
+            // 将本地数据转换为Conversation类型
+            const localConversationsConverted: Conversation[] = localConversations.map((conv: any) => ({
+              id: conv.id,
+              user_message: conv.user_message,
+              ai_message: conv.ai_message,
+              related_diary_id: conv.related_diary_id || null,
+              created_at: conv.created_at,
+              user_id: user?.id || '',
+              is_uploaded: conv.is_uploaded || false,
+            }));
+            setConversations(localConversationsConverted);
+          }
+        } catch (error) {
+          console.error('Error fetching cloud conversations:', error);
+          // 网络错误时，只显示本地数据
+          // 将本地数据转换为Conversation类型
+          const localConversationsConverted: Conversation[] = localConversations.map((conv: any) => ({
+            id: conv.id,
+            user_message: conv.user_message,
+            ai_message: conv.ai_message,
+            related_diary_id: conv.related_diary_id || null,
+            created_at: conv.created_at,
+            user_id: user?.id || '',
+            is_uploaded: conv.is_uploaded || false,
+          }));
+          setConversations(localConversationsConverted);
+          if (!isOfflineMode) {
+            Alert.alert('提示', '无法连接到云端，显示本地数据');
+          }
+        }
       } else {
-        console.error('Unexpected response format:', data);
-        setConversations([]);
+        // 离线模式或未开启云端同步，只显示本地数据
+        // 将本地数据转换为Conversation类型
+        const localConversationsConverted: Conversation[] = localConversations.map((conv: any) => ({
+          id: conv.id,
+          user_message: conv.user_message,
+          ai_message: conv.ai_message,
+          related_diary_id: conv.related_diary_id || null,
+          created_at: conv.created_at,
+          user_id: user?.id || '',
+          is_uploaded: conv.is_uploaded || false,
+        }));
+        setConversations(localConversationsConverted);
       }
     } catch (error) {
       console.error('Error fetching conversations:', error);
@@ -67,7 +170,7 @@ export default function ConversationHistoryScreen() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, isOfflineMode, user?.cloud_sync_enabled]);
 
   const handleDeleteConversation = useCallback(async (conversationId: string) => {
     console.log('Delete button clicked, conversationId:', conversationId);
@@ -100,51 +203,54 @@ export default function ConversationHistoryScreen() {
 
     console.log('Starting delete request for conversationId:', conversationId);
     try {
-      /**
-       * 服务端文件：server/src/index.ts
-       * 接口：DELETE /api/v1/conversations/:id
-       * Path 参数：id: string
-       * Headers: Authorization: Bearer {token}
-       */
-      const response = await fetch(buildApiUrl(`/api/v1/conversations/${conversationId}`), {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      // 1. 先删除本地数据
+      await deleteLocalChatMessage(conversationId);
 
-      console.log('Delete response status:', response.status);
-
-      if (response.ok) {
-        console.log('Delete successful, refreshing list...');
-        // Web 环境使用 alert，移动端使用 Alert.alert
-        if (Platform.OS === 'web') {
-          window.alert('对话已删除');
-        } else {
-          Alert.alert('成功', '对话已删除');
-        }
-        // 刷新列表
-        fetchConversations();
-      } else {
-        // 尝试解析错误响应
+      // 2. 如果是在线模式且用户开启了云端同步，同时删除云端数据
+      if (!isOfflineMode && user?.cloud_sync_enabled) {
         try {
-          const data = await response.json();
-          console.error('Delete failed:', data);
-          const errorMsg = data.error || '删除失败';
-          if (Platform.OS === 'web') {
-            window.alert('错误：' + errorMsg);
-          } else {
-            Alert.alert('错误', errorMsg);
+          /**
+           * 服务端文件：server/src/index.ts
+           * 接口：DELETE /api/v1/conversations/:id
+           * Path 参数：id: string
+           * Headers: Authorization: Bearer {token}
+           */
+          const response = await fetch(buildApiUrl(`/api/v1/conversations/${conversationId}`), {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+
+          console.log('Delete response status:', response.status);
+
+          if (!response.ok) {
+            // 云端删除失败，但本地已经删除，提示用户
+            console.warn('Cloud delete failed, but local data removed');
+            if (Platform.OS === 'web') {
+              window.alert('本地数据已删除，云端同步失败');
+            } else {
+              Alert.alert('部分成功', '本地数据已删除，云端同步失败');
+            }
           }
-        } catch {
-          // 如果响应不是JSON，使用通用错误消息
+        } catch (error) {
+          console.error('Error deleting cloud conversation:', error);
+          // 云端删除失败，但本地已经删除，提示用户
           if (Platform.OS === 'web') {
-            window.alert(`错误：删除失败 (${response.status})`);
+            window.alert('本地数据已删除，云端同步失败');
           } else {
-            Alert.alert('错误', `删除失败 (${response.status})`);
+            Alert.alert('部分成功', '本地数据已删除，云端同步失败');
           }
         }
       }
+
+      // 刷新列表
+      if (Platform.OS === 'web') {
+        window.alert('对话已删除');
+      } else {
+        Alert.alert('成功', '对话已删除');
+      }
+      fetchConversations();
     } catch (error) {
       console.error('Error deleting conversation:', error);
       if (Platform.OS === 'web') {
@@ -153,7 +259,7 @@ export default function ConversationHistoryScreen() {
         Alert.alert('错误', '删除失败，请稍后重试');
       }
     }
-  }, [token, fetchConversations]);
+  }, [token, isOfflineMode, user?.cloud_sync_enabled, fetchConversations]);
 
   useFocusEffect(
     useCallback(() => {

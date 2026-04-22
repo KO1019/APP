@@ -8,6 +8,10 @@ import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
 import { buildApiUrl } from '@/utils';
+import {
+  getLocalDiaries,
+  type LocalDiary,
+} from '@/utils/localStorage';
 
 interface Diary {
   id: string;
@@ -52,8 +56,8 @@ const emotionLabels: Record<string, string> = {
 
 export default function DiariesScreen() {
   const router = useSafeRouter();
-  const { isLocked, hasPassword, lockApp, decryptData, offlineMode } = usePassword();
-  const { isAuthenticated, isLoading: authLoading, token, logout } = useAuth();
+  const { isLocked, hasPassword, lockApp, decryptData } = usePassword();
+  const { isAuthenticated, isLoading: authLoading, token, logout, isOfflineMode, user } = useAuth();
 
   const [diaries, setDiaries] = useState<Diary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,72 +83,125 @@ export default function DiariesScreen() {
         return;
       }
 
-      // 如果是离线模式，使用本地存储
-      if (offlineMode) {
-        // 离线模式下暂不支持数据读取
-        setDiaries([]);
-        setLoading(false);
-        setRefreshing(false);
-        return;
-      }
+      // 1. 先从本地加载日记
+      const localDiaries = await getLocalDiaries();
 
-      const response = await fetch(buildApiUrl('/api/v1/diaries'), {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      // 2. 如果是在线模式且用户开启了云端同步，从云端加载并合并
+      if (!isOfflineMode && user?.cloud_sync_enabled) {
+        try {
+          /**
+           * 服务端文件：server/main.py
+           * 接口：GET /api/v1/diaries
+           */
+          const response = await fetch(buildApiUrl('/api/v1/diaries'), {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
 
-        // 处理 401 或 403 错误，自动登出
-        if (response.status === 401 || response.status === 403) {
-          console.error('Token invalid, logging out');
-          logout();
-          router.replace('/login');
-          return;
+            // 处理 401 或 403 错误，自动登出
+            if (response.status === 401 || response.status === 403) {
+              console.error('Token invalid, logging out');
+              logout();
+              router.replace('/login');
+              return;
+            }
+
+            throw new Error(errorData.error || `HTTP ${response.status}`);
+          }
+
+          const data = await response.json();
+
+          // 检查返回的数据是否是数组
+          if (!Array.isArray(data)) {
+            console.error('Expected array but got:', typeof data, data);
+          } else {
+            // 合并本地和云端数据，去重（以云端数据为准）
+            const cloudDiaries = data.map((diary: Diary) => {
+              // 标题直接使用，不需要解密
+              const displayTitle = diary.title || '';
+
+              // 内容需要解密
+              const decryptedContent = decryptData(diary.content) || diary.content;
+
+              return {
+                ...diary,
+                title: displayTitle,
+                content: decryptedContent,
+                is_uploaded: true, // 云端数据标记为已上传
+              };
+            });
+
+            // 合并数据，以云端数据为准
+            const mergedDiaries: Diary[] = [...cloudDiaries];
+
+            // 将本地数据转换为Diary类型
+            localDiaries.forEach((localDiary: LocalDiary) => {
+              const existingIndex = mergedDiaries.findIndex(d => d.id === localDiary.id);
+              if (existingIndex >= 0) {
+                // 如果已存在，保留云端数据（更权威）
+                return;
+              }
+              // 如果不存在，添加本地数据
+              mergedDiaries.push({
+                id: localDiary.id,
+                title: localDiary.title,
+                content: localDiary.content,
+                mood: localDiary.mood,
+                mood_intensity: null,
+                mood_analysis: null,
+                tags: localDiary.tags,
+                created_at: localDiary.created_at,
+              });
+            });
+
+            setDiaries(mergedDiaries);
+          }
+        } catch (error) {
+          console.error('Error fetching cloud diaries:', error);
+          // 网络错误时，只显示本地数据
+          // 将本地数据转换为Diary类型
+          const localDiariesConverted: Diary[] = localDiaries.map((localDiary: LocalDiary) => ({
+            id: localDiary.id,
+            title: localDiary.title,
+            content: localDiary.content,
+            mood: localDiary.mood,
+            mood_intensity: null,
+            mood_analysis: null,
+            tags: localDiary.tags,
+            created_at: localDiary.created_at,
+          }));
+          setDiaries(localDiariesConverted);
+          if (!isOfflineMode) {
+            Alert.alert('提示', '无法连接到云端，显示本地数据');
+          }
         }
-
-        throw new Error(errorData.error || `HTTP ${response.status}`);
+      } else {
+        // 离线模式或未开启云端同步，只显示本地数据
+        // 将本地数据转换为Diary类型
+        const localDiariesConverted: Diary[] = localDiaries.map((localDiary: LocalDiary) => ({
+          id: localDiary.id,
+          title: localDiary.title,
+          content: localDiary.content,
+          mood: localDiary.mood,
+          mood_intensity: null,
+          mood_analysis: null,
+          tags: localDiary.tags,
+          created_at: localDiary.created_at,
+        }));
+        setDiaries(localDiariesConverted);
       }
-
-      const data = await response.json();
-
-      // 检查返回的数据是否是数组
-      if (!Array.isArray(data)) {
-        console.error('Expected array but got:', typeof data, data);
-        setDiaries([]);
-        setLoading(false);
-        setRefreshing(false);
-        return;
-      }
-
-      // 解密日记内容
-      const decryptedDiaries = data.map((diary: Diary) => {
-        // 标题直接使用，不需要解密
-        const displayTitle = diary.title || '';
-
-        // 内容需要解密
-        const decryptedContent = decryptData(diary.content) || diary.content;
-
-        return {
-          ...diary,
-          title: displayTitle,
-          content: decryptedContent,
-        };
-      });
-
-      setDiaries(decryptedDiaries);
     } catch (error) {
       console.error('Error fetching diaries:', error);
-      if (!offlineMode) {
-        Alert.alert('错误', '获取日记失败，请检查网络连接');
-      }
+      Alert.alert('错误', '获取日记失败，请重试');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [decryptData, offlineMode, token, isAuthenticated]);
+  }, [decryptData, token, isAuthenticated, isOfflineMode, user?.cloud_sync_enabled]);
 
   useFocusEffect(
     useCallback(() => {

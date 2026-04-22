@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePassword } from '@/contexts/PasswordContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Screen } from '@/components/Screen';
+import { saveDiaryLocally, markDiaryAsUploaded } from '@/utils/localStorage';
 import { buildApiUrl } from '@/utils';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
@@ -37,8 +38,8 @@ const MOODS = [
 export default function WriteDiaryScreen() {
   const router = useSafeRouter();
   const insets = useSafeAreaInsets();
-  const { encryptData, offlineMode } = usePassword();
-  const { token } = useAuth();
+  const { encryptData } = usePassword();
+  const { token, isOfflineMode, user } = useAuth();
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -92,48 +93,87 @@ export default function WriteDiaryScreen() {
       return;
     }
 
-    // 如果是离线模式，保存到本地
-    if (offlineMode) {
-      Alert.alert('提示', '离线模式下暂不支持保存日记');
-      return;
-    }
-
     try {
       setSubmitting(true);
 
-      // 加密标题和内容
-      const encryptedTitle = title.trim();
-      const encryptedContent = content.trim();
+      // 创建日记数据
+      const diaryData = {
+        id: `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        title: title.trim(),
+        content: content.trim(),
+        mood: selectedMood,
+        tags: tags,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        is_uploaded: false, // 初始未上传
+      };
 
-      /**
-       * 服务端文件：server/src/index.ts
-       * 接口：POST /api/v1/diaries
-       * Body 参数：title: string, content: string, mood: string, tags: string[]
-       */
-      const response = await fetch(buildApiUrl('/api/v1/diaries'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          title: encryptedTitle,
-          content: encryptedContent,
-          mood: selectedMood,
-          tags: tags,
-        }),
-      });
+      // 先保存到本地
+      await saveDiaryLocally(diaryData);
 
-      if (!response.ok) {
-        throw new Error('Failed to create diary');
+      // 如果是在线模式且用户开启了云端同步，上传到云端
+      if (!isOfflineMode && user?.cloud_sync_enabled) {
+        try {
+          /**
+           * 服务端文件：server/main.py
+           * 接口：POST /api/v1/diaries
+           * Body 参数：title: string, content: string, mood: string, tags: string[]
+           */
+          const response = await fetch(buildApiUrl('/api/v1/diaries'), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              title: diaryData.title,
+              content: diaryData.content,
+              mood: diaryData.mood,
+              tags: diaryData.tags,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to upload diary to cloud');
+          }
+
+          const data = await response.json();
+
+          // 更新本地日记的ID和上传状态
+          await markDiaryAsUploaded(diaryData.id);
+
+          Alert.alert('成功', '日记已保存到云端', [
+            {
+              text: '确定',
+              onPress: () => router.back(),
+            },
+          ]);
+        } catch (error) {
+          console.error('Error uploading diary to cloud:', error);
+          Alert.alert(
+            '部分成功',
+            '日记已保存到本地，但上传云端失败',
+            [
+              {
+                text: '确定',
+                onPress: () => router.back(),
+              },
+            ]
+          );
+        }
+      } else {
+        // 离线模式或未开启云端同步
+        const message = isOfflineMode
+          ? '日记已保存到本地（离线模式）'
+          : '日记已保存到本地（云端同步已关闭）';
+
+        Alert.alert('成功', message, [
+          {
+            text: '确定',
+            onPress: () => router.back(),
+          },
+        ]);
       }
-
-      Alert.alert('成功', '日记已保存，AI 正在分析情绪...', [
-        {
-          text: '确定',
-          onPress: () => router.back(),
-        },
-      ]);
     } catch (error) {
       console.error('Error creating diary:', error);
       Alert.alert('错误', '保存失败，请重试');
@@ -155,7 +195,7 @@ export default function WriteDiaryScreen() {
 
   // 实时情绪分析
   const analyzeEmotion = (text: string): (() => void) | undefined => {
-    if (!text.trim() || text.length < 10 || offlineMode) return undefined;
+    if (!text.trim() || text.length < 10 || isOfflineMode) return undefined;
 
     // 防抖，避免频繁请求
     const delay = 1500;
@@ -199,7 +239,7 @@ export default function WriteDiaryScreen() {
     if (cleanup) {
       return cleanup;
     }
-  }, [content, token, offlineMode]);
+  }, [content, token, isOfflineMode]);
 
   return (
     <Screen safeAreaEdges={['left', 'right', 'bottom']}>

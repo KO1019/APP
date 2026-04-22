@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
@@ -8,6 +8,12 @@ import { usePassword } from '@/contexts/PasswordContext';
 import { useCSSVariable } from 'uniwind';
 import Toast from 'react-native-toast-message';
 import { buildApiUrl } from '@/utils';
+import {
+  getLocalDiaries,
+  getLocalChatMessages,
+  markDiaryAsUploaded,
+  markChatMessageAsUploaded,
+} from '@/utils/localStorage';
 
 interface MenuItem {
   icon: string;
@@ -18,7 +24,7 @@ interface MenuItem {
 
 export default function ProfileScreen() {
   const router = useSafeRouter();
-  const { user, token, isOfflineMode, toggleOfflineMode } = useAuth();
+  const { user, token, isOfflineMode, toggleOfflineMode, logout } = useAuth();
   const {
     hasPassword,
     canUseBiometric,
@@ -32,6 +38,7 @@ export default function ProfileScreen() {
   const [showHealthTips, setShowHealthTips] = useState(false);
   const [healthTips, setHealthTips] = useState<any>(null);
   const [loadingTips, setLoadingTips] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const [background, surface, accent, foreground, muted, border] = useCSSVariable([
     '--color-background',
@@ -41,6 +48,116 @@ export default function ProfileScreen() {
     '--color-muted',
     '--color-border',
   ]) as string[];
+
+  const syncToCloud = async () => {
+    if (!token || !user) {
+      Toast.show({ type: 'error', text1: '请先登录' });
+      return;
+    }
+
+    if (!user.cloud_sync_enabled) {
+      Toast.show({ type: 'error', text1: '请先在隐私设置中开启云端同步' });
+      return;
+    }
+
+    if (isOfflineMode) {
+      Toast.show({ type: 'error', text1: '请先关闭离线模式' });
+      return;
+    }
+
+    setSyncing(true);
+
+    try {
+      // 获取本地未同步的日记
+      const localDiaries = await getLocalDiaries();
+      const unsyncedDiaries = localDiaries.filter((d: any) => !d.is_uploaded);
+
+      // 上传未同步的日记
+      for (const diary of unsyncedDiaries) {
+        try {
+          /**
+           * 服务端文件：server/main.py
+           * 接口：POST /api/v1/diaries
+           * Body 参数：title: string, content: string, mood: string, tags: string[]
+           */
+          await fetch(buildApiUrl('/api/v1/diaries'), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              title: diary.title,
+              content: diary.content,
+              mood: diary.mood || 'neutral',
+              tags: diary.tags || [],
+            }),
+          });
+
+          // 标记为已上传
+          await markDiaryAsUploaded(diary.id);
+        } catch (error) {
+          console.error('Failed to upload diary:', diary.id, error);
+        }
+      }
+
+      // 获取本地未同步的聊天记录
+      const localChats = await getLocalChatMessages();
+      const unsyncedChats = localChats.filter((c: any) => !c.is_uploaded);
+
+      // 上传未同步的聊天记录
+      for (const chat of unsyncedChats) {
+        try {
+          /**
+           * 服务端文件：server/main.py
+           * 接口：POST /api/v1/conversations
+           * Body 参数：user_message: string, ai_message: string, related_diary_id?: string
+           */
+          await fetch(buildApiUrl('/api/v1/conversations'), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              user_message: chat.user_message,
+              ai_message: chat.ai_message,
+              related_diary_id: chat.related_diary_id,
+            }),
+          });
+
+          // 标记为已上传
+          await markChatMessageAsUploaded(chat.id);
+        } catch (error) {
+          console.error('Failed to upload chat:', chat.id, error);
+        }
+      }
+
+      const totalUploaded = unsyncedDiaries.length + unsyncedChats.length;
+      if (totalUploaded > 0) {
+        Toast.show({
+          type: 'success',
+          text1: `同步成功`,
+          text2: `已上传 ${totalUploaded} 条记录到云端`,
+        });
+      } else {
+        Toast.show({
+          type: 'info',
+          text1: '无需同步',
+          text2: '所有数据已与云端同步',
+        });
+      }
+    } catch (error) {
+      console.error('Sync error:', error);
+      Toast.show({
+        type: 'error',
+        text1: '同步失败',
+        text2: '请检查网络连接后重试',
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const fetchHealthTips = async () => {
     try {
@@ -66,7 +183,7 @@ export default function ProfileScreen() {
     }
   };
 
-  const menuItems: MenuItem[] = [
+  const menuItems: MenuItem[] = useMemo(() => [
     {
       icon: hasPassword ? 'key' : 'lock',
       title: hasPassword ? '修改密码' : '设置密码',
@@ -109,13 +226,13 @@ export default function ProfileScreen() {
       },
     },
     {
-      icon: offlineMode ? 'wifi' : 'power-off',
+      icon: isOfflineMode ? 'wifi' : 'power-off',
       title: '离线模式',
-      subtitle: offlineMode ? '已开启' : '已关闭',
+      subtitle: isOfflineMode ? '已开启' : '已关闭',
       action: () => {
         Alert.alert(
-          offlineMode ? '关闭离线模式' : '开启离线模式',
-          offlineMode
+          isOfflineMode ? '关闭离线模式' : '开启离线模式',
+          isOfflineMode
             ? '关闭后将需要网络连接'
             : '开启后将完全断网，所有数据保存在本地',
           [
@@ -123,15 +240,24 @@ export default function ProfileScreen() {
             {
               text: '确定',
               onPress: () => {
-                toggleOfflineMode(!offlineMode);
+                toggleOfflineMode();
                 Toast.show({
                   type: 'success',
-                  text1: offlineMode ? '已关闭离线模式' : '已开启离线模式',
+                  text1: isOfflineMode ? '已关闭离线模式' : '已开启离线模式',
                 });
               },
             },
           ]
         );
+      },
+    },
+    {
+      icon: 'cloud-arrow-up',
+      title: '同步到云端',
+      subtitle: syncing ? '同步中...' : '上传本地未同步数据',
+      action: () => {
+        if (syncing) return;
+        syncToCloud();
       },
     },
     {
@@ -207,7 +333,7 @@ export default function ProfileScreen() {
         router.push('/about');
       },
     },
-  ];
+  ], [hasPassword, canUseBiometric, biometricEnabled, isOfflineMode, syncing, router, syncToCloud, fetchHealthTips, deleteAllData, exportAllData]);
 
   const renderMenuItem = (item: MenuItem, index: number) => (
     <TouchableOpacity

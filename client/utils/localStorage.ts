@@ -22,11 +22,20 @@ export interface LocalDiary {
 // 聊天记录类型
 export interface LocalChatMessage {
   id: string;
-  role: 'user' | 'assistant';
-  content: string;
+  user_message: string;
+  ai_message: string;
+  related_diary_id?: string;
   created_at: string;
-  diary_id?: string; // 关联的日记ID
   is_uploaded?: boolean; // 是否已上传到云端
+}
+
+// ===== 工具函数 =====
+
+/**
+ * 生成本地ID
+ */
+export function generateLocalId(): string {
+  return `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
 // ===== 日记操作 =====
@@ -122,17 +131,32 @@ export async function markDiaryAsUploaded(id: string): Promise<void> {
 // ===== 聊天记录操作 =====
 
 /**
- * 保存聊天消息到本地
+ * 保存聊天消息到本地（完整对话）
  */
-export async function saveChatMessageLocally(message: LocalChatMessage): Promise<void> {
+export async function saveChatMessageLocally(
+  id: string,
+  userMessage: string,
+  aiMessage: string,
+  relatedDiaryId: string | null,
+  isUploaded: boolean = false
+): Promise<void> {
   try {
     const messages = await getLocalChatMessages();
-    const existingIndex = messages.findIndex(m => m.id === message.id);
+    const existingIndex = messages.findIndex(m => m.id === id);
+
+    const newMessage: LocalChatMessage = {
+      id,
+      user_message: userMessage,
+      ai_message: aiMessage,
+      related_diary_id: relatedDiaryId || undefined,
+      created_at: new Date().toISOString(),
+      is_uploaded: isUploaded,
+    };
 
     if (existingIndex >= 0) {
-      messages[existingIndex] = message;
+      messages[existingIndex] = { ...messages[existingIndex], ...newMessage };
     } else {
-      messages.push(message);
+      messages.push(newMessage);
     }
 
     await AsyncStorage.setItem(STORAGE_KEYS.CHAT_HISTORY, JSON.stringify(messages));
@@ -156,12 +180,26 @@ export async function getLocalChatMessages(): Promise<LocalChatMessage[]> {
 }
 
 /**
+ * 删除本地聊天消息
+ */
+export async function deleteLocalChatMessage(id: string): Promise<void> {
+  try {
+    const messages = await getLocalChatMessages();
+    const filtered = messages.filter(m => m.id !== id);
+    await AsyncStorage.setItem(STORAGE_KEYS.CHAT_HISTORY, JSON.stringify(filtered));
+  } catch (error) {
+    console.error('Error deleting local chat message:', error);
+    throw error;
+  }
+}
+
+/**
  * 根据日记ID获取相关聊天记录
  */
 export async function getChatMessagesByDiaryId(diaryId: string): Promise<LocalChatMessage[]> {
   try {
     const messages = await getLocalChatMessages();
-    return messages.filter(m => m.diary_id === diaryId);
+    return messages.filter(m => m.related_diary_id === diaryId);
   } catch (error) {
     console.error('Error getting chat messages by diary id:', error);
     return [];
