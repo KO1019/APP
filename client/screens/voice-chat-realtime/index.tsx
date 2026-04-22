@@ -49,13 +49,15 @@ export default function VoiceChatRealtime() {
     new Animated.Value(0),
   ], []);
 
-  const aiPan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
-  const recordingPulseAnim = useRef(new Animated.Value(0)).current;
+  const aiPan = useMemo(() => new Animated.ValueXY({ x: 0, y: 0 }), []);
+  const recordingPulseAnim = useMemo(() => new Animated.Value(0), []);
 
   useEffect(() => {
+    const animationInstances: Animated.CompositeAnimation[] = [];
+
     const startAnimations = () => {
       waveAnimations.forEach((anim) => {
-        Animated.loop(
+        const animation = Animated.loop(
           Animated.sequence([
             Animated.timing(anim, {
               toValue: 1.5,
@@ -68,15 +70,17 @@ export default function VoiceChatRealtime() {
               useNativeDriver: false,
             }),
           ])
-        ).start();
+        );
+        animation.start();
+        animationInstances.push(animation);
       });
     };
 
     startAnimations();
 
     return () => {
-      waveAnimations.forEach((anim) => {
-        (anim as any).stop();
+      animationInstances.forEach((animation) => {
+        animation.stop();
       });
       if (wsRef.current) {
         wsRef.current.close();
@@ -106,7 +110,7 @@ export default function VoiceChatRealtime() {
     return () => pulseAnim.stop();
   }, []);
 
-  const connectWebSocket = useCallback(() => {
+  const connectWebSocket = () => {
     try {
       const backendUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
       let wsProtocol = 'ws://';
@@ -186,7 +190,7 @@ export default function VoiceChatRealtime() {
       console.error('[VOICE] Failed to connect WebSocket:', error);
       setTimeout(() => connectWebSocket(), 3000);
     }
-  }, []);
+  };
 
   const playCollectedAudio = async () => {
     if (!audioBufferRef.current || audioBufferRef.current.length === 0) return;
@@ -260,14 +264,6 @@ export default function VoiceChatRealtime() {
     }
   };
 
-  const handleRecordingPress = useCallback(async () => {
-    if (isRecording) {
-      await stopRecording();
-    } else {
-      await startRecording();
-    }
-  }, [isRecording]);
-
   const startRecording = async () => {
     try {
       if (!isConnected) {
@@ -340,6 +336,14 @@ export default function VoiceChatRealtime() {
     }
   };
 
+  const handleRecordingPress = useCallback(async () => {
+    if (isRecording) {
+      await stopRecording();
+    } else {
+      await startRecording();
+    }
+  }, [isRecording, startRecording, stopRecording]);
+
   const handleEndCall = () => {
     Alert.alert(
       '结束通话',
@@ -361,7 +365,7 @@ export default function VoiceChatRealtime() {
 
   const handleMessage = useCallback((message: any) => {
     switch (message.type) {
-      case 'asr_text':
+      case 'asr_text': {
         const text = message.data.text;
         if (message.data.is_final) {
           setCurrentInterimText('');
@@ -370,8 +374,9 @@ export default function VoiceChatRealtime() {
           setCurrentInterimText(text);
         }
         break;
+      }
 
-      case 'llm_response':
+      case 'llm_response': {
         const aiContent = message.data.content;
         setLatestAiMessage(aiContent);
         setMessages(prev => [...prev, { role: 'assistant', content: aiContent }]);
@@ -379,6 +384,7 @@ export default function VoiceChatRealtime() {
           saveConversationAsDiary();
         }
         break;
+      }
 
       case 'tts_audio':
         if (audioBufferRef.current === null) {
