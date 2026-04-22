@@ -662,24 +662,6 @@ ${diaryContext}${historyContext}`;
   }
 });
 
-// 获取对话历史
-app.get('/api/v1/conversations', authenticateToken, async (req: any, res) => {
-  try {
-    const client = getSupabaseClient();
-    const { data: conversations } = await client
-      .from('conversations')
-      .select('*')
-      .eq('user_id', req.userId)
-      .order('created_at', { ascending: false })
-      .limit(50);
-
-    res.json(conversations || []);
-  } catch (error: any) {
-    console.error('Error fetching conversations:', error);
-    res.status(500).json({ error: '获取对话历史失败' });
-  }
-});
-
 // 新建对话（清空历史，实际上是创建新的对话组）
 app.post('/api/v1/conversations/new', authenticateToken, async (req: any, res) => {
   try {

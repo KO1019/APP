@@ -38,10 +38,23 @@ export default function ConversationHistoryScreen() {
        * Query 参数：diaryId?: string
        */
       const response = await fetch(buildApiUrl('/api/v1/conversations'));
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
-      setConversations(data || []);
+
+      // 确保返回的是数组
+      if (Array.isArray(data)) {
+        setConversations(data);
+      } else {
+        console.error('Unexpected response format:', data);
+        setConversations([]);
+      }
     } catch (error) {
       console.error('Error fetching conversations:', error);
+      setConversations([]);
     } finally {
       setLoading(false);
     }
