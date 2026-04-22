@@ -43,6 +43,7 @@ export default function VoiceChatRealtime() {
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [isMuted, setIsMuted] = useState(false); // 静音状态
   const [recordMode, setRecordMode] = useState(false); // 记录模式：自动保存对话为日记
+  const [callStatus, setCallStatus] = useState<'connecting' | 'listening' | 'thinking' | 'speaking'>('connecting'); // 通话状态
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant', content: string }>>([]);
   const [latestAiMessage, setLatestAiMessage] = useState('');
   const [currentInterimText, setCurrentInterimText] = useState('');
@@ -245,6 +246,7 @@ export default function VoiceChatRealtime() {
         const sessionId = await httpCreateSession();
         httpSessionIdRef.current = sessionId;
         console.log('[VOICE-HTTP] Session created:', sessionId);
+        setCallStatus('connecting');
 
         // 连接到豆包API
         await httpConnectSession(sessionId);
@@ -304,6 +306,7 @@ export default function VoiceChatRealtime() {
 
         ws.onopen = async () => {
           console.log('[VOICE] WebSocket connected successfully!');
+          setCallStatus('connecting');
           setIsConnected(true);
           try {
             await KeepAwake.activateKeepAwakeAsync();
@@ -725,6 +728,7 @@ export default function VoiceChatRealtime() {
       }
 
       setIsConnected(false);
+      setCallStatus('connecting');
 
       Toast.show({ type: 'success', text1: '通话已结束' });
 
@@ -740,26 +744,38 @@ export default function VoiceChatRealtime() {
 
   const handleMessage = useCallback((message: any) => {
     switch (message.type) {
+      case 'connection_ready':
+      case 'connection_started':
+        setCallStatus('listening'); // 连接成功，开始聆听
+        console.log('[VOICE] Status: listening');
+        break;
+
       case 'asr_text': {
         const text = message.data.text;
         if (message.data.is_final) {
           setCurrentInterimText('');
           setMessages(prev => [...prev, { role: 'user', content: text }]);
+          setCallStatus('thinking'); // 用户说完，开始思考
+          console.log('[VOICE] Status: thinking');
         } else {
           setCurrentInterimText(text);
+          if (callStatus === 'listening') {
+            setCallStatus('listening'); // 用户正在说话
+          }
         }
         break;
       }
 
-      case 'llm_response': {
+      case 'llm_response':
+        setCallStatus('speaking'); // AI开始回复
         const aiContent = message.data.content;
         setLatestAiMessage(aiContent);
         setMessages(prev => [...prev, { role: 'assistant', content: aiContent }]);
         if (recordMode) {
           saveConversationAsDiary();
         }
+        console.log('[VOICE] Status: speaking');
         break;
-      }
 
       case 'tts_audio':
         if (audioBufferRef.current === null) {
@@ -786,6 +802,8 @@ export default function VoiceChatRealtime() {
         if (audioBufferRef.current && audioBufferRef.current.length > 0) {
           playCollectedAudio();
         }
+        setCallStatus('listening'); // AI说完了，继续聆听
+        console.log('[VOICE] Status: listening');
         break;
 
       case 'asr_ended':
@@ -994,7 +1012,12 @@ export default function VoiceChatRealtime() {
             </View>
           ) : (
             <Text style={[styles.hintText, { color: muted }]}>
-              {isConnected ? '正在录音，请直接说话...' : '正在连接...'}
+              {!isConnected ? '正在连接...' :
+               callStatus === 'connecting' ? '正在初始化...' :
+               callStatus === 'listening' ? '请直接说话...' :
+               callStatus === 'thinking' ? 'AI正在思考...' :
+               callStatus === 'speaking' ? 'AI正在说话...' :
+               '准备就绪'}
             </Text>
           )}
         </View>
@@ -1003,20 +1026,32 @@ export default function VoiceChatRealtime() {
         <View style={[styles.footer, { backgroundColor: surface, borderTopColor: `${foreground}05`, borderTopWidth: 1 }]}>
           {/* 状态指示 */}
           <View style={styles.statusContainer}>
-            {isConnected ? (
+            {!isConnected ? (
               <>
-                {isAiSpeaking ? (
-                  <FontAwesome6 name="volume-high" size={20} color={accent} />
-                ) : (
-                  <FontAwesome6 name="microphone" size={20} color="#EF4444" />
-                )}
-                <Text style={[styles.statusText, { color: muted }]}>
-                  {isAiSpeaking ? 'AI正在说话...' : '持续录音中，请直接说话...'}
-                </Text>
+                <FontAwesome6 name="spinner" size={20} color={muted} />
+                <Text style={[styles.statusText, { color: muted }]}>连接中...</Text>
               </>
-            ) : (
-              <FontAwesome6 name="spinner" size={20} color={muted} />
-            )}
+            ) : callStatus === 'connecting' ? (
+              <>
+                <FontAwesome6 name="spinner" size={20} color={accent} />
+                <Text style={[styles.statusText, { color: accent }]}>初始化中...</Text>
+              </>
+            ) : callStatus === 'listening' ? (
+              <>
+                <FontAwesome6 name="microphone" size={20} color="#10B981" />
+                <Text style={[styles.statusText, { color: '#10B981' }]}>聆听中</Text>
+              </>
+            ) : callStatus === 'thinking' ? (
+              <>
+                <FontAwesome6 name="brain" size={20} color="#F59E0B" />
+                <Text style={[styles.statusText, { color: '#F59E0B' }]}>思考中...</Text>
+              </>
+            ) : callStatus === 'speaking' ? (
+              <>
+                <FontAwesome6 name="volume-high" size={20} color={accent} />
+                <Text style={[styles.statusText, { color: accent }]}>说话中</Text>
+              </>
+            ) : null}
           </View>
 
           {/* 挂断按钮 */}
