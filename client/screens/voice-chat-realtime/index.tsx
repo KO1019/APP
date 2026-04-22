@@ -139,10 +139,14 @@ export default function VoiceChatRealtime() {
 
       const ws = new WebSocket(wsUrl) as any;
 
-      ws.onopen = () => {
+      ws.onopen = async () => {
         console.log('[VOICE] WebSocket connected successfully!');
         setIsConnected(true);
-        KeepAwake.activateKeepAwake();
+        try {
+          await KeepAwake.activateKeepAwakeAsync();
+        } catch (error) {
+          console.error('[VOICE] Failed to activate keep awake:', error);
+        }
       };
 
       ws.onmessage = (event: any) => {
