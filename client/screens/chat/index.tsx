@@ -5,7 +5,7 @@ import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
 import RNSSE from 'react-native-sse';
-import { useSafeRouter } from '@/hooks/useSafeRouter';
+import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { buildApiUrl } from '@/utils';
 
@@ -25,6 +25,40 @@ export default function ChatScreen() {
 
   const router = useSafeRouter();
   const { token } = useAuth();
+  const params = useSafeSearchParams<{ initialMessage: string; conversationId: string }>();
+
+  // 加载特定对话的历史记录
+  useEffect(() => {
+    const loadConversation = async () => {
+      if (!params.conversationId || !token) return;
+
+      try {
+        /**
+         * 服务端文件：server/src/index.ts
+         * 接口：GET /api/v1/conversations/:id
+         * Path 参数：id: string
+         * Headers: Authorization: Bearer {token}
+         */
+        const response = await fetch(buildApiUrl(`/api/v1/conversations/${params.conversationId}`), {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setMessages([
+            { role: 'user', content: data.user_message },
+            { role: 'assistant', content: data.ai_message },
+          ]);
+        }
+      } catch (error) {
+        console.error('Error loading conversation:', error);
+      }
+    };
+
+    loadConversation();
+  }, [params.conversationId, token]);
 
   const [background, surface, accent, foreground, muted, border] = useCSSVariable([
     '--color-background',

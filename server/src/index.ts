@@ -1207,6 +1207,34 @@ app.delete('/api/v1/conversations/:id', authenticateToken, async (req: any, res)
   }
 });
 
+// 获取单个对话详情
+app.get('/api/v1/conversations/:id', authenticateToken, async (req: any, res) => {
+  try {
+    const { id } = req.params;
+    const client = getSupabaseClient();
+
+    const { data: conversation, error } = await client
+      .from('conversations')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', req.userId)
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to fetch conversation: ${error.message}`);
+    }
+
+    if (!conversation) {
+      return res.status(404).json({ error: '对话不存在' });
+    }
+
+    res.json(conversation);
+  } catch (error: any) {
+    console.error('Error fetching conversation:', error);
+    res.status(500).json({ error: error.message || '获取对话失败' });
+  }
+});
+
 // ========== 辅助函数 ==========
 
 // 异步情绪分析函数
