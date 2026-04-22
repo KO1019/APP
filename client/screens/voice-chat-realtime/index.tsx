@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Animated, Dimensions, StatusBar, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Animated, Dimensions, StatusBar, Alert, Platform } from 'react-native';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
@@ -195,11 +195,33 @@ export default function VoiceChatRealtimeScreen() {
   // WebSocket连接函数
   const connectWebSocket = useCallback(() => {
     try {
-      // 直接连接到Express服务器的WebSocket端口，绕过代理
-      // 注意：这需要Express服务器允许CORS和WebSocket连接
-      const wsUrl = 'ws://localhost:9091/api/v1/voice/realtime';
+      // 动态构建WebSocket URL，根据当前环境自动选择协议和地址
+      const backendUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
+
+      // 将HTTP/HTTPS转换为WS/WSS协议
+      let wsProtocol = 'ws://';
+      if (backendUrl.startsWith('https://')) {
+        wsProtocol = 'wss://';
+      } else if (backendUrl.startsWith('http://')) {
+        wsProtocol = 'ws://';
+      }
+
+      // 提取域名和端口
+      let hostname = backendUrl.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+
+      // 在Web环境下，如果是localhost，使用当前页面的域名（如果代理配置了）
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && hostname === 'localhost:9091') {
+        const currentHost = window.location.hostname;
+        const currentProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsProtocol = currentProtocol + '//';
+        hostname = currentHost + ':9091';
+      }
+
+      const wsUrl = `${wsProtocol}${hostname}/api/v1/voice/realtime`;
+
       console.log('========================================');
       console.log('[VOICE] Attempting to connect to WebSocket...');
+      console.log('[VOICE] Backend URL:', backendUrl);
       console.log('[VOICE] WebSocket URL:', wsUrl);
       console.log('[VOICE] Current time:', new Date().toISOString());
       console.log('========================================');
@@ -240,16 +262,14 @@ export default function VoiceChatRealtimeScreen() {
       };
 
       ws.onerror = (error: Event) => {
-        console.error('[VOICE] WebSocket error:', error);
+        // WebSocket 的 onerror 事件通常不会提供详细的错误信息
+        // 真正的错误信息会在 onclose 事件的 code 和 reason 中
+        console.error('[VOICE] WebSocket error event triggered');
         console.error('[VOICE] WebSocket readyState:', ws.readyState);
         console.error('[VOICE] WebSocket URL:', ws.url);
-        setIsConnected(false);
-        Toast.show({
-          type: 'error',
-          text1: '连接错误',
-          text2: '语音服务连接失败，请检查网络或稍后重试',
-          position: 'bottom',
-        });
+
+        // 不要在这里设置 setIsConnected(false)，因为 onclose 也会触发
+        // 避免重复设置状态
       };
 
       ws.onclose = (event: CloseEvent) => {
@@ -258,7 +278,77 @@ export default function VoiceChatRealtimeScreen() {
           reason: event.reason,
           wasClean: event.wasClean,
         });
+
         setIsConnected(false);
+
+        // 根据关闭代码提供详细的错误提示
+        const errorMessage = '语音服务连接已断开';
+        let errorDetail = '';
+
+        // 常见的WebSocket关闭代码
+        switch (event.code) {
+          case 1000:
+            // 正常关闭
+            return; // 不需要显示错误提示
+
+          case 1001:
+            errorDetail = '连接被服务器主动关闭';
+            break;
+
+          case 1002:
+            errorDetail = '协议错误：服务器不支持该协议';
+            break;
+
+          case 1003:
+            errorDetail = '数据类型不被支持';
+            break;
+
+          case 1006:
+            errorDetail = '连接异常断开，可能是网络问题或服务器不可用';
+            break;
+
+          case 1007:
+            errorDetail = '消息数据格式错误';
+            break;
+
+          case 1008:
+            errorDetail = '违反服务器策略';
+            break;
+
+          case 1009:
+            errorDetail = '消息数据过大';
+            break;
+
+          case 1010:
+            errorDetail = '缺少必需的扩展字段';
+            break;
+
+          case 1011:
+            errorDetail = '服务器内部错误';
+            break;
+
+          case 1015:
+            errorDetail = 'TLS握手失败';
+            break;
+
+          default:
+            if (event.reason) {
+              errorDetail = event.reason;
+            } else {
+              errorDetail = `未知错误 (代码: ${event.code})`;
+            }
+        }
+
+        // 如果有错误详情，显示Toast提示
+        if (errorDetail) {
+          console.error('[VOICE] WebSocket close error:', errorDetail);
+          Toast.show({
+            type: 'error',
+            text1: errorMessage,
+            text2: errorDetail,
+            position: 'bottom',
+          });
+        }
       };
 
       wsRef.current = ws;
