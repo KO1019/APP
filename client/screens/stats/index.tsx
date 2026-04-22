@@ -35,7 +35,7 @@ export default function StatsScreen() {
   const [loading, setLoading] = useState(true);
   const { token, isOfflineMode, user } = useAuth();
 
-  const [background, surface, accent, foreground, muted, border, success, warning, error] = useCSSVariable([
+  const [background, surface, accent, foreground, muted, border, success, warning, error, info] = useCSSVariable([
     '--color-background',
     '--color-surface',
     '--color-accent',
@@ -45,6 +45,7 @@ export default function StatsScreen() {
     '--color-success',
     '--color-warning',
     '--color-error',
+    '--color-info',
   ]) as string[];
 
   const fetchDiaries = useCallback(async () => {
@@ -199,7 +200,7 @@ export default function StatsScreen() {
 
     const topTags = Object.entries(tagCount)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 5);
+      .slice(0, 6);
 
     // 字数统计
     const totalWords = diaries.reduce((sum, d) => sum + (d.content?.length || 0), 0);
@@ -231,6 +232,7 @@ export default function StatsScreen() {
       moodTrend.push({
         date: date.toLocaleDateString('zh-CN', { weekday: 'short' }),
         value: dayIntensity,
+        hasData: dayDiaries.length > 0,
       });
     }
 
@@ -278,22 +280,16 @@ export default function StatsScreen() {
     return emojis[mood] || '未知';
   };
 
-  const renderStatCard = (
-    icon: string,
-    title: string,
+  const renderMiniStat = (
+    label: string,
     value: string | number,
-    subtitle?: string,
-    iconColor?: string
+    icon: string,
+    color: string
   ) => (
-    <View style={[styles.statCard, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
-      <View style={[styles.statIcon, { backgroundColor: `${iconColor || accent}20` }]}>
-        <FontAwesome6 name={icon as any} size={24} color={iconColor || accent} />
-      </View>
-      <View style={styles.statContent}>
-        <Text style={[styles.statValue, { color: foreground }]}>{value}</Text>
-        <Text style={[styles.statTitle, { color: muted }]}>{title}</Text>
-        {subtitle && subtitle.trim().length > 0 && <Text style={[styles.statSubtitle, { color: muted }]}>{subtitle}</Text>}
-      </View>
+    <View style={styles.miniStat}>
+      <FontAwesome6 name={icon as any} size={14} color={color} style={styles.miniStatIcon} />
+      <Text style={[styles.miniStatLabel, { color: muted }]}>{label}</Text>
+      <Text style={[styles.miniStatValue, { color: foreground }]}>{value}</Text>
     </View>
   );
 
@@ -302,7 +298,7 @@ export default function StatsScreen() {
       <Screen>
         <View style={[styles.container, { backgroundColor: background }]}>
           <View style={styles.header}>
-            <Text style={[styles.title, { color: foreground }]}>情绪统计</Text>
+            <Text style={[styles.title, { color: foreground }]}>数据统计</Text>
           </View>
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={accent} />
@@ -317,105 +313,163 @@ export default function StatsScreen() {
       <ScrollView style={[styles.container, { backgroundColor: background }]}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: foreground }]}>数据统计</Text>
-          <Text style={[styles.subtitle, { color: muted }]}>了解你的情绪和生活习惯</Text>
+          <Text style={[styles.subtitle, { color: muted }]}>记录成长，了解自己</Text>
         </View>
 
-        {/* 核心统计卡片 */}
-        <View style={styles.statsContainer}>
-          {renderStatCard('fire', '连续打卡', `${stats.streakDays}天`, '坚持记录', success)}
-          {renderStatCard('calendar-days', '本月日记', `${stats.thisMonthDiaries}篇`, `总计${stats.totalDiaries}篇`, warning)}
-          {renderStatCard('comments', '本月对话', `${stats.thisMonthChats}次`, `总计${stats.totalChats}次`, accent)}
-          {renderStatCard('face-smile', '平均情绪', `${stats.avgIntensity}`, stats.topMood ? `最常：${stats.topMood[0]}` : '', stats.topMood ? getMoodColor(stats.topMood[0]) : muted)}
+        {/* 顶部核心数据卡片 */}
+        <View style={[styles.heroCard, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
+          <View style={styles.heroLeft}>
+            <View style={[styles.heroIcon, { backgroundColor: `${success}20` }]}>
+              <FontAwesome6 name="fire" size={32} color={success} />
+            </View>
+            <View>
+              <Text style={[styles.heroValue, { color: foreground }]}>{stats.streakDays}</Text>
+              <Text style={[styles.heroLabel, { color: muted }]}>连续打卡（天）</Text>
+            </View>
+          </View>
+
+          <View style={[styles.heroDivider, { backgroundColor: border }]} />
+
+          <View style={styles.heroRight}>
+            {renderMiniStat('本月日记', stats.thisMonthDiaries, 'book', accent)}
+            {renderMiniStat('总日记', stats.totalDiaries, 'database', info)}
+            {renderMiniStat('本月对话', stats.thisMonthChats, 'comments', warning)}
+            {renderMiniStat('总对话', stats.totalChats, 'message', muted)}
+          </View>
         </View>
 
-        {/* 更多统计 */}
+        {/* 写作统计 */}
         <View style={[styles.section, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
-          <Text style={[styles.sectionTitle, { color: foreground }]}>详细信息</Text>
-
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: muted }]}>本周日记</Text>
-            <Text style={[styles.detailValue, { color: foreground }]}>{stats.thisWeekDiaries} 篇</Text>
+          <View style={styles.sectionHeader}>
+            <View style={[styles.sectionIcon, { backgroundColor: `${accent}20` }]}>
+              <FontAwesome6 name="pen-nib" size={18} color={accent} />
+            </View>
+            <Text style={[styles.sectionTitle, { color: foreground }]}>写作统计</Text>
           </View>
 
-          <View style={[styles.divider, { backgroundColor: border }]} />
-
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: muted }]}>今年日记</Text>
-            <Text style={[styles.detailValue, { color: foreground }]}>{stats.thisYearDiaries} 篇</Text>
+          <View style={styles.statGrid}>
+            <View style={[styles.statBox, { backgroundColor: `${accent}05` }]}>
+              <Text style={[styles.statBoxValue, { color: accent }]}>{stats.totalWords.toLocaleString()}</Text>
+              <Text style={[styles.statBoxLabel, { color: muted }]}>总字数</Text>
+            </View>
+            <View style={[styles.statBox, { backgroundColor: `${accent}05` }]}>
+              <Text style={[styles.statBoxValue, { color: accent }]}>{stats.avgWords}</Text>
+              <Text style={[styles.statBoxLabel, { color: muted }]}>平均字数</Text>
+            </View>
           </View>
 
-          <View style={[styles.divider, { backgroundColor: border }]} />
-
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: muted }]}>总字数</Text>
-            <Text style={[styles.detailValue, { color: foreground }]}>{stats.totalWords.toLocaleString()} 字</Text>
-          </View>
-
-          <View style={[styles.divider, { backgroundColor: border }]} />
-
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: muted }]}>平均字数</Text>
-            <Text style={[styles.detailValue, { color: foreground }]}>{stats.avgWords} 字/篇</Text>
+          <View style={styles.rowStats}>
+            <View style={styles.rowStat}>
+              <Text style={[styles.rowStatValue, { color: foreground }]}>{stats.thisWeekDiaries}</Text>
+              <Text style={[styles.rowStatLabel, { color: muted }]}>本周日记</Text>
+            </View>
+            <View style={[styles.rowStatDivider, { backgroundColor: border }]} />
+            <View style={styles.rowStat}>
+              <Text style={[styles.rowStatValue, { color: foreground }]}>{stats.thisMonthDiaries}</Text>
+              <Text style={[styles.rowStatLabel, { color: muted }]}>本月日记</Text>
+            </View>
+            <View style={[styles.rowStatDivider, { backgroundColor: border }]} />
+            <View style={styles.rowStat}>
+              <Text style={[styles.rowStatValue, { color: foreground }]}>{stats.thisYearDiaries}</Text>
+              <Text style={[styles.rowStatLabel, { color: muted }]}>今年日记</Text>
+            </View>
           </View>
         </View>
 
-        {/* 情绪分布 */}
+        {/* 情绪分析 */}
         <View style={[styles.section, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
-          <Text style={[styles.sectionTitle, { color: foreground }]}>情绪分布</Text>
-          {Object.keys(stats.moodCount).length > 0 ? (
-            Object.entries(stats.moodCount).map(([mood, count]) => (
-              <View key={mood} style={styles.moodBarContainer}>
-                <Text style={[styles.moodNameText, { color: foreground }]}>{getMoodEmoji(mood)} {mood}</Text>
-                <View style={styles.moodBarBackground}>
-                  <View
-                    style={[
-                      styles.moodBar,
-                      {
-                        backgroundColor: getMoodColor(mood),
-                        width: `${(count / stats.totalDiaries) * 100}%`,
-                      },
-                    ]}
-                  />
+          <View style={styles.sectionHeader}>
+            <View style={[styles.sectionIcon, { backgroundColor: `${success}20` }]}>
+              <FontAwesome6 name="face-smile" size={18} color={success} />
+            </View>
+            <Text style={[styles.sectionTitle, { color: foreground }]}>情绪分析</Text>
+          </View>
+
+          {/* 平均情绪 */}
+          <View style={[styles.moodSummary, { backgroundColor: `${success}05` }]}>
+            <Text style={[styles.moodSummaryLabel, { color: muted }]}>平均情绪强度</Text>
+            <View style={styles.moodSummaryValue}>
+              <Text style={[styles.moodScore, { color: success }]}>{stats.avgIntensity}</Text>
+              {stats.topMood && (
+                <Text style={[styles.moodMost, { color: foreground }]}>
+                  最常出现：<Text style={[styles.moodMostText, { color: getMoodColor(stats.topMood[0]) }]}>
+                    {getMoodEmoji(stats.topMood[0])} {stats.topMood[0]}
+                  </Text>
+                </Text>
+              )}
+            </View>
+          </View>
+
+          {/* 情绪分布 */}
+          <View style={styles.moodDistribution}>
+            <Text style={[styles.moodDistTitle, { color: foreground }]}>情绪分布</Text>
+            {Object.keys(stats.moodCount).length > 0 ? (
+              Object.entries(stats.moodCount).map(([mood, count]) => (
+                <View key={mood} style={styles.moodBarContainer}>
+                  <Text style={[styles.moodNameText, { color: foreground }]}>
+                    {getMoodEmoji(mood)} {mood}
+                  </Text>
+                  <View style={styles.moodBarBackground}>
+                    <View
+                      style={[
+                        styles.moodBar,
+                        {
+                          backgroundColor: getMoodColor(mood),
+                          width: `${(count / stats.totalDiaries) * 100}%`,
+                        },
+                      ]}
+                    />
+                  </View>
+                  <Text style={[styles.moodCount, { color: muted }]}>{count}</Text>
                 </View>
-                <Text style={[styles.moodCount, { color: muted }]}>{count}</Text>
-              </View>
-            ))
-          ) : (
-            <Text style={[styles.emptyText, { color: muted }]}>暂无数据</Text>
-          )}
-        </View>
+              ))
+            ) : (
+              <Text style={[styles.emptyText, { color: muted }]}>暂无数据</Text>
+            )}
+          </View>
 
-        {/* 最近7天情绪趋势 */}
-        <View style={[styles.section, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
-          <Text style={[styles.sectionTitle, { color: foreground }]}>最近7天情绪趋势</Text>
-          <View style={styles.trendContainer}>
-            {stats.moodTrend.map((item, index) => (
-              <View key={index} style={styles.trendItem}>
-                <View style={[styles.trendBarContainer, { height: 120 }]}>
-                  <View
-                    style={[
-                      styles.trendBar,
-                      {
-                        backgroundColor: item.value > 60 ? success : item.value > 40 ? accent : warning,
-                        height: `${Math.max(item.value * 1.5, 10)}%`,
-                      },
-                    ]}
-                  />
+          {/* 最近7天情绪趋势 */}
+          <View style={styles.trendSection}>
+            <Text style={[styles.moodDistTitle, { color: foreground }]}>最近7天情绪趋势</Text>
+            <View style={styles.trendContainer}>
+              {stats.moodTrend.map((item, index) => (
+                <View key={index} style={styles.trendItem}>
+                  <View style={[styles.trendBarContainer, { height: 100 }]}>
+                    {item.hasData ? (
+                      <View
+                        style={[
+                          styles.trendBar,
+                          {
+                            backgroundColor: item.value > 60 ? success : item.value > 40 ? accent : warning,
+                            height: `${Math.max(item.value * 1.2, 8)}%`,
+                          },
+                        ]}
+                      />
+                    ) : (
+                      <View style={[styles.trendBar, { backgroundColor: `${border}40`, height: 4 }]} />
+                    )}
+                  </View>
+                  <Text style={[styles.trendLabel, { color: muted }]}>{item.date}</Text>
                 </View>
-                <Text style={[styles.trendLabel, { color: muted }]}>{item.date}</Text>
-              </View>
-            ))}
+              ))}
+            </View>
           </View>
         </View>
 
         {/* 常用标签 */}
         {stats.topTags.length > 0 && (
           <View style={[styles.section, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
-            <Text style={[styles.sectionTitle, { color: foreground }]}>常用标签</Text>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionIcon, { backgroundColor: `${warning}20` }]}>
+                <FontAwesome6 name="tags" size={18} color={warning} />
+              </View>
+              <Text style={[styles.sectionTitle, { color: foreground }]}>常用标签</Text>
+            </View>
             <View style={styles.tagsContainer}>
               {stats.topTags.map(([tag, count]) => (
-                <View key={tag} style={[styles.tagBadge, { backgroundColor: `${accent}10`, borderColor: `${accent}30`, borderWidth: 1 }]}>
-                  <Text style={[styles.tagName, { color: accent }]}>{tag}</Text>
+                <View key={tag} style={[styles.tagBadge, { backgroundColor: `${warning}10`, borderColor: `${warning}30`, borderWidth: 1 }]}>
+                  <FontAwesome6 name="hashtag" size={12} color={warning} style={styles.tagIcon} />
+                  <Text style={[styles.tagName, { color: foreground }]}>{tag}</Text>
                   <Text style={[styles.tagCount, { color: muted }]}>{count}</Text>
                 </View>
               ))}
@@ -424,8 +478,8 @@ export default function StatsScreen() {
         )}
 
         {/* 提示信息 */}
-        <View style={[styles.tipsSection, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
-          <FontAwesome6 name="lightbulb" size={20} color={accent} style={styles.tipsIcon} />
+        <View style={[styles.tipsSection, { backgroundColor: `${info}10`, borderColor: `${info}30`, borderWidth: 1 }]}>
+          <FontAwesome6 name="lightbulb" size={20} color={info} style={styles.tipsIcon} />
           <Text style={[styles.tipsText, { color: foreground }]}>
             记录日记可以帮助你更好地了解自己的情绪模式。坚持记录，你会发现自己的情绪变化规律，从而更好地管理自己的心理健康。
           </Text>
@@ -447,7 +501,7 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700',
   },
   subtitle: {
@@ -458,41 +512,61 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    minHeight: 300,
   },
-  statsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 16,
-    gap: 12,
+  heroCard: {
+    marginHorizontal: 16,
     marginBottom: 16,
+    borderRadius: 20,
+    padding: 20,
   },
-  statCard: {
-    width: (SCREEN_WIDTH - 44) / 2,
-    borderRadius: 16,
-    padding: 16,
+  heroLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
   },
-  statIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  heroIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginRight: 16,
   },
-  statContent: {
-    flex: 1,
-  },
-  statValue: {
-    fontSize: 28,
+  heroValue: {
+    fontSize: 40,
     fontWeight: '700',
+    lineHeight: 48,
   },
-  statTitle: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-  statSubtitle: {
-    fontSize: 11,
+  heroLabel: {
+    fontSize: 14,
     marginTop: 2,
+  },
+  heroDivider: {
+    height: 1,
+    marginBottom: 16,
+  },
+  heroRight: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  miniStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '48%',
+    paddingVertical: 8,
+  },
+  miniStatIcon: {
+    marginRight: 8,
+  },
+  miniStatLabel: {
+    fontSize: 12,
+    marginRight: 4,
+  },
+  miniStatValue: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   section: {
     marginHorizontal: 16,
@@ -500,26 +574,95 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
+  },
+  statGrid: {
+    flexDirection: 'row',
+    gap: 12,
     marginBottom: 16,
   },
-  detailRow: {
+  statBox: {
+    flex: 1,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+  },
+  statBoxValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  statBoxLabel: {
+    fontSize: 13,
+  },
+  rowStats: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  rowStat: {
+    flex: 1,
     alignItems: 'center',
     paddingVertical: 12,
   },
-  detailLabel: {
-    fontSize: 15,
+  rowStatValue: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 2,
   },
-  detailValue: {
-    fontSize: 15,
+  rowStatLabel: {
+    fontSize: 12,
+  },
+  rowStatDivider: {
+    width: 1,
+    height: 40,
+  },
+  moodSummary: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  moodSummaryLabel: {
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  moodSummaryValue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  moodScore: {
+    fontSize: 32,
+    fontWeight: '700',
+  },
+  moodMost: {
+    fontSize: 13,
+    textAlign: 'right',
+  },
+  moodMostText: {
     fontWeight: '600',
   },
-  divider: {
-    height: 1,
+  moodDistribution: {
+    marginBottom: 20,
+  },
+  moodDistTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
   },
   moodBarContainer: {
     flexDirection: 'row',
@@ -528,20 +671,6 @@ const styles = StyleSheet.create({
   },
   moodNameText: {
     width: 100,
-    fontSize: 14,
-  },
-  moodEmojiContainer: {
-    width: 100,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  moodEmoji: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: 'transparent',
-  },
-  moodName: {
     fontSize: 14,
   },
   moodBarBackground: {
@@ -560,6 +689,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     width: 30,
     textAlign: 'right',
+  },
+  trendSection: {
+    paddingBottom: 8,
   },
   trendContainer: {
     flexDirection: 'row',
@@ -593,10 +725,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderRadius: 20,
     gap: 6,
   },
+  tagIcon: {},
   tagName: {
     fontSize: 14,
     fontWeight: '500',
