@@ -298,7 +298,13 @@ export default function ChatScreen() {
   };
 
   const handleBackToHome = () => {
-    // 清空消息并重新加载空状态
+    // 如果已经在空状态（没有消息且没有conversationId），就导航到Tab首页
+    if (messages.length === 0 && !params.conversationId) {
+      router.navigate('/');
+      return;
+    }
+
+    // 否则清空消息并重新加载空状态
     setMessages([]);
     setInputText('');
     fetchSuggestedTopics();
@@ -320,11 +326,9 @@ export default function ChatScreen() {
         <View style={[styles.container, { backgroundColor: background }]}>
           <View style={styles.header}>
           <View style={styles.headerLeft}>
-            {params.conversationId && (
-              <TouchableOpacity onPress={handleBackToHome} style={styles.backButton}>
-                <FontAwesome6 name="arrow-left" size={24} color={foreground} />
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity onPress={handleBackToHome} style={styles.backButton}>
+              <FontAwesome6 name="arrow-left" size={24} color={foreground} />
+            </TouchableOpacity>
           </View>
 
           <View style={styles.headerCenter}>
@@ -399,9 +403,8 @@ export default function ChatScreen() {
                         key={index}
                         style={[styles.quickPrompt, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}
                         onPress={() => {
-                          setInputText(prompt);
-                          // 稍后发送消息，让用户看到输入框填充后再发送
-                          setTimeout(() => sendMessage(), 100);
+                          // 添加AI的消息
+                          setMessages([{ role: 'assistant', content: prompt }]);
                         }}
                       >
                         <Text style={[styles.quickPromptText, { color: foreground }]}>{prompt}</Text>
@@ -414,8 +417,8 @@ export default function ChatScreen() {
                         key={index}
                         style={[styles.quickPrompt, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}
                         onPress={() => {
-                          setInputText(prompt);
-                          setTimeout(() => sendMessage(), 100);
+                          // 添加AI的消息
+                          setMessages([{ role: 'assistant', content: prompt }]);
                         }}
                       >
                         <Text style={[styles.quickPromptText, { color: foreground }]}>{prompt}</Text>
