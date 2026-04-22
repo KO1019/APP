@@ -118,9 +118,16 @@ export default function VoiceChatRealtime() {
       let wsUrl: string;
 
       if (Platform.OS === 'web') {
-        // Web环境下使用相对路径，让Metro代理拦截
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        wsUrl = `${protocol}//${window.location.host}/api/v1/voice/realtime`;
+        // Web环境下：开发环境指向Metro Dev Server，生产环境直接指向后端
+        const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        if (isDev) {
+          // 开发环境：指向Metro Dev Server，让Metro代理拦截并转发到后端
+          wsUrl = 'ws://localhost:5000/api/v1/voice/realtime';
+        } else {
+          // 生产环境：直接使用完整URL
+          const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          wsUrl = `${protocol}//${window.location.host}/api/v1/voice/realtime`;
+        }
       } else {
         // 移动端环境下使用完整URL
         let wsProtocol = 'ws://';
@@ -423,7 +430,14 @@ export default function VoiceChatRealtime() {
 
       case 'connection_closed':
         setIsConnected(false);
-        Toast.show({ type: 'info', text1: '连接已断开，正在重连...' });
+        const errorMsg = message.reason ? `连接已断开: ${message.reason} (代码: ${message.code})` : '连接已断开，正在重连...';
+        Toast.show({
+          type: 'info',
+          text1: '连接已断开',
+          text2: errorMsg,
+          position: 'bottom',
+        });
+        console.error('[VOICE] Connection closed:', message);
         break;
     }
   }, [recordMode, saveConversationAsDiary, connectWebSocket]);

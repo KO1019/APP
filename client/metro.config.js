@@ -97,14 +97,22 @@ const streamProxy = createProxyMiddleware({
 
 const shouldProxyToBackend = (url) => {
   if (!url) return false;
+  // 打印所有请求 URL 以便调试
+  console.log('[Proxy Check] URL:', url, 'Pattern:', /^\/api\/v\d+\//.test(url));
   if (/^\/api\/v\d+\//.test(url)) {
     return true;
   }
   return false;
 };
 
-const isWebSocketRequest = (req) =>
-  !!(req.headers.upgrade && req.headers.upgrade.toLowerCase() === 'websocket');
+const isWebSocketRequest = (req) => {
+  const result = !!(req.headers.upgrade && req.headers.upgrade.toLowerCase() === 'websocket');
+  if (result) {
+    console.log('[WebSocket Request] Detected upgrade request, URL:', req.url, 'Headers:', JSON.stringify(req.headers));
+  }
+  return result;
+};
+
 const isSSERequest = (req) => {
   const accept = req.headers.accept || '';
   return accept.includes('text/event-stream');
@@ -112,17 +120,21 @@ const isSSERequest = (req) => {
 
 config.server = {
   ...config.server,
-  enhanceMiddleware: (metroMiddleware, metroServer) => {
+  enhanceMiddleware: (metroMiddleware) => {
     return connect()
       .use((req, res, next) => {
+        console.log('[Metro Middleware] Request URL:', req.url, 'Method:', req.method, 'Headers:', JSON.stringify(req.headers));
         if (shouldProxyToBackend(req.url)) {
           console.log(`[Metro Proxy] Forwarding ${req.method} ${req.url}`);
 
           if (isWebSocketRequest(req) || isSSERequest(req)) {
+            console.log('[Metro Proxy] Using stream proxy');
             return streamProxy(req, res, next);
           }
+          console.log('[Metro Proxy] Using API proxy');
           return apiProxy(req, res, next);
         }
+        console.log('[Metro Middleware] Not proxying, passing to next middleware');
         next();
       })
       .use(metroMiddleware);
