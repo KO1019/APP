@@ -9,6 +9,7 @@ import uuid
 import hashlib
 import asyncio
 import json
+from datetime import datetime
 from typing import Optional, List, Dict, Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
@@ -541,6 +542,30 @@ async def delete_diary(diary_id: str, user_id: str = Depends(get_user_id)):
     supabase.table('diaries').delete().eq('id', diary_id).eq('user_id', user_id).execute()
 
     return {"success": True}
+
+
+@app.put('/api/v1/diaries/{diary_id}')
+async def update_diary(diary_id: str, diary: DiaryCreate, user_id: str = Depends(get_user_id)):
+    """更新日记"""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    # 检查日记是否存在且属于该用户
+    check_result = supabase.table('diaries').select('id').eq('id', diary_id).eq('user_id', user_id).execute()
+    if not check_result.data:
+        raise HTTPException(status_code=404, detail="Diary not found")
+
+    # 更新日记
+    update_data = {
+        **diary.dict(exclude_unset=True),
+        'updated_at': datetime.now().isoformat(),
+    }
+
+    result = supabase.table('diaries').update(update_data).eq('id', diary_id).eq('user_id', user_id).execute()
+
+    # TODO: 如果情绪或内容发生变化，重新进行情绪分析
+
+    return result.data[0] if result.data else None
 
 
 class GenerateDiaryFromChat(BaseModel):

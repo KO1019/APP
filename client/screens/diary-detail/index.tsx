@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { useFocusEffect } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,7 +7,7 @@ import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
 import { buildApiUrl } from '@/utils';
-import { getLocalDiaryById } from '@/utils/localStorage';
+import { getLocalDiaryById, deleteLocalDiary } from '@/utils/localStorage';
 
 interface DiaryDetail {
   id: string;
@@ -54,6 +54,24 @@ const emotionLabels: Record<string, string> = {
   'tired': '疲惫',
 };
 
+const weatherIcons: Record<string, string> = {
+  'sunny': 'sun',
+  'cloudy': 'cloud',
+  'rainy': 'cloud-rain',
+  'snowy': 'snowflake',
+  'windy': 'wind',
+  'stormy': 'cloud-bolt',
+};
+
+const weatherLabels: Record<string, string> = {
+  'sunny': '晴天',
+  'cloudy': '多云',
+  'rainy': '雨天',
+  'snowy': '下雪',
+  'windy': '大风',
+  'stormy': '雷暴',
+};
+
 export default function DiaryDetailScreen() {
   const router = useSafeRouter();
   const { id } = useSafeSearchParams<{ id: string }>();
@@ -61,14 +79,16 @@ export default function DiaryDetailScreen() {
 
   const [diary, setDiary] = useState<DiaryDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
 
-  const [background, surface, accent, foreground, muted, border] = useCSSVariable([
+  const [background, surface, accent, foreground, muted, border, destructive] = useCSSVariable([
     '--color-background',
     '--color-surface',
     '--color-accent',
     '--color-foreground',
     '--color-muted',
     '--color-border',
+    '--color-destructive',
   ]) as string[];
 
   const fetchDiaryDetail = useCallback(async () => {
@@ -84,8 +104,6 @@ export default function DiaryDetailScreen() {
       // 检查是否为本地日记（以"local_"开头的ID）
       if (id.startsWith('local_')) {
         console.log('[DiaryDetail] Loading from local storage');
-
-        // 从本地存储加载日记（直接通过ID获取）
         const localDiary = await getLocalDiaryById(id);
 
         if (localDiary) {
@@ -149,11 +167,68 @@ export default function DiaryDetailScreen() {
     }, [fetchDiaryDetail])
   );
 
+  const handleEdit = () => {
+    if (diary) {
+      router.push('/write-diary', { editId: diary.id });
+    }
+  };
+
+  const handleDelete = () => {
+    Alert.alert(
+      '确认删除',
+      '确定要删除这篇日记吗？此操作不可恢复。',
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '删除',
+          style: 'destructive',
+          onPress: async () => {
+            if (!diary) return;
+
+            try {
+              setDeleting(true);
+
+              if (diary.id.startsWith('local_')) {
+                // 删除本地日记
+                await deleteLocalDiary(diary.id);
+              } else if (token) {
+                // 删除云端日记
+                /**
+                 * 服务端文件：server/main.py
+                 * 接口：DELETE /api/v1/diaries/{diary_id}
+                 * Headers: Authorization: Bearer {token}
+                 */
+                const response = await fetch(buildApiUrl(`/api/v1/diaries/${diary.id}`), {
+                  method: 'DELETE',
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                  },
+                });
+
+                if (!response.ok) {
+                  throw new Error('删除失败');
+                }
+              }
+
+              Alert.alert('成功', '日记已删除');
+              router.back();
+            } catch (error) {
+              console.error('[DiaryDetail] Error deleting diary:', error);
+              Alert.alert('错误', '删除失败，请重试');
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (loading) {
     return (
-      <Screen>
+      <Screen safeAreaEdges={['left', 'right', 'top']}>
         <View style={[styles.container, { backgroundColor: background }]}>
-          <View style={styles.header}>
+          <View style={[styles.header, { paddingTop: 12 }]}>
             <TouchableOpacity onPress={() => router.back()}>
               <FontAwesome6 name="arrow-left" size={24} color={foreground} />
             </TouchableOpacity>
@@ -170,9 +245,9 @@ export default function DiaryDetailScreen() {
 
   if (!diary) {
     return (
-      <Screen>
+      <Screen safeAreaEdges={['left', 'right', 'top']}>
         <View style={[styles.container, { backgroundColor: background }]}>
-          <View style={styles.header}>
+          <View style={[styles.header, { paddingTop: 12 }]}>
             <TouchableOpacity onPress={() => router.back()}>
               <FontAwesome6 name="arrow-left" size={24} color={foreground} />
             </TouchableOpacity>
@@ -180,6 +255,7 @@ export default function DiaryDetailScreen() {
             <View style={{ width: 24 }} />
           </View>
           <View style={styles.emptyContainer}>
+            <FontAwesome6 name="file-xmark" size={64} color={muted} />
             <Text style={[styles.emptyText, { color: muted }]}>日记不存在</Text>
           </View>
         </View>
@@ -188,101 +264,166 @@ export default function DiaryDetailScreen() {
   }
 
   const date = new Date(diary.created_at);
-  const dateStr = date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+  const dateStr = date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
   const timeStr = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 
-  const emotionColor = diary.mood ? emotionColors[diary.mood] || emotionColors['未识别'] : emotionColors['未识别'];
-  const emotionLabel = diary.mood ? emotionLabels[diary.mood] || diary.mood : '';
+  const emotionColor = diary.mood ? emotionColors[diary.mood] || emotionColors['未识别'] : null;
+  const emotionLabel = diary.mood ? emotionLabels[diary.mood] || diary.mood : null;
+  const weatherIcon = diary.weather ? weatherIcons[diary.weather] : null;
+  const weatherLabel = diary.weather ? weatherLabels[diary.weather] : null;
 
-  // 标题直接使用，不需要解密
   const displayTitle = diary.title || '';
-
-  // 内容需要解密
   const displayContent = diary.content;
 
   return (
-    <Screen>
-      <ScrollView style={[styles.container, { backgroundColor: background }]}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <FontAwesome6 name="arrow-left" size={24} color={foreground} />
-          </TouchableOpacity>
-          <Text style={[styles.title, { color: foreground }]}>日记详情</Text>
-          <View style={{ width: 24 }} />
-        </View>
-
-        <View style={styles.contentContainer}>
-          <View style={[styles.dateCard, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
-            <View style={styles.dateRow}>
-              <FontAwesome6 name="calendar" size={16} color={accent} />
-              <Text style={[styles.dateText, { color: foreground }]}>{dateStr}</Text>
-            </View>
-            <View style={styles.dateRow}>
-              <FontAwesome6 name="clock" size={16} color={muted} />
-              <Text style={[styles.timeText, { color: muted }]}>{timeStr}</Text>
+    <Screen safeAreaEdges={['left', 'right', 'top']}>
+      <View style={[styles.container, { backgroundColor: background }]}>
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          {/* 头部导航 */}
+          <View style={[styles.header, { paddingTop: 12 }]}>
+            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+              <FontAwesome6 name="arrow-left" size={24} color={foreground} />
+            </TouchableOpacity>
+            <Text style={[styles.title, { color: foreground }]}>日记详情</Text>
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                onPress={handleEdit}
+                style={styles.headerButton}
+                activeOpacity={0.7}
+              >
+                <FontAwesome6 name="pen-to-square" size={20} color={accent} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleDelete}
+                style={[styles.headerButton, styles.deleteButton]}
+                activeOpacity={0.7}
+                disabled={deleting}
+              >
+                <FontAwesome6 name="trash" size={20} color={deleting ? muted : destructive} />
+              </TouchableOpacity>
             </View>
           </View>
 
-          {diary.mood && (
-            <View style={[styles.emotionCard, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
-              <Text style={[styles.emotionLabel, { color: muted }]}>情绪分析</Text>
-              <View style={[styles.emotionTag, { backgroundColor: `${emotionColor}20` }]}>
-                <View style={[styles.emotionDot, { backgroundColor: emotionColor }]} />
-                <Text style={[styles.emotionText, { color: foreground }]}>{emotionLabel}</Text>
-                {diary.mood_intensity !== null && (
-                  <Text style={[styles.intensityText, { color: muted }]}>强度: {diary.mood_intensity}</Text>
+          {/* 主要内容区域 */}
+          <View style={styles.contentContainer}>
+            {/* 日期和时间 */}
+            <View style={styles.metaRow}>
+              <View style={[styles.metaItem, { backgroundColor: `${accent}10` }]}>
+                <FontAwesome6 name="calendar" size={16} color={accent} />
+                <Text style={[styles.metaText, { color: foreground }]}>{dateStr}</Text>
+              </View>
+              <View style={[styles.metaItem, { backgroundColor: `${muted}10` }]}>
+                <FontAwesome6 name="clock" size={16} color={muted} />
+                <Text style={[styles.metaText, { color: muted }]}>{timeStr}</Text>
+              </View>
+            </View>
+
+            {/* 天气和情绪 */}
+            {(diary.weather || diary.mood) && (
+              <View style={styles.weatherMoodRow}>
+                {diary.weather && (
+                  <View style={[styles.badge, { backgroundColor: `${accent}15` }]}>
+                    <FontAwesome6 name={weatherIcon as any} size={18} color={accent} />
+                    <Text style={[styles.badgeText, { color: foreground }]}>{weatherLabel}</Text>
+                  </View>
+                )}
+                {diary.mood && (
+                  <View style={[styles.badge, { backgroundColor: `${emotionColor}20` }]}>
+                    <FontAwesome6 name="face-smile" size={18} color={emotionColor} />
+                    <Text style={[styles.badgeText, { color: foreground }]}>{emotionLabel}</Text>
+                    {diary.mood_intensity && (
+                      <Text style={[styles.intensityText, { color: muted }]}>({diary.mood_intensity}%)</Text>
+                    )}
+                  </View>
                 )}
               </View>
-              {diary.mood_analysis?.summary && (
-                <Text style={[styles.emotionSummary, { color: foreground }]}>{diary.mood_analysis.summary}</Text>
-              )}
-              {diary.mood_analysis?.emotion_tags && diary.mood_analysis.emotion_tags.length > 0 && (
-                <View style={styles.tagsContainer}>
-                  {diary.mood_analysis.emotion_tags.map((tag: string, index: number) => (
-                    <View key={index} style={[styles.tag, { backgroundColor: `${accent}20`, borderColor: accent, borderWidth: 1 }]}>
+            )}
+
+            {/* 标题 */}
+            {displayTitle && (
+              <Text style={[styles.diaryTitle, { color: foreground }]}>{displayTitle}</Text>
+            )}
+
+            {/* 内容 */}
+            <Text style={[styles.contentText, { color: foreground }]}>{displayContent}</Text>
+
+            {/* 图片网格 */}
+            {diary.images && diary.images.length > 0 && (
+              <View style={styles.imagesContainer}>
+                <Text style={[styles.sectionTitle, { color: muted }]}>图片</Text>
+                <View style={styles.imageGrid}>
+                  {diary.images.map((imageUri, index) => (
+                    <Image
+                      key={index}
+                      source={{ uri: imageUri }}
+                      style={styles.image}
+                      resizeMode="cover"
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* 位置 */}
+            {diary.location && (
+              <View style={[styles.infoCard, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
+                <FontAwesome6 name="location-dot" size={16} color={accent} />
+                <Text style={[styles.infoText, { color: foreground }]}>
+                  {diary.location.address || `${diary.location.lat.toFixed(4)}, ${diary.location.lng.toFixed(4)}`}
+                </Text>
+              </View>
+            )}
+
+            {/* 标签 */}
+            {diary.tags && diary.tags.length > 0 && (
+              <View style={styles.tagsContainer}>
+                <Text style={[styles.sectionTitle, { color: muted }]}>标签</Text>
+                <View style={styles.tagsRow}>
+                  {diary.tags.map((tag, index) => (
+                    <View key={index} style={[styles.tag, { backgroundColor: `${accent}10`, borderColor: `${accent}30`, borderWidth: 1 }]}>
+                      <FontAwesome6 name="tag" size={12} color={accent} />
                       <Text style={[styles.tagText, { color: foreground }]}>{tag}</Text>
                     </View>
                   ))}
                 </View>
-              )}
-            </View>
-          )}
-
-          <View style={[styles.contentCard, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
-            <Text style={[styles.contentLabel, { color: muted }]}>日记内容</Text>
-            {displayTitle && (
-              <Text style={[styles.diaryTitle, { color: foreground }]}>{displayTitle}</Text>
-            )}
-            <Text style={[styles.contentText, { color: foreground }]}>{displayContent}</Text>
-          </View>
-
-          {/* 用户标签 */}
-          {diary.tags && diary.tags.length > 0 && (
-            <View style={[styles.userTagsCard, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
-              <Text style={[styles.contentLabel, { color: muted }]}>标签</Text>
-              <View style={styles.tagsContainer}>
-                {diary.tags.map((tag, index) => (
-                  <View key={index} style={[styles.tag, { backgroundColor: `${accent}20` }]}>
-                    <FontAwesome6 name="tag" size={12} color={accent} style={{ marginRight: 4 }} />
-                    <Text style={[styles.tagText, { color: foreground }]}>{tag}</Text>
-                  </View>
-                ))}
               </View>
-            </View>
-          )}
+            )}
 
-          {/* 与AI聊聊按钮 */}
-          <TouchableOpacity
-            style={[styles.chatButton, { backgroundColor: accent }]}
-            onPress={() => router.push('/chat', { diaryId: diary.id })}
-            activeOpacity={0.8}
-          >
-            <FontAwesome6 name="comments" size={20} color="#FFFFFF" style={styles.chatButtonIcon} />
-            <Text style={styles.chatButtonText}>与AI聊聊</Text>
-            <Text style={[styles.chatButtonSubtitle, { color: `${accent}90` }]}>让AI陪伴你聊聊这篇日记</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+            {/* 情绪分析结果 */}
+            {diary.mood_analysis && (
+              <View style={[styles.emotionAnalysisCard, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
+                <Text style={[styles.sectionTitle, { color: muted }]}>AI情绪分析</Text>
+                {diary.mood_analysis.summary && (
+                  <Text style={[styles.analysisText, { color: foreground }]}>{diary.mood_analysis.summary}</Text>
+                )}
+                {diary.mood_analysis.emotion_tags && diary.mood_analysis.emotion_tags.length > 0 && (
+                  <View style={styles.tagsRow}>
+                    {diary.mood_analysis.emotion_tags.map((tag: string, index: number) => (
+                      <View key={index} style={[styles.tag, { backgroundColor: `${accent}10` }]}>
+                        <Text style={[styles.tagText, { color: foreground }]}>{tag}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* 与AI聊聊按钮 */}
+            <TouchableOpacity
+              style={[styles.chatButton, { backgroundColor: accent }]}
+              onPress={() => router.push('/chat', { diaryId: diary.id })}
+              activeOpacity={0.8}
+            >
+              <FontAwesome6 name="comments" size={24} color="#FFFFFF" />
+              <View style={styles.chatButtonContent}>
+                <Text style={[styles.chatButtonText, { color: '#FFFFFF' }]}>与AI聊聊</Text>
+                <Text style={[styles.chatButtonSubtitle, { color: `${accent}90` }]}>让AI陪伴你聊聊这篇日记</Text>
+              </View>
+              <FontAwesome6 name="arrow-right" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </View>
     </Screen>
   );
 }
@@ -291,17 +432,159 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  scrollView: {
+    flex: 1,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
   },
   title: {
-    fontSize: 20,
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  headerButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 20,
+  },
+  deleteButton: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+  },
+  contentContainer: {
+    padding: 20,
+    paddingBottom: 40,
+    gap: 20,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  metaText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  weatherMoodRow: {
+    flexDirection: 'row',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  badgeText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  intensityText: {
+    fontSize: 12,
+  },
+  diaryTitle: {
+    fontSize: 24,
     fontWeight: '700',
+    lineHeight: 32,
+  },
+  contentText: {
+    fontSize: 16,
+    lineHeight: 26,
+  },
+  imagesContainer: {
+    gap: 12,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  imageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  image: {
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+  },
+  infoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: 12,
+  },
+  infoText: {
+    fontSize: 14,
+    flex: 1,
+  },
+  tagsContainer: {
+    gap: 12,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  tag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  tagText: {
+    fontSize: 13,
+  },
+  emotionAnalysisCard: {
+    padding: 16,
+    borderRadius: 16,
+    gap: 12,
+  },
+  analysisText: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  chatButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    gap: 12,
+  },
+  chatButtonContent: {
+    flex: 1,
+  },
+  chatButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  chatButtonSubtitle: {
+    fontSize: 13,
+    marginTop: 2,
   },
   loadingContainer: {
     flex: 1,
@@ -312,122 +595,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 16,
   },
   emptyText: {
     fontSize: 16,
-  },
-  contentContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-    gap: 16,
-  },
-  dateCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    borderRadius: 16,
-    padding: 16,
-  },
-  dateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  dateText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  timeText: {
-    fontSize: 14,
-  },
-  emotionCard: {
-    borderRadius: 16,
-    padding: 16,
-  },
-  emotionLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    marginBottom: 12,
-  },
-  emotionTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 8,
-    marginBottom: 12,
-  },
-  emotionDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  emotionText: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  intensityText: {
-    fontSize: 14,
-  },
-  emotionSummary: {
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: 12,
-  },
-  tagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  tag: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  tagText: {
-    fontSize: 13,
-  },
-  contentCard: {
-    borderRadius: 16,
-    padding: 16,
-  },
-  contentLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    marginBottom: 12,
-  },
-  diaryTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 16,
-  },
-  contentText: {
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  userTagsCard: {
-    borderRadius: 16,
-    padding: 16,
-  },
-  chatButton: {
-    borderRadius: 20,
-    padding: 20,
-    alignItems: 'center',
-    gap: 8,
-  },
-  chatButtonIcon: {
-    marginBottom: 4,
-  },
-  chatButtonText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  chatButtonSubtitle: {
-    fontSize: 13,
-    textAlign: 'center',
-    lineHeight: 18,
   },
 });

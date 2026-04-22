@@ -16,12 +16,12 @@ import {
   FlatList,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
-import { useSafeRouter } from '@/hooks/useSafeRouter';
+import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePassword } from '@/contexts/PasswordContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Screen } from '@/components/Screen';
-import { saveDiaryLocally, markDiaryAsUploaded } from '@/utils/localStorage';
+import { saveDiaryLocally, markDiaryAsUploaded, getLocalDiaryById } from '@/utils/localStorage';
 import { buildApiUrl } from '@/utils';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
@@ -70,8 +70,15 @@ interface AIMessage {
   timestamp: string;
 }
 
+// 日记详情类型（用于编辑模式）
+interface DiaryData {
+  created_at: string;
+  [key: string]: any;
+}
+
 export default function WriteDiaryScreen() {
   const router = useSafeRouter();
+  const { editId } = useSafeSearchParams<{ editId?: string }>();
   const insets = useSafeAreaInsets();
   const { encryptData } = usePassword();
   const { token, isOfflineMode, user } = useAuth();
@@ -94,6 +101,11 @@ export default function WriteDiaryScreen() {
   const [showWeatherModal, setShowWeatherModal] = useState(false);
   const [showMoodIntensityModal, setShowMoodIntensityModal] = useState(false);
 
+  // 编辑模式：是否正在编辑现有日记
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [loadingDiary, setLoadingDiary] = useState(false);
+  const [diary, setDiary] = useState<DiaryData | null>(null);
+
   // AI陪伴功能状态
   const [showAIChat, setShowAIChat] = useState(false);
   const [aiMessages, setAIMessages] = useState<AIMessage[]>([]);
@@ -110,17 +122,94 @@ export default function WriteDiaryScreen() {
     '--color-border',
   ]) as string[];
 
+  // 加载现有日记数据（编辑模式）
+  useEffect(() => {
+    const loadDiaryForEdit = async () => {
+      if (!editId) {
+        setIsEditMode(false);
+        return;
+      }
+
+      try {
+        setLoadingDiary(true);
+        setIsEditMode(true);
+
+        // 如果是本地日记
+        if (editId.startsWith('local_')) {
+          const localDiary = await getLocalDiaryById(editId);
+          if (localDiary) {
+            setDiary(localDiary);
+            setTitle(localDiary.title || '');
+            setContent(localDiary.content);
+            setSelectedMood(localDiary.mood || null);
+            setMoodIntensity(localDiary.mood_intensity || 50);
+            setSelectedWeather(localDiary.weather || null);
+            setTags(localDiary.tags || []);
+            setImages(localDiary.images || []);
+            setLocation(localDiary.location || null);
+            setSelectedTemplate(localDiary.template_id || null);
+          }
+        } else {
+          // 从云端加载日记
+          if (!token) {
+            Alert.alert('错误', '需要登录才能编辑日记');
+            router.back();
+            return;
+          }
+
+          /**
+           * 服务端文件：server/main.py
+           * 接口：GET /api/v1/diaries/{diary_id}
+           * Path 参数：diary_id: string
+           * Headers: Authorization: Bearer {token}
+           */
+          const response = await fetch(buildApiUrl(`/api/v1/diaries/${editId}`), {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to load diary');
+          }
+
+          const data = await response.json();
+          setDiary(data);
+          setTitle(data.title || '');
+          setContent(data.content);
+          setSelectedMood(data.mood || null);
+          setMoodIntensity(data.mood_intensity || 50);
+          setSelectedWeather(data.weather || null);
+          setTags(data.tags || []);
+          setImages(data.images || []);
+          setLocation(data.location || null);
+          setSelectedTemplate(data.template_id || null);
+        }
+      } catch (error) {
+        console.error('Error loading diary for edit:', error);
+        Alert.alert('错误', '加载日记失败');
+        router.back();
+      } finally {
+        setLoadingDiary(false);
+      }
+    };
+
+    loadDiaryForEdit();
+  }, [editId, token, router]);
+
   // 初始化时发送AI问候
   useEffect(() => {
-    setAIMessages([
-      {
-        id: 'init',
-        role: 'assistant',
-        content: '你好！我是你的AI写作助手。在写日记的过程中，如果你有任何想法需要分享，或者希望我给你一些建议，随时都可以告诉我。我会一直陪伴着你。',
-        timestamp: new Date().toISOString(),
-      },
-    ]);
-  }, []);
+    if (!isEditMode) {
+      setAIMessages([
+        {
+          id: 'init',
+          role: 'assistant',
+          content: '你好！我是你的AI写作助手。在写日记的过程中，如果你有任何想法需要分享，或者希望我给你一些建议，随时都可以告诉我。我会一直陪伴着你。',
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+    }
+  }, [isEditMode]);
 
   // 发送消息给AI
   const handleSendAIMessage = async () => {
@@ -297,9 +386,8 @@ export default function WriteDiaryScreen() {
     try {
       setSubmitting(true);
 
-      // 创建日记数据
       const diaryData = {
-        id: `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: isEditMode && editId ? editId : `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         title: title.trim() || new Date().toLocaleDateString('zh-CN'),
         content: content.trim(),
         mood: selectedMood,
@@ -309,27 +397,27 @@ export default function WriteDiaryScreen() {
         images: images,
         location: location,
         template_id: selectedTemplate,
-        created_at: new Date().toISOString(),
+        created_at: isEditMode && editId && !editId.startsWith('local_') && diary ? diary.created_at : new Date().toISOString(),
         updated_at: new Date().toISOString(),
         is_uploaded: false,
       };
 
-      // 先保存到本地
-      await saveDiaryLocally(diaryData);
-
-      // 如果是在线模式且有token，上传到云端
-      if (!isOfflineMode && token) {
-        try {
+      // 如果是编辑模式
+      if (isEditMode && editId) {
+        // 如果是云端日记
+        if (!editId.startsWith('local_') && token) {
           /**
            * 服务端文件：server/main.py
-           * 接口：POST /api/v1/diaries
+           * 接口：PUT /api/v1/diaries/{diary_id}
+           * Path 参数：diary_id: string
            * Body 参数：title, content, mood, mood_intensity, weather, tags, images, location, template_id
+           * Headers: Authorization: Bearer {token}
            */
-          const response = await fetch(buildApiUrl('/api/v1/diaries'), {
-            method: 'POST',
+          const response = await fetch(buildApiUrl(`/api/v1/diaries/${editId}`), {
+            method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
+              'Authorization': `Bearer ${token}`,
             },
             body: JSON.stringify({
               title: diaryData.title,
@@ -345,34 +433,82 @@ export default function WriteDiaryScreen() {
           });
 
           if (!response.ok) {
-            throw new Error('Failed to upload diary to cloud');
+            throw new Error('Failed to update diary');
           }
 
-          const data = await response.json();
-
-          // 更新本地日记的ID和上传状态
-          await markDiaryAsUploaded(diaryData.id);
-
-          Alert.alert('成功', '日记已保存到云端', [
+          Alert.alert('成功', '日记已更新', [
             { text: '确定', onPress: () => router.back() },
           ]);
-        } catch (error) {
-          console.error('Error uploading diary to cloud:', error);
-          Alert.alert('部分成功', '日记已保存到本地，但上传云端失败', [
+        } else {
+          // 如果是本地日记，直接更新本地存储
+          await saveDiaryLocally(diaryData);
+          Alert.alert('成功', '日记已更新', [
             { text: '确定', onPress: () => router.back() },
           ]);
         }
       } else {
-        const message = isOfflineMode
-          ? '日记已保存到本地（离线模式）'
-          : '日记已保存到本地';
+        // 新增模式
+        // 先保存到本地
+        await saveDiaryLocally(diaryData);
 
-        Alert.alert('成功', message, [
-          { text: '确定', onPress: () => router.back() },
-        ]);
+        // 如果是在线模式且有token，上传到云端
+        if (!isOfflineMode && token) {
+          try {
+            /**
+             * 服务端文件：server/main.py
+             * 接口：POST /api/v1/diaries
+             * Body 参数：title, content, mood, mood_intensity, weather, tags, images, location, template_id
+             * Headers: Authorization: Bearer {token}
+             */
+            const response = await fetch(buildApiUrl('/api/v1/diaries'), {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                title: diaryData.title,
+                content: diaryData.content,
+                mood: diaryData.mood,
+                mood_intensity: diaryData.mood_intensity,
+                weather: diaryData.weather,
+                tags: diaryData.tags,
+                images: diaryData.images,
+                location: diaryData.location,
+                template_id: diaryData.template_id,
+              }),
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to upload diary to cloud');
+            }
+
+            const data = await response.json();
+
+            // 更新本地日记的ID和上传状态
+            await markDiaryAsUploaded(diaryData.id);
+
+            Alert.alert('成功', '日记已保存到云端', [
+              { text: '确定', onPress: () => router.back() },
+            ]);
+          } catch (error) {
+            console.error('Error uploading diary to cloud:', error);
+            Alert.alert('部分成功', '日记已保存到本地，但上传云端失败', [
+              { text: '确定', onPress: () => router.back() },
+            ]);
+          }
+        } else {
+          const message = isOfflineMode
+            ? '日记已保存到本地（离线模式）'
+            : '日记已保存到本地';
+
+          Alert.alert('成功', message, [
+            { text: '确定', onPress: () => router.back() },
+          ]);
+        }
       }
     } catch (error) {
-      console.error('Error creating diary:', error);
+      console.error('Error saving diary:', error);
       Alert.alert('错误', '保存失败，请重试');
     } finally {
       setSubmitting(false);
@@ -400,6 +536,32 @@ export default function WriteDiaryScreen() {
     );
   };
 
+  if (loadingDiary) {
+    return (
+      <Screen safeAreaEdges={['left', 'right', 'top']}>
+        <View style={[styles.container, { backgroundColor: background }]}>
+          <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
+              activeOpacity={0.6}
+            >
+              <FontAwesome6 name="arrow-left" size={24} color={foreground} />
+            </TouchableOpacity>
+            <Text style={[styles.title, { color: foreground }]}>
+              {isEditMode ? '编辑日记' : '写日记'}
+            </Text>
+            <View style={{ width: 40 }} />
+          </View>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={accent} />
+            <Text style={[styles.loadingText, { color: muted }]}>加载中...</Text>
+          </View>
+        </View>
+      </Screen>
+    );
+  }
+
   return (
     <Screen safeAreaEdges={['left', 'right', 'bottom']}>
       <View style={[styles.container, { backgroundColor: background }]}>
@@ -424,7 +586,9 @@ export default function WriteDiaryScreen() {
             >
               <FontAwesome6 name="xmark" size={24} color={foreground} />
             </TouchableOpacity>
-            <Text style={[styles.title, { color: foreground }]}>写日记</Text>
+            <Text style={[styles.title, { color: foreground }]}>
+              {isEditMode ? '编辑日记' : '写日记'}
+            </Text>
             <TouchableOpacity
               style={[styles.saveButton, submitting && styles.saveButtonDisabled]}
               onPress={handleSubmit}
@@ -453,19 +617,21 @@ export default function WriteDiaryScreen() {
             </TouchableOpacity>
 
             {/* 模板选择 */}
-            <TouchableOpacity
-              style={[styles.templateSelector, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}
-              onPress={() => setShowTemplateModal(true)}
-              activeOpacity={0.7}
-            >
-              <FontAwesome6 name="file-lines" size={20} color={accent} />
-              <Text style={[styles.templateSelectorText, { color: foreground }]}>
-                {selectedTemplate
-                  ? TEMPLATES.find(t => t.id === selectedTemplate)?.title || '选择模板'
-                  : '选择写作模板'}
-              </Text>
-              <FontAwesome6 name="chevron-right" size={16} color={muted} />
-            </TouchableOpacity>
+            {!isEditMode && (
+              <TouchableOpacity
+                style={[styles.templateSelector, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}
+                onPress={() => setShowTemplateModal(true)}
+                activeOpacity={0.7}
+              >
+                <FontAwesome6 name="file-lines" size={20} color={accent} />
+                <Text style={[styles.templateSelectorText, { color: foreground }]}>
+                  {selectedTemplate
+                    ? TEMPLATES.find(t => t.id === selectedTemplate)?.title || '选择模板'
+                    : '选择写作模板'}
+                </Text>
+                <FontAwesome6 name="chevron-right" size={16} color={muted} />
+              </TouchableOpacity>
+            )}
 
             {/* 天气选择 */}
             <TouchableOpacity
@@ -836,6 +1002,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 12,
+    borderBottomWidth: 1,
   },
   backButton: {
     width: 40,
@@ -857,6 +1024,15 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    marginTop: 12,
   },
   scrollView: {
     flex: 1,
