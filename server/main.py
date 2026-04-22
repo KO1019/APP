@@ -439,6 +439,122 @@ async def delete_diary(diary_id: str, user_id: str = Depends(get_user_id)):
     return {"success": True}
 
 
+class GenerateDiaryFromChat(BaseModel):
+    """从聊天记录生成日记"""
+    conversation_text: str
+    conversation_id: Optional[str] = None
+
+
+@app.post('/api/v1/diaries/generate-from-chat')
+async def generate_diary_from_chat(data: GenerateDiaryFromChat, user_id: str = Depends(get_user_id)):
+    """从聊天记录生成日记"""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    try:
+        from coze_coding_dev_sdk import LLMClient
+        from coze_coding_utils.runtime_ctx.context import Context, new_context
+        from langchain_core.messages import SystemMessage, HumanMessage
+        import json
+
+        ctx = new_context(method="invoke")
+        client = LLMClient(ctx=ctx)
+
+        # 构建prompt
+        system_prompt = """你是一位专业的日记助手。请根据用户和AI的对话记录，生成一篇结构化的日记。
+
+日记格式要求：
+1. **标题**：简洁概括对话的主题或核心内容（不超过20字）
+2. **日期**：今天的日期
+3. **心情**：根据对话内容判断用户的主要情绪（只能选择：开心、兴奋、平静、中性、焦虑、悲伤、愤怒、疲惫）
+4. **内容**：将对话内容整理成流畅的日记，第一人称叙述，保持对话的精髓和情感
+5. **标签**：根据对话内容提取3-5个关键词标签
+
+返回格式（JSON）：
+{
+  "title": "标题",
+  "mood": "心情",
+  "content": "日记内容",
+  "tags": ["标签1", "标签2", "标签3"]
+}
+
+注意：
+- 日记内容要自然流畅，不要简单复制对话
+- 保持情感的真实性
+- 标签要与内容相关
+- 只返回JSON，不要有其他文字"""
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=f"以下是对话记录：\n\n{data.conversation_text}\n\n请根据这段对话生成日记。")
+        ]
+
+        # 调用LLM生成日记
+        response = client.invoke(messages=messages, temperature=0.7, thinking="disabled")
+
+        # 提取响应内容
+        def get_text_content(content):
+            if isinstance(content, str):
+                return content
+            elif isinstance(content, list):
+                if content and isinstance(content[0], str):
+                    return " ".join(content)
+                else:
+                    return " ".join(item.get("text", "") for item in content if isinstance(item, dict) and item.get("type") == "text")
+            return str(content)
+
+        diary_json_str = get_text_content(response.content)
+
+        # 解析JSON
+        # 尝试从响应中提取JSON部分
+        json_start = diary_json_str.find('{')
+        json_end = diary_json_str.rfind('}') + 1
+
+        if json_start == -1 or json_end == 0:
+            raise HTTPException(status_code=500, detail="AI生成的日记格式错误")
+
+        diary_json_str = diary_json_str[json_start:json_end]
+
+        diary_data = json.loads(diary_json_str)
+
+        # 验证字段
+        if not all(key in diary_data for key in ['title', 'mood', 'content']):
+            raise HTTPException(status_code=500, detail="AI生成的日记缺少必要字段")
+
+        # 保存日记到数据库
+        insert_data = {
+            "user_id": user_id,
+            "title": diary_data.get('title', ''),
+            "content": diary_data.get('content', ''),
+            "mood": diary_data.get('mood', '中性'),
+            "tags": diary_data.get('tags', [])
+        }
+
+        result = supabase.table('diaries').insert(insert_data).execute()
+
+        if not result.data:
+            raise HTTPException(status_code=500, detail="保存日记失败")
+
+        diary = result.data[0]
+
+        return {
+            "success": True,
+            "diary": diary,
+            "message": "日记生成成功"
+        }
+
+    except json.JSONDecodeError as e:
+        print(f"Error parsing AI response: {e}")
+        print(f"Response content: {diary_json_str if 'diary_json_str' in locals() else 'N/A'}")
+        raise HTTPException(status_code=500, detail="解析AI生成的日记失败")
+
+    except Exception as e:
+        print(f"Error generating diary from chat: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"生成日记失败: {str(e)}")
+
+
 @app.post('/api/v1/chat')
 async def chat_stream(chat: ChatMessage, user_id: str = Depends(get_user_id)):
     """AI对话（流式响应）"""

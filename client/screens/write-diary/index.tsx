@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,11 @@ import {
   ScrollView,
   Alert,
   Dimensions,
-  Animated,
-  PanResponder,
+  Modal,
+  ActivityIndicator,
+  Image,
 } from 'react-native';
+import Slider from '@react-native-community/slider';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePassword } from '@/contexts/PasswordContext';
@@ -22,17 +24,40 @@ import { saveDiaryLocally, markDiaryAsUploaded } from '@/utils/localStorage';
 import { buildApiUrl } from '@/utils';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
+import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 // 情绪选项
 const MOODS = [
   { id: 'happy', icon: 'face-laugh-beam', label: '开心', color: '#FFD93D' },
+  { id: 'excited', icon: 'face-grin-stars', label: '兴奋', color: '#FFB703' },
   { id: 'calm', icon: 'face-smile', label: '平静', color: '#6BCB77' },
+  { id: 'neutral', icon: 'face-meh', label: '中性', color: '#9CA3AF' },
   { id: 'anxious', icon: 'face-frown-open', label: '焦虑', color: '#4D96FF' },
   { id: 'sad', icon: 'face-sad-tear', label: '悲伤', color: '#6B7280' },
   { id: 'angry', icon: 'face-angry', label: '愤怒', color: '#FF6B6B' },
   { id: 'tired', icon: 'face-tired', label: '疲惫', color: '#9D4EDD' },
+];
+
+// 天气选项
+const WEATHERS = [
+  { id: 'sunny', icon: 'sun', label: '晴天' },
+  { id: 'cloudy', icon: 'cloud', label: '多云' },
+  { id: 'rainy', icon: 'cloud-rain', label: '雨天' },
+  { id: 'snowy', icon: 'snowflake', label: '下雪' },
+  { id: 'windy', icon: 'wind', label: '大风' },
+  { id: 'stormy', icon: 'cloud-bolt', label: '雷暴' },
+];
+
+// 模板选项
+const TEMPLATES = [
+  { id: 'gratitude', title: '感恩日记', prompt: '今天有什么让你感到感恩的事？' },
+  { id: 'goal', title: '目标日记', prompt: '你今天取得了什么进步？' },
+  { id: 'reflection', title: '反思日记', prompt: '今天有什么值得反思的事情？' },
+  { id: 'mood', title: '心情日记', prompt: '描述一下你今天的心情变化' },
+  { id: 'free', title: '自由写作', prompt: '写下你想要表达的任何内容' },
 ];
 
 export default function WriteDiaryScreen() {
@@ -44,15 +69,19 @@ export default function WriteDiaryScreen() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  const [moodIntensity, setMoodIntensity] = useState(50);
+  const [selectedWeather, setSelectedWeather] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // AI 小精灵相关 state
-  const [aiAssistantVisible, setAiAssistantVisible] = useState(false);
-  const [emotionResult, setEmotionResult] = useState<{ summary?: string } | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [aiPan] = useState(new Animated.ValueXY({ x: 0, y: 0 }));
+  // 新增功能
+  const [images, setImages] = useState<string[]>([]);
+  const [location, setLocation] = useState<{ lat: number; lng: number; address?: string } | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [showWeatherModal, setShowWeatherModal] = useState(false);
+  const [showMoodIntensityModal, setShowMoodIntensityModal] = useState(false);
 
   const [background, surface, accent, foreground, muted, border] = useCSSVariable([
     '--color-background',
@@ -63,28 +92,79 @@ export default function WriteDiaryScreen() {
     '--color-border',
   ]) as string[];
 
-  // AI 助手拖动手势
-  const aiPanResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onPanResponderMove: Animated.event([null, { dx: aiPan.x, dy: aiPan.y }]),
-    onPanResponderRelease: () => {
-      aiPan.flattenOffset();
-    },
-  });
+  // 选择模板
+  const handleSelectTemplate = (template: typeof TEMPLATES[0]) => {
+    setSelectedTemplate(template.id);
+    setContent(template.prompt);
+    setShowTemplateModal(false);
+  };
 
-  const handleSubmit = async () => {
-    if (!title.trim()) {
-      Alert.alert('提示', '请输入日记标题');
-      return;
+  // 选择图片
+  const handlePickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('权限提示', '需要相册权限才能选择图片');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsMultipleSelection: true,
+        quality: 0.8,
+        maxFileSize: 5 * 1024 * 1024, // 5MB
+      });
+
+      if (!result.canceled && result.assets) {
+        const newImages = result.assets.map(asset => asset.uri);
+        setImages([...images, ...newImages].slice(0, 9)); // 最多9张
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
     }
+  };
 
+  // 删除图片
+  const handleRemoveImage = (index: number) => {
+    setImages(images.filter((_, i) => i !== index));
+  };
+
+  // 获取位置
+  const handleGetLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('权限提示', '需要位置权限才能记录位置');
+        return;
+      }
+
+      const locationData = await Location.getCurrentPositionAsync({});
+      setLocation({
+        lat: locationData.coords.latitude,
+        lng: locationData.coords.longitude,
+      });
+    } catch (error) {
+      console.error('Error getting location:', error);
+    }
+  };
+
+  // 添加标签
+  const handleAddTag = () => {
+    if (tagInput.trim() && !tags.includes(tagInput.trim())) {
+      setTags([...tags, tagInput.trim()]);
+      setTagInput('');
+    }
+  };
+
+  // 删除标签
+  const handleRemoveTag = (tag: string) => {
+    setTags(tags.filter((t) => t !== tag));
+  };
+
+  // 提交日记
+  const handleSubmit = async () => {
     if (!content.trim()) {
       Alert.alert('提示', '请输入日记内容');
-      return;
-    }
-
-    if (!selectedMood) {
-      Alert.alert('提示', '请选择当前的情绪');
       return;
     }
 
@@ -99,13 +179,18 @@ export default function WriteDiaryScreen() {
       // 创建日记数据
       const diaryData = {
         id: `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        title: title.trim(),
+        title: title.trim() || new Date().toLocaleDateString('zh-CN'),
         content: content.trim(),
         mood: selectedMood,
+        mood_intensity: selectedMood ? moodIntensity : null,
+        weather: selectedWeather,
         tags: tags,
+        images: images,
+        location: location,
+        template_id: selectedTemplate,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        is_uploaded: false, // 初始未上传
+        is_uploaded: false,
       };
 
       // 先保存到本地
@@ -117,7 +202,7 @@ export default function WriteDiaryScreen() {
           /**
            * 服务端文件：server/main.py
            * 接口：POST /api/v1/diaries
-           * Body 参数：title: string, content: string, mood: string, tags: string[]
+           * Body 参数：title, content, mood, mood_intensity, weather, tags, images, location, template_id
            */
           const response = await fetch(buildApiUrl('/api/v1/diaries'), {
             method: 'POST',
@@ -129,7 +214,12 @@ export default function WriteDiaryScreen() {
               title: diaryData.title,
               content: diaryData.content,
               mood: diaryData.mood,
+              mood_intensity: diaryData.mood_intensity,
+              weather: diaryData.weather,
               tags: diaryData.tags,
+              images: diaryData.images,
+              location: diaryData.location,
+              template_id: diaryData.template_id,
             }),
           });
 
@@ -143,35 +233,21 @@ export default function WriteDiaryScreen() {
           await markDiaryAsUploaded(diaryData.id);
 
           Alert.alert('成功', '日记已保存到云端', [
-            {
-              text: '确定',
-              onPress: () => router.back(),
-            },
+            { text: '确定', onPress: () => router.back() },
           ]);
         } catch (error) {
           console.error('Error uploading diary to cloud:', error);
-          Alert.alert(
-            '部分成功',
-            '日记已保存到本地，但上传云端失败',
-            [
-              {
-                text: '确定',
-                onPress: () => router.back(),
-              },
-            ]
-          );
+          Alert.alert('部分成功', '日记已保存到本地，但上传云端失败', [
+            { text: '确定', onPress: () => router.back() },
+          ]);
         }
       } else {
-        // 离线模式或未开启云端同步
         const message = isOfflineMode
           ? '日记已保存到本地（离线模式）'
           : '日记已保存到本地（云端同步已关闭）';
 
         Alert.alert('成功', message, [
-          {
-            text: '确定',
-            onPress: () => router.back(),
-          },
+          { text: '确定', onPress: () => router.back() },
         ]);
       }
     } catch (error) {
@@ -181,65 +257,6 @@ export default function WriteDiaryScreen() {
       setSubmitting(false);
     }
   };
-
-  const handleAddTag = () => {
-    if (tagInput.trim() && !tags.includes(tagInput.trim())) {
-      setTags([...tags, tagInput.trim()]);
-      setTagInput('');
-    }
-  };
-
-  const handleRemoveTag = (tag: string) => {
-    setTags(tags.filter((t) => t !== tag));
-  };
-
-  // 实时情绪分析
-  const analyzeEmotion = (text: string): (() => void) | undefined => {
-    if (!text.trim() || text.length < 10 || isOfflineMode) return undefined;
-
-    // 防抖，避免频繁请求
-    const delay = 1500;
-    const timeoutId = setTimeout(async () => {
-      setIsAnalyzing(true);
-      try {
-        /**
-         * 服务端文件：server/src/index.ts
-         * 接口：POST /api/v1/ai-companion/chat
-         * Body 参数：message: string
-         */
-        const response = await fetch(buildApiUrl('/api/v1/ai-companion/chat'), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            message: `请分析我正在写的日记的情绪状态（100字以内）：\n${text}`,
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setEmotionResult({ summary: data.message });
-          setAiAssistantVisible(true);
-        }
-      } catch (error) {
-        console.error('Error analyzing emotion:', error);
-      } finally {
-        setIsAnalyzing(false);
-      }
-    }, delay);
-
-    return () => clearTimeout(timeoutId);
-  };
-
-  // 监听内容变化，触发情绪分析
-  useEffect(() => {
-    const cleanup = analyzeEmotion(content);
-    if (cleanup) {
-      return cleanup;
-    }
-  }, [content, token, isOfflineMode]);
 
   return (
     <Screen safeAreaEdges={['left', 'right', 'bottom']}>
@@ -252,17 +269,12 @@ export default function WriteDiaryScreen() {
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => {
-                console.log('Back button pressed');
-                if (title.trim() || content.trim() || selectedMood) {
+                if (content.trim() || images.length > 0) {
                   Alert.alert('提示', '确定要离开吗？内容将不会保存', [
                     { text: '取消', style: 'cancel' },
-                    { text: '确定', onPress: () => {
-                      console.log('Going back');
-                      router.back();
-                    }},
+                    { text: '确定', onPress: () => router.back() },
                   ]);
                 } else {
-                  console.log('Going back directly');
                   router.back();
                 }
               }}
@@ -271,23 +283,6 @@ export default function WriteDiaryScreen() {
               <FontAwesome6 name="xmark" size={24} color={foreground} />
             </TouchableOpacity>
             <Text style={[styles.title, { color: foreground }]}>写日记</Text>
-
-            {/* AI小精灵开关 */}
-            <TouchableOpacity
-              style={[styles.aiToggle, { backgroundColor: aiAssistantVisible ? accent : 'transparent', borderColor: aiAssistantVisible ? accent : border }]}
-              onPress={() => setAiAssistantVisible(!aiAssistantVisible)}
-              activeOpacity={0.6}
-            >
-              <FontAwesome6
-                name="robot"
-                size={18}
-                color={aiAssistantVisible ? '#FFFFFF' : muted}
-              />
-              <Text style={[styles.aiToggleText, { color: aiAssistantVisible ? '#FFFFFF' : muted }]}>
-                AI助手
-              </Text>
-            </TouchableOpacity>
-
             <TouchableOpacity
               style={[styles.saveButton, submitting && styles.saveButtonDisabled]}
               onPress={handleSubmit}
@@ -300,193 +295,312 @@ export default function WriteDiaryScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.contentContainer} contentContainerStyle={styles.scrollContent}>
-            {/* 标题输入 */}
-            <View style={[styles.titleContainer, { borderBottomColor: border }]}>
-              <TextInput
-                style={[styles.titleInput, { color: foreground }]}
-                placeholder="给这篇日记起个标题..."
-                placeholderTextColor={muted}
-                value={title}
-                onChangeText={setTitle}
-                textAlignVertical="top"
+          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+            {/* 模板选择 */}
+            <TouchableOpacity
+              style={[styles.templateSelector, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}
+              onPress={() => setShowTemplateModal(true)}
+              activeOpacity={0.7}
+            >
+              <FontAwesome6 name="file-lines" size={20} color={accent} />
+              <Text style={[styles.templateSelectorText, { color: foreground }]}>
+                {selectedTemplate
+                  ? TEMPLATES.find(t => t.id === selectedTemplate)?.title || '选择模板'
+                  : '选择写作模板'}
+              </Text>
+              <FontAwesome6 name="chevron-right" size={16} color={muted} />
+            </TouchableOpacity>
+
+            {/* 天气选择 */}
+            <TouchableOpacity
+              style={[styles.toolBar, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}
+              onPress={() => setShowWeatherModal(true)}
+              activeOpacity={0.7}
+            >
+              <FontAwesome6
+                name={selectedWeather ? (WEATHERS.find(w => w.id === selectedWeather)?.icon as any) : 'cloud-sun'}
+                size={20}
+                color={accent}
               />
+              <Text style={[styles.toolBarText, { color: foreground }]}>
+                {selectedWeather ? WEATHERS.find(w => w.id === selectedWeather)?.label : '选择天气'}
+              </Text>
+              <FontAwesome6 name="chevron-right" size={16} color={muted} />
+            </TouchableOpacity>
+
+            {/* 位置和图片工具栏 */}
+            <View style={[styles.toolBar, { backgroundColor: surface, borderColor: border, borderWidth: 1, paddingHorizontal: 12 }]}>
+              <TouchableOpacity
+                style={styles.toolButton}
+                onPress={handleGetLocation}
+                activeOpacity={0.7}
+              >
+                <FontAwesome6
+                  name={location ? 'location-dot' : 'location'}
+                  size={18}
+                  color={location ? accent : muted}
+                />
+              </TouchableOpacity>
+
+              <View style={[styles.toolDivider, { backgroundColor: border }]} />
+
+              <TouchableOpacity
+                style={styles.toolButton}
+                onPress={handlePickImage}
+                activeOpacity={0.7}
+              >
+                <FontAwesome6 name="image" size={18} color={accent} />
+              </TouchableOpacity>
+
+              <View style={[styles.toolDivider, { backgroundColor: border }]} />
+
+              <TouchableOpacity
+                style={styles.toolButton}
+                onPress={() => setShowMoodIntensityModal(true)}
+                activeOpacity={0.7}
+              >
+                <FontAwesome6 name="sliders" size={18} color={selectedMood ? accent : muted} />
+              </TouchableOpacity>
+
+              <Text style={[styles.toolButtonLabel, { color: muted }]}>
+                {images.length > 0 ? `${images.length} 张图片` : ''}
+              </Text>
             </View>
 
-            {/* 时间和情绪 */}
-            <View style={styles.metaContainer}>
-              <View style={[styles.metaItem, { backgroundColor: surface }]}>
-                <FontAwesome6 name="calendar" size={16} color={muted} style={styles.metaIcon} />
-                <Text style={[styles.metaText, { color: muted }]}>
-                  {new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}
-                </Text>
+            {/* 图片预览 */}
+            {images.length > 0 && (
+              <View style={styles.imagePreviewContainer}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {images.map((uri, index) => (
+                    <View key={index} style={styles.imagePreview}>
+                      <Image
+                        source={{ uri }}
+                        style={styles.previewImage}
+                      />
+                      <TouchableOpacity
+                        style={styles.removeImageBtn}
+                        onPress={() => handleRemoveImage(index)}
+                      >
+                        <FontAwesome6 name="xmark" size={14} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
               </View>
-              <View style={[styles.metaItem, { backgroundColor: surface }]}>
-                <FontAwesome6 name="clock" size={16} color={muted} style={styles.metaIcon} />
-                <Text style={[styles.metaText, { color: muted }]}>
-                  {new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
-                </Text>
-              </View>
-            </View>
+            )}
+
+            {/* 标题输入（可选） */}
+            <TextInput
+              style={[styles.titleInput, { color: foreground, borderColor: border }]}
+              placeholder="添加标题（可选）"
+              placeholderTextColor={muted}
+              value={title}
+              onChangeText={setTitle}
+            />
+
+            {/* 内容输入 */}
+            <TextInput
+              style={[styles.contentInput, { color: foreground }]}
+              placeholder="写下你的想法..."
+              placeholderTextColor={muted}
+              value={content}
+              onChangeText={setContent}
+              multiline
+              textAlignVertical="top"
+            />
 
             {/* 情绪选择 */}
-            <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: foreground }]}>今天的心情</Text>
-              <View style={styles.moodGrid}>
+            <View style={styles.moodSection}>
+              <Text style={[styles.sectionLabel, { color: muted }]}>当前心情</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 {MOODS.map((mood) => (
                   <TouchableOpacity
                     key={mood.id}
-                    onPress={() => setSelectedMood(mood.id)}
                     style={[
-                      styles.moodItem,
-                      selectedMood === mood.id && styles.moodItemSelected,
+                      styles.moodButton,
                       {
                         backgroundColor: selectedMood === mood.id ? mood.color : surface,
                         borderColor: selectedMood === mood.id ? mood.color : border,
+                        borderWidth: selectedMood === mood.id ? 2 : 1,
                       },
                     ]}
+                    onPress={() => setSelectedMood(mood.id)}
+                    activeOpacity={0.7}
                   >
                     <FontAwesome6
                       name={mood.icon as any}
-                      size={28}
-                      color={selectedMood === mood.id ? '#FFFFFF' : muted}
+                      size={24}
+                      color={selectedMood === mood.id ? '#FFFFFF' : mood.color}
                     />
                     <Text
                       style={[
                         styles.moodLabel,
-                        { color: selectedMood === mood.id ? '#FFFFFF' : muted },
+                        { color: selectedMood === mood.id ? '#FFFFFF' : mood.color },
                       ]}
                     >
                       {mood.label}
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </View>
+              </ScrollView>
             </View>
 
-            {/* 内容输入 */}
-            <View style={styles.section}>
-              <View style={[styles.contentContainerInner, { backgroundColor: surface }]}>
-                <TextInput
-                  style={[styles.contentInput, { color: foreground }]}
-                  placeholder="写下你的想法..."
-                  placeholderTextColor={muted}
-                  value={content}
-                  onChangeText={setContent}
-                  multiline
-                  textAlignVertical="top"
-                />
-                <Text style={[styles.charCount, { color: muted }]}>
-                  {content.length} 字
-                </Text>
+            {/* 标签输入 */}
+            <View style={[styles.tagSection, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
+              <Text style={[styles.sectionLabel, { color: muted }]}>添加标签</Text>
+              <View style={styles.tagList}>
+                {tags.map((tag) => (
+                  <View key={tag} style={[styles.tagBadge, { backgroundColor: `${accent}20` }]}>
+                    <Text style={[styles.tagText, { color: accent }]}>{tag}</Text>
+                    <TouchableOpacity onPress={() => handleRemoveTag(tag)}>
+                      <FontAwesome6 name="xmark" size={12} color={accent} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
               </View>
-            </View>
-
-            {/* 标签 */}
-            <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: foreground }]}>标签</Text>
-              <View style={[styles.tagInputContainer, { backgroundColor: surface, borderColor: border }]}>
+              <View style={styles.tagInputRow}>
                 <TextInput
                   style={[styles.tagInput, { color: foreground }]}
-                  placeholder="添加标签..."
+                  placeholder="输入标签..."
                   placeholderTextColor={muted}
                   value={tagInput}
                   onChangeText={setTagInput}
                   onSubmitEditing={handleAddTag}
                 />
-                <TouchableOpacity onPress={handleAddTag} style={styles.addTagButton}>
-                  <FontAwesome6 name="plus" size={18} color={accent} />
+                <TouchableOpacity
+                  style={[styles.addTagBtn, { backgroundColor: accent }]}
+                  onPress={handleAddTag}
+                  activeOpacity={0.7}
+                >
+                  <FontAwesome6 name="plus" size={16} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>
-
-              {tags.length > 0 && (
-                <View style={styles.tagsContainer}>
-                  {tags.map((tag, index) => (
-                    <View key={index} style={[styles.tag, { backgroundColor: surface, borderColor: accent }]}>
-                      <Text style={[styles.tagText, { color: accent }]}>{tag}</Text>
-                      <TouchableOpacity onPress={() => handleRemoveTag(tag)} style={styles.removeTag}>
-                        <FontAwesome6 name="xmark" size={12} color={accent} />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </View>
-              )}
             </View>
 
-            {/* AI小精灵助手 - 可拖动浮窗 */}
-            {aiAssistantVisible && (
-              <Animated.View
-                style={[
-                  styles.aiAssistantFloating,
-                  {
-                    transform: [
-                      { translateX: aiPan.x },
-                      { translateY: aiPan.y }
-                    ]
-                  }
-                ]}
-                {...aiPanResponder.panHandlers}
-              >
-                <TouchableOpacity
-                  style={[styles.aiBubble, { backgroundColor: surface, borderColor: border }]}
-                  activeOpacity={1}
-                >
-                  <View style={styles.aiBubbleHeader}>
-                    <View style={styles.aiBubbleTitle}>
-                      <FontAwesome6 name="robot" size={16} color={accent} />
-                      <Text style={[styles.aiBubbleTitleText, { color: foreground }]}>
-                        AI情绪助手
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => setAiAssistantVisible(false)}
-                      style={styles.aiBubbleClose}
-                    >
-                      <FontAwesome6 name="xmark" size={14} color={muted} />
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={styles.aiBubbleContent}>
-                    {isAnalyzing ? (
-                      <View style={styles.aiAnalyzing}>
-                        <Text style={[styles.aiAnalyzingText, { color: muted }]}>
-                          正在分析情绪...
-                        </Text>
-                      </View>
-                    ) : emotionResult?.summary ? (
-                      <View style={styles.aiResult}>
-                        <Text style={[styles.aiResultText, { color: foreground }]}>
-                          {emotionResult.summary}
-                        </Text>
-                        <TouchableOpacity
-                          style={[styles.aiChatButton, { backgroundColor: accent }]}
-                          onPress={() => {
-                            // 跳转到AI陪伴页面
-                            router.push('/chat');
-                          }}
-                        >
-                          <FontAwesome6 name="comments" size={14} color="#FFFFFF" />
-                          <Text style={styles.aiChatButtonText}>继续对话</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ) : (
-                      <View style={styles.aiWelcome}>
-                        <FontAwesome6 name="heart" size={32} color={accent} style={styles.aiHeart} />
-                        <Text style={[styles.aiWelcomeText, { color: foreground }]}>
-                          我正在关注你的情绪...
-                        </Text>
-                        <Text style={[styles.aiWelcomeSubtext, { color: muted }]}>
-                          写下你的想法，我会帮你分析
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              </Animated.View>
+            {/* 位置信息 */}
+            {location && (
+              <View style={[styles.locationInfo, { backgroundColor: `${accent}10`, borderColor: `${accent}30`, borderWidth: 1 }]}>
+                <FontAwesome6 name="location-dot" size={14} color={accent} />
+                <Text style={[styles.locationText, { color: foreground }]}>
+                  {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
+                </Text>
+              </View>
             )}
+
+            <View style={{ height: 40 }} />
           </ScrollView>
         </KeyboardAvoidingView>
       </View>
+
+      {/* 模板选择弹窗 */}
+      <Modal visible={showTemplateModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: surface }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: foreground }]}>选择写作模板</Text>
+              <TouchableOpacity onPress={() => setShowTemplateModal(false)}>
+                <FontAwesome6 name="xmark" size={24} color={foreground} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              {TEMPLATES.map((template) => (
+                <TouchableOpacity
+                  key={template.id}
+                  style={[
+                    styles.templateItem,
+                    {
+                      backgroundColor: selectedTemplate === template.id ? `${accent}10` : 'transparent',
+                      borderColor: selectedTemplate === template.id ? accent : border,
+                      borderWidth: 1,
+                    },
+                  ]}
+                  onPress={() => handleSelectTemplate(template)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.templateItemTitle, { color: foreground }]}>{template.title}</Text>
+                  <Text style={[styles.templateItemPrompt, { color: muted }]}>{template.prompt}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 天气选择弹窗 */}
+      <Modal visible={showWeatherModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: surface }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: foreground }]}>选择天气</Text>
+              <TouchableOpacity onPress={() => setShowWeatherModal(false)}>
+                <FontAwesome6 name="xmark" size={24} color={foreground} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.weatherGrid}>
+              {WEATHERS.map((weather) => (
+                <TouchableOpacity
+                  key={weather.id}
+                  style={[
+                    styles.weatherItem,
+                    {
+                      backgroundColor: selectedWeather === weather.id ? `${accent}20` : `${background}50`,
+                      borderColor: selectedWeather === weather.id ? accent : border,
+                      borderWidth: 1,
+                    },
+                  ]}
+                  onPress={() => {
+                    setSelectedWeather(weather.id);
+                    setShowWeatherModal(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <FontAwesome6 name={weather.icon as any} size={32} color={accent} />
+                  <Text style={[styles.weatherLabel, { color: foreground }]}>{weather.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 情绪强度弹窗 */}
+      <Modal visible={showMoodIntensityModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: surface }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: foreground }]}>心情强度</Text>
+              <TouchableOpacity onPress={() => setShowMoodIntensityModal(false)}>
+                <FontAwesome6 name="xmark" size={24} color={foreground} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.intensityContainer}>
+              <Text style={[styles.intensityValue, { color: accent }]}>{moodIntensity}</Text>
+              <Slider
+                style={styles.intensitySlider}
+                minimumValue={0}
+                maximumValue={100}
+                step={1}
+                value={moodIntensity}
+                onValueChange={setMoodIntensity}
+                minimumTrackTintColor={accent}
+                maximumTrackTintColor={border}
+                thumbTintColor={accent}
+              />
+              <View style={styles.intensityLabels}>
+                <Text style={[styles.intensityLabel, { color: muted }]}>微弱</Text>
+                <Text style={[styles.intensityLabel, { color: muted }]}>强烈</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={[styles.intensityConfirmBtn, { backgroundColor: accent }]}
+              onPress={() => setShowMoodIntensityModal(false)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.intensityConfirmText}>确认</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -504,8 +618,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   backButton: {
     width: 40,
@@ -514,7 +626,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
   },
   saveButton: {
@@ -528,232 +640,235 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  contentContainer: {
+  scrollView: {
     flex: 1,
-  },
-  scrollContent: {
     paddingHorizontal: 16,
-    paddingBottom: 40,
   },
-  titleContainer: {
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-  },
-  titleInput: {
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  metaContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 16,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-  },
-  metaIcon: {
-    marginRight: 6,
-  },
-  metaText: {
-    fontSize: 13,
-  },
-  section: {
-    marginTop: 24,
-  },
-  sectionLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  moodGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  moodItem: {
-    width: (width - 32 - 50) / 3,
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  moodItemSelected: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  moodLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 6,
-  },
-  contentContainerInner: {
-    borderRadius: 16,
-    padding: 16,
-    minHeight: 200,
-    position: 'relative',
-  },
-  contentInput: {
-    fontSize: 16,
-    lineHeight: 24,
-    flex: 1,
-  },
-  charCount: {
-    fontSize: 12,
-    textAlign: 'right',
-    marginTop: 8,
-  },
-  tagInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    padding: 0,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  tagInput: {
-    flex: 1,
-    fontSize: 15,
-    color: '#2D3436',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  addTagButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 12,
-    gap: 8,
-  },
-  tag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  tagText: {
-    fontSize: 13,
-    fontWeight: '500',
-    marginRight: 6,
-  },
-  removeTag: {
-    marginLeft: 4,
-  },
-  aiAssistantFloating: {
-    position: 'absolute',
-    right: 16,
-    bottom: 100,
-    zIndex: 1000,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  aiBubble: {
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 12,
-    minWidth: 200,
-    maxWidth: 280,
-  },
-  aiBubbleHeader: {
+  templateSelector: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 12,
   },
-  aiBubbleTitle: {
+  templateSelectorText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  toolBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 12,
   },
-  aiBubbleTitleText: {
-    fontSize: 13,
-    fontWeight: '600',
+  toolBarText: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 15,
   },
-  aiBubbleClose: {
-    padding: 4,
+  toolButton: {
+    padding: 8,
   },
-  aiBubbleContent: {
-    minHeight: 60,
+  toolDivider: {
+    width: 1,
+    height: 20,
   },
-  aiAnalyzing: {
-    paddingVertical: 12,
-    alignItems: 'center',
+  toolButtonLabel: {
+    fontSize: 12,
+    marginLeft: 8,
   },
-  aiAnalyzingText: {
-    fontSize: 13,
-    textAlign: 'center',
+  imagePreviewContainer: {
+    marginBottom: 12,
   },
-  aiResult: {
-    gap: 12,
+  imagePreview: {
+    marginRight: 8,
+    position: 'relative',
   },
-  aiResultText: {
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  aiChatButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+  previewImage: {
+    width: 80,
+    height: 80,
     borderRadius: 8,
+  },
+  removeImageBtn: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  titleInput: {
+    fontSize: 18,
+    fontWeight: '600',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  contentInput: {
+    fontSize: 16,
+    minHeight: 200,
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  moodSection: {
+    marginBottom: 20,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  moodButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginRight: 8,
     gap: 6,
   },
-  aiChatButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#FFFFFF',
+  moodLabel: {
+    fontSize: 14,
+    fontWeight: '500',
   },
-  aiWelcome: {
-    paddingVertical: 12,
+  tagSection: {
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  tagList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 8,
+    gap: 8,
+  },
+  tagBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+  },
+  tagText: {
+    fontSize: 13,
+  },
+  tagInputRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  aiHeart: {
-    marginBottom: 4,
-  },
-  aiWelcomeText: {
+  tagInput: {
+    flex: 1,
     fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
-  aiWelcomeSubtext: {
-    fontSize: 12,
-    textAlign: 'center',
+  addTagBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  aiToggle: {
+  locationInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
+    padding: 10,
+    borderRadius: 8,
+    gap: 8,
   },
-  aiToggleText: {
+  locationText: {
     fontSize: 13,
-    fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  templateItem: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  templateItemTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  templateItemPrompt: {
+    fontSize: 14,
+  },
+  weatherGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  weatherItem: {
+    width: (width - 64) / 3,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  weatherLabel: {
+    fontSize: 12,
+    marginTop: 8,
+  },
+  intensityContainer: {
+    padding: 20,
+  },
+  intensityValue: {
+    fontSize: 48,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  intensitySlider: {
+    width: '100%',
+    height: 40,
+    marginBottom: 12,
+  },
+  intensityLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  intensityLabel: {
+    fontSize: 13,
+  },
+  intensityConfirmBtn: {
+    margin: 16,
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  intensityConfirmText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
-

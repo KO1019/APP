@@ -251,6 +251,68 @@ export default function ChatScreen() {
     }
   };
 
+  // 保存对话为日记
+  const handleSaveConversationAsDiary = async () => {
+    if (!token) {
+      Alert.alert('提示', '请先登录');
+      return;
+    }
+
+    if (messages.length === 0) {
+      Alert.alert('提示', '暂无对话记录');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // 将对话记录转换为文本
+      const conversationText = messages
+        .map((msg, index) => {
+          const role = msg.role === 'user' ? '我' : 'AI';
+          return `${role}: ${msg.content}`;
+        })
+        .join('\n\n');
+
+      /**
+       * 服务端文件：server/main.py
+       * 接口：POST /api/v1/diaries/generate-from-chat
+       * Body 参数：conversation: string
+       */
+      const response = await fetch(buildApiUrl('/api/v1/diaries/generate-from-chat'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          conversation: conversationText,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || '生成日记失败');
+      }
+
+      const data = await response.json();
+
+      Alert.alert(
+        '成功',
+        '日记已生成',
+        [
+          { text: '查看日记', onPress: () => router.push(`/diary-detail?id=${data.id}`) },
+          { text: '返回聊天', onPress: () => {} },
+        ]
+      );
+    } catch (error) {
+      console.error('Error generating diary:', error);
+      Alert.alert('错误', '生成日记失败，请重试');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     // 当有新消息时滚动到底部
     scrollViewRef.current?.scrollToEnd({ animated: true });
@@ -457,6 +519,30 @@ export default function ChatScreen() {
             )}
           </ScrollView>
 
+          {/* 保存为日记按钮 */}
+          {messages.length > 0 && (
+            <TouchableOpacity
+              style={[styles.saveDiaryButton, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}
+              onPress={() => {
+                Alert.alert(
+                  '保存为日记',
+                  '确定要将本次对话记录生成日记吗？',
+                  [
+                    { text: '取消', style: 'cancel' },
+                    {
+                      text: '确定',
+                      onPress: () => handleSaveConversationAsDiary(),
+                    },
+                  ]
+                );
+              }}
+              activeOpacity={0.7}
+            >
+              <FontAwesome6 name="book-journal-whills" size={16} color={accent} />
+              <Text style={[styles.saveDiaryButtonText, { color: foreground }]}>保存为日记</Text>
+            </TouchableOpacity>
+          )}
+
           <View style={[styles.inputContainer, { backgroundColor: surface, borderTopColor: border, borderTopWidth: 1 }]}>
             <TextInput
               style={[styles.input, { color: foreground, backgroundColor: background, borderColor: border, borderWidth: 1 }]}
@@ -642,6 +728,21 @@ const styles = StyleSheet.create({
   messageText: {
     fontSize: 15,
     lineHeight: 22,
+  },
+  saveDiaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 12,
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 8,
+    gap: 8,
+  },
+  saveDiaryButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   inputContainer: {
     flexDirection: 'row',
