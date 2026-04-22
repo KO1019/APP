@@ -297,6 +297,16 @@ export default function ChatScreen() {
     }
   };
 
+  const handleBackToHome = () => {
+    // 清空消息并重新加载空状态
+    setMessages([]);
+    setInputText('');
+    fetchSuggestedTopics();
+    fetchRecentConversations();
+    // 清除 URL 参数
+    router.replace('/chat');
+  };
+
   const handleViewHistory = () => {
     router.push('/conversation-history');
   };
@@ -311,7 +321,7 @@ export default function ChatScreen() {
           <View style={styles.header}>
           <View style={styles.headerLeft}>
             {params.conversationId && (
-              <TouchableOpacity onPress={() => router.replace('/chat')} style={styles.backButton}>
+              <TouchableOpacity onPress={handleBackToHome} style={styles.backButton}>
                 <FontAwesome6 name="arrow-left" size={24} color={foreground} />
               </TouchableOpacity>
             )}
