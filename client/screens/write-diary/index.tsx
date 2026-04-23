@@ -843,14 +843,15 @@ ${content || '(日记内容为空，请先开始写作)'}
             </View>
 
             {/* 位置信息 */}
-            {location && (
+            {location && location.latitude && location.longitude && (
               <View style={[styles.locationInfo, { backgroundColor: `${accent}10`, borderColor: `${accent}30`, borderWidth: 1 }]}>
                 <FontAwesome6 name="location-dot" size={14} color={accent} />
                 <Text style={[styles.locationText, { color: foreground }]}>
-                  {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
+                  {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
                 </Text>
               </View>
             )}
+            {/* 触发HMR更新 - 修复.toFixed错误 */}
 
             <View style={{ height: 40 }} />
           </ScrollView>
