@@ -13,6 +13,11 @@ const API_BASE = (process.env.EXPO_PUBLIC_API_BASE ?? '').replace(/\/$/, '');
 export const buildApiUrl = (path: string): string => {
   const backendUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
 
+  // 在Web环境下，如果后端URL是外部域名但我们在本地开发，使用localhost
+  if (Platform.OS === 'web' && backendUrl.includes('dev.coze.site')) {
+    return `http://localhost:9091${path}`;
+  }
+
   // 在所有平台下都使用完整URL，避免Web代理问题
   return `${backendUrl}${path}`;
 };
