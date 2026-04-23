@@ -9,6 +9,7 @@ import uuid
 import hashlib
 import asyncio
 import json
+import httpx
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 
@@ -1859,12 +1860,30 @@ async def get_welcome_content():
     if not admin_supabase:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
-    result = admin_supabase.table('welcome_content').select('*').eq('is_active', True).execute()
+    try:
+        # 使用 HTTP 直接调用 Supabase REST API
+        url = f"{SUPABASE_URL}/rest/v1/welcome_content"
+        headers = {
+            'apikey': SUPABASE_KEY,
+            'Authorization': f'Bearer {SUPABASE_KEY}',
+            'Content-Type': 'application/json'
+        }
+        params = {
+            'is_active': 'eq.true',
+            'limit': '1'
+        }
 
-    if not result.data:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers, params=params)
+            if response.status_code == 200:
+                data = response.json()
+                if data and len(data) > 0:
+                    return {"success": True, "welcome": data[0]}
+
         return {"success": True, "welcome": None}
-
-    return {"success": True, "welcome": result.data[0]}
+    except Exception as e:
+        print(f"Error fetching welcome content: {e}")
+        return {"success": True, "welcome": None}
 
 
 @app.post('/api/v1/user/welcome/{welcome_id}/viewed')
