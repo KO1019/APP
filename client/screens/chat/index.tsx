@@ -40,26 +40,13 @@ export default function ChatScreen() {
   const { token, isOfflineMode, user } = useAuth();
   const params = useSafeSearchParams<{ initialMessage: string; conversationId: string; relatedDiaryId: string }>();
 
-  console.log('[Chat] ChatScreen initialized, params:', params);
-
   // 保存当前的conversationId，用于本地存储
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(params.conversationId || null);
-
-  console.log('[Chat] State initialized, currentConversationId:', currentConversationId);
-
-  // 监控messages变化
-  useEffect(() => {
-    console.log('[Chat] Messages changed:', messages);
-    console.log('[Chat] Last message:', messages[messages.length - 1]);
-  }, [messages]);
 
   // 加载特定对话的历史记录
   useEffect(() => {
     const loadConversation = async () => {
-      console.log('[Chat] loadConversation called, params.conversationId:', params.conversationId, 'token:', !!token);
-
       if (!params.conversationId) {
-        console.log('[Chat] loadConversation skipped: no conversationId');
         return;
       }
 
@@ -68,62 +55,40 @@ export default function ChatScreen() {
 
       if (!isLocalId && token) {
         try {
-          /**
-           * 服务端文件：server/main.py
-           * 接口：GET /api/v1/conversations/:id
-           * Path 参数：id: string
-           * Headers: Authorization: Bearer {token}
-           */
-          console.log('[Chat] Fetching conversation from cloud:', params.conversationId);
           const response = await fetch(buildApiUrl(`/api/v1/conversations/${params.conversationId}`), {
             headers: {
               'Authorization': `Bearer ${token}`,
             },
           });
 
-          console.log('[Chat] Fetch response status:', response.status);
-
           if (response.ok) {
             const data = await response.json();
-            console.log('[Chat] Conversation loaded from cloud:', data);
-            console.log('[Chat] user_message:', data.user_message, 'ai_message:', data.ai_message);
-            // 恢复完整的对话历史
-            const newMessages = [
+            setMessages([
               { role: 'user', content: data.user_message },
               { role: 'assistant', content: data.ai_message },
-            ];
-            console.log('[Chat] Setting messages:', newMessages);
-            setMessages(newMessages);
-            // 设置当前conversationId，确保后续消息发送到同一个对话中
+            ]);
             setCurrentConversationId(params.conversationId);
             return;
-          } else {
-            console.warn('[Chat] Failed to load conversation from cloud, status:', response.status);
           }
         } catch (error) {
-          console.error('[Chat] Error loading conversation from cloud:', error);
+          console.error('Error loading conversation from cloud:', error);
         }
       }
 
       // 如果云端加载失败或者是本地ID，尝试从本地存储加载
       if (isLocalId || !token) {
-        console.log('[Chat] Trying to load conversation from local storage, conversationId:', params.conversationId);
         try {
           const localConversation = await getLocalChatMessage(params.conversationId);
           if (localConversation) {
-            console.log('[Chat] Local conversation found:', localConversation);
             const newMessages = [
               { role: 'user', content: localConversation.user_message || localConversation.userMessage },
               { role: 'assistant', content: localConversation.ai_message || localConversation.aiMessage },
             ];
-            console.log('[Chat] Setting local messages:', newMessages);
             setMessages(newMessages);
             setCurrentConversationId(params.conversationId);
-          } else {
-            console.warn('[Chat] Local conversation not found:', params.conversationId);
           }
         } catch (error) {
-          console.error('[Chat] Error loading conversation from local storage:', error);
+          console.error('Error loading conversation from local storage:', error);
         }
       }
     };
@@ -193,22 +158,19 @@ export default function ChatScreen() {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('[Chat] Recent conversations fetched:', data);
         // 只取最近2条对话
         setRecentConversations(data.slice(0, 2));
       } else {
         setRecentConversations([]);
       }
     } catch (error) {
-      console.error('[Chat] Error fetching recent conversations:', error);
+      console.error('Error fetching recent conversations:', error);
       setRecentConversations([]);
     }
   }, [token]);
 
   const sendMessage = async () => {
-    console.log('[Chat] sendMessage called, inputText:', inputText, 'loading:', loading);
     if (!inputText.trim() || loading) {
-      console.log('[Chat] sendMessage early return, inputText empty or loading');
       return;
     }
 
@@ -227,11 +189,9 @@ export default function ChatScreen() {
       // AI功能只需要检查：用户已登录且不是离线模式
       if (!isOfflineMode && token) {
         const chatUrl = buildApiUrl('/api/v1/chat');
-        console.log('[Chat] Connecting to:', chatUrl);
 
         // 在Web环境下，使用fetch API实现流式响应
         if (Platform.OS === 'web') {
-          console.log('[Chat] Using Web fetch API for streaming');
 
           // 先添加一个空的 AI 消息占位符
           setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
@@ -248,14 +208,12 @@ export default function ChatScreen() {
               diaryId: params.relatedDiaryId || null,
             }),
           }).then(async (response) => {
-            console.log('[Chat] Response received, status:', response.status, 'ok:', response.ok);
 
             if (!response.ok) {
               throw new Error(`HTTP ${response.status}`);
             }
 
             const reader = response.body?.getReader();
-            console.log('[Chat] Reader created:', !!reader);
             const decoder = new TextDecoder();
             let aiResponse = '';
 
@@ -264,19 +222,15 @@ export default function ChatScreen() {
             }
 
             while (true) {
-              console.log('[Chat] Waiting for chunk...');
               const { done, value } = await reader.read();
-              console.log('[Chat] Chunk read, done:', done, 'value length:', value?.length);
 
               if (done) {
-                console.log('[Chat] Stream finished');
                 setLoading(false);
                 saveChatMessageLocally(conversationId, userMessage, aiResponse, params.relatedDiaryId || null, true);
                 break;
               }
 
               const chunk = decoder.decode(value);
-              console.log('[Chat] Chunk received:', chunk);
 
               // 解析SSE格式
               const lines = chunk.split('\n');
@@ -284,7 +238,6 @@ export default function ChatScreen() {
                 if (line.startsWith('data: ')) {
                   const data = line.slice(6);
                   if (data === '[DONE]') {
-                    console.log('[Chat] Stream finished with [DONE]');
                     setLoading(false);
                     saveChatMessageLocally(conversationId, userMessage, aiResponse, params.relatedDiaryId || null, true);
                     return;
@@ -316,7 +269,6 @@ export default function ChatScreen() {
           });
         } else {
           // 在移动端使用 RNSSE
-          console.log('[Chat] Using RNSSE for mobile');
 
           // 先添加一个空的 AI 消息占位符
           setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
@@ -338,7 +290,6 @@ export default function ChatScreen() {
 
           // 监听连接打开事件
           sse.addEventListener('open', () => {
-            console.log('[Chat] SSE connection opened');
           });
 
           // 监听错误事件
@@ -349,11 +300,9 @@ export default function ChatScreen() {
           });
 
           sse.addEventListener('message', (event: any) => {
-            console.log('[Chat] SSE message received:', event.data);
 
             // 检查是否为流结束信号
             if (event.data === '[DONE]') {
-              console.log('[Chat] SSE stream finished');
               sse.close();
               setLoading(false);
               saveChatMessageLocally(conversationId, userMessage, aiResponse, params.relatedDiaryId || null, true);
@@ -406,22 +355,18 @@ export default function ChatScreen() {
 
   // 保存对话为日记
   const handleSaveConversationAsDiary = async () => {
-    console.log('[Chat] Save as diary clicked, messages length:', messages.length);
 
     if (!token) {
-      console.log('[Chat] No token, showing alert');
       Alert.alert('提示', '请先登录');
       return;
     }
 
     if (messages.length === 0) {
-      console.log('[Chat] No messages, showing alert');
       Alert.alert('提示', '暂无对话记录');
       return;
     }
 
     try {
-      console.log('[Chat] Starting to generate diary...');
       setLoading(true);
 
       // 将对话记录转换为文本
@@ -432,10 +377,8 @@ export default function ChatScreen() {
         })
         .join('\n\n');
 
-      console.log('[Chat] Conversation text prepared, length:', conversationText.length);
 
       const url = buildApiUrl('/api/v1/diaries/generate-from-chat');
-      console.log('[Chat] Sending request to:', url);
 
       /**
        * 服务端文件：server/main.py
@@ -453,7 +396,6 @@ export default function ChatScreen() {
         }),
       });
 
-      console.log('[Chat] Response received, status:', response.status);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -462,7 +404,6 @@ export default function ChatScreen() {
       }
 
       const data = await response.json();
-      console.log('[Chat] Diary generated successfully, id:', data.id);
 
       Alert.alert(
         '成功',
@@ -685,10 +626,7 @@ export default function ChatScreen() {
                       <TouchableOpacity
                         key={conv.id}
                         style={[styles.conversationCard, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}
-                        onPress={() => {
-                          console.log('[Chat] Clicked recent conversation:', conv.id, 'user_message:', conv.user_message, 'ai_message:', conv.ai_message);
-                          router.push('/chat', { conversationId: conv.id });
-                        }}
+                        onPress={() => router.push('/chat', { conversationId: conv.id })}
                       >
                         <Text style={[styles.conversationUserMsg, { color: foreground }]} numberOfLines={1}>
                           {conv.user_message}

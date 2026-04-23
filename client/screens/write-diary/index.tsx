@@ -290,10 +290,8 @@ ${content}
 
   // 手动触发AI功能（灵感、润色、分析）
   const handleAIAction = async (action: AIActionType) => {
-    console.log('[WriteDiary] AI action triggered:', action);
 
     if (aiSuggestionLoading) {
-      console.log('[WriteDiary] AI suggestion already loading, ignoring');
       return;
     }
 
@@ -304,7 +302,6 @@ ${content}
     try {
       const authToken = await AsyncStorage.getItem('authToken');
       if (!authToken) {
-        console.log('[WriteDiary] No auth token found');
         Alert.alert(
           '提示',
           'AI功能需要登录后使用。\n\n您可以：\n1. 先保存日记到本地\n2. 登录后再使用AI功能进行润色和分析',
@@ -313,7 +310,6 @@ ${content}
         return;
       }
 
-      console.log('[WriteDiary] Auth token found, sending request...');
 
       // 根据不同操作类型构建不同的prompt
       let prompt = '';
@@ -364,7 +360,6 @@ ${content}
           break;
       }
 
-      console.log('[WriteDiary] Sending AI request:', action);
       const response = await fetch(buildApiUrl('/api/v1/ai/chat'), {
         method: 'POST',
         headers: {
@@ -381,16 +376,13 @@ ${content}
         }),
       });
 
-      console.log('[WriteDiary] AI response received');
       if (!response.ok) {
         throw new Error('AI响应失败');
       }
 
       const result = await response.json();
-      console.log('[WriteDiary] AI result:', result);
       if (result.content) {
         setAiSuggestion(result.content);
-        console.log('[WriteDiary] AI suggestion set successfully');
       }
     } catch (error) {
       console.error('Error in AI action:', error);
@@ -421,7 +413,6 @@ ${content}
 
   // 选择图片
   const handlePickImage = async () => {
-    console.log('[WriteDiary] Pick image clicked');
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
@@ -459,7 +450,6 @@ ${content}
           }
         });
 
-        console.log('[WriteDiary] Images added:', newImageCount);
       }
     } catch (error) {
       console.error('[WriteDiary] Error picking image:', error);
@@ -468,13 +458,11 @@ ${content}
 
   // 删除图片
   const handleRemoveImage = (index: number) => {
-    console.log('[WriteDiary] Remove image at index:', index);
     setImages(images.filter((_, i) => i !== index));
   };
 
   // 获取位置
   const handleGetLocation = async () => {
-    console.log('[WriteDiary] Get location clicked');
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -487,7 +475,6 @@ ${content}
         latitude: locationData.coords.latitude,
         longitude: locationData.coords.longitude,
       });
-      console.log('[WriteDiary] Location obtained:', locationData.coords);
     } catch (error) {
       console.error('[WriteDiary] Error getting location:', error);
     }
@@ -495,7 +482,6 @@ ${content}
 
   // 添加标签
   const handleAddTag = () => {
-    console.log('[WriteDiary] Add tag:', tagInput);
     if (tagInput.trim() && !tags.includes(tagInput.trim())) {
       setTags([...tags, tagInput.trim()]);
       setTagInput('');
@@ -504,7 +490,6 @@ ${content}
 
   // 删除标签
   const handleRemoveTag = (tag: string) => {
-    console.log('[WriteDiary] Remove tag:', tag);
     setTags(tags.filter((t) => t !== tag));
   };
 
@@ -532,7 +517,6 @@ ${content}
 
   // 提交日记
   const handleSubmit = async () => {
-    console.log('[WriteDiary] Submit clicked, isEditMode:', isEditMode, 'editId:', editId);
 
     if (!content.trim()) {
       Alert.alert('提示', '请输入日记内容');
@@ -541,7 +525,6 @@ ${content}
 
     try {
       setSubmitting(true);
-      console.log('[WriteDiary] Saving diary...');
 
       const diaryData = {
         id: isEditMode && editId ? editId : `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -559,14 +542,11 @@ ${content}
         is_uploaded: false,
       };
 
-      console.log('[WriteDiary] Diary data prepared:', JSON.stringify(diaryData, null, 2));
 
       // 如果是编辑模式
       if (isEditMode && editId) {
-        console.log('[WriteDiary] Editing diary...');
         // 如果是云端日记
         if (!editId.startsWith('local_') && token) {
-          console.log('[WriteDiary] Updating cloud diary...');
           /**
            * 服务端文件：server/main.py
            * 接口：PUT /api/v1/diaries/{diary_id}
@@ -598,30 +578,24 @@ ${content}
             throw new Error('Failed to update diary');
           }
 
-          console.log('[WriteDiary] Cloud diary updated successfully');
           Alert.alert('成功', '日记已更新', [
             { text: '确定', onPress: () => router.back() },
           ]);
         } else {
           // 如果是本地日记，直接更新本地存储
-          console.log('[WriteDiary] Updating local diary...');
           await saveDiaryLocally(diaryData);
-          console.log('[WriteDiary] Local diary updated successfully');
           Alert.alert('成功', '日记已更新', [
             { text: '确定', onPress: () => router.back() },
           ]);
         }
       } else {
         // 新增模式
-        console.log('[WriteDiary] Creating new diary...');
         // 先保存到本地
         await saveDiaryLocally(diaryData);
-        console.log('[WriteDiary] New diary saved locally');
 
         // 如果是在线模式且有token，上传到云端
         if (!isOfflineMode && token) {
           try {
-            console.log('[WriteDiary] Uploading diary to cloud...');
             /**
              * 服务端文件：server/main.py
              * 接口：POST /api/v1/diaries
@@ -655,7 +629,6 @@ ${content}
 
             // 更新本地日记的ID和上传状态
             await markDiaryAsUploaded(diaryData.id);
-            console.log('[WriteDiary] Diary uploaded to cloud successfully');
 
             Alert.alert('成功', '日记已保存到云端', [
               { text: '确定', onPress: () => router.back() },
@@ -671,7 +644,6 @@ ${content}
             ? '日记已保存到本地（离线模式）'
             : '日记已保存到本地';
 
-          console.log('[WriteDiary] Diary saved:', message);
           Alert.alert('成功', message, [
             { text: '确定', onPress: () => router.back() },
           ]);

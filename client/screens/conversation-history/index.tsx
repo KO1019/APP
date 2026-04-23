@@ -284,10 +284,8 @@ export default function ConversationHistoryScreen() {
   };
 
   const handleConversationPress = (conversation: Conversation) => {
-    console.log('[ConversationHistory] handleConversationPress called, conversationId:', conversation.id);
     // 跳转到聊天页面，并传递对话ID以便加载完整历史
     router.push('/chat', { conversationId: conversation.id });
-    console.log('[ConversationHistory] Navigation completed');
   };
 
   if (loading) {

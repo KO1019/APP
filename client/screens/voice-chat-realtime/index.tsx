@@ -167,7 +167,6 @@ export default function VoiceChatRealtime() {
     }
 
     const data = await response.json();
-    console.log('[VOICE-HTTP] Session connected:', data);
   };
 
   // HTTP长轮询：发送消息
@@ -223,7 +222,6 @@ export default function VoiceChatRealtime() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_id: sessionId }),
       });
-      console.log('[VOICE-HTTP] Session closed');
     } catch (error) {
       console.error('[VOICE-HTTP] Error closing session:', error);
     }
@@ -238,14 +236,12 @@ export default function VoiceChatRealtime() {
 
     if (inCozeEnv) {
       // Coze环境：使用HTTP长轮询
-      console.log('[VOICE] Coze environment detected, using HTTP long-polling');
       setUseHttpPolling(true);
 
       try {
         // 创建会话
         const sessionId = await httpCreateSession();
         httpSessionIdRef.current = sessionId;
-        console.log('[VOICE-HTTP] Session created:', sessionId);
         setCallStatus('connecting');
 
         // 连接到豆包API
@@ -265,7 +261,6 @@ export default function VoiceChatRealtime() {
           console.error('[VOICE] Failed to activate keep awake:', error);
         }
 
-        console.log('[VOICE-HTTP] Connected successfully');
       } catch (error) {
         console.error('[VOICE-HTTP] Failed to connect:', error);
         setIsConnected(false);
@@ -281,7 +276,6 @@ export default function VoiceChatRealtime() {
       }
     } else {
       // 非Coze环境：使用WebSocket
-      console.log('[VOICE] Non-Coze environment, using WebSocket');
       setUseHttpPolling(false);
 
       try {
@@ -299,13 +293,10 @@ export default function VoiceChatRealtime() {
           wsUrl = `${wsProtocol}${url.hostname}${url.port ? `:${url.port}` : ''}/api/v1/voice/realtime`;
         }
 
-        console.log('[VOICE] Attempting to connect to WebSocket...');
-        console.log('[VOICE] WebSocket URL:', wsUrl);
 
         const ws = new WebSocket(wsUrl) as any;
 
         ws.onopen = async () => {
-          console.log('[VOICE] WebSocket connected successfully!');
           setCallStatus('connecting');
           setIsConnected(true);
           try {
@@ -332,7 +323,6 @@ export default function VoiceChatRealtime() {
 
         ws.onclose = (event: CloseEvent) => {
           if (event.code === 1000) {
-            console.log('[VOICE] WebSocket closed normally');
           } else {
             console.error('[VOICE] WebSocket closed abnormally:', event.code);
           }
@@ -350,7 +340,6 @@ export default function VoiceChatRealtime() {
             console.log(`[VOICE] Will reconnect in 5 seconds... (reason: ${errorDetail})`);
             connectTimeoutRef.current = setTimeout(() => {
               if (shouldAutoReconnectRef.current) {
-                console.log('[VOICE] Reconnecting...');
                 connectWebSocket();
               }
             }, 5000);
@@ -505,12 +494,10 @@ export default function VoiceChatRealtime() {
                       type: 'audio_input',
                       audio_data: audioHex
                     });
-                    console.log('[VOICE-HTTP] Web: Sent audio chunk:', arrayBuffer.byteLength, 'bytes');
                   } else {
                     // WebSocket模式：直接发送二进制数据
                     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
                       wsRef.current.send(arrayBuffer);
-                      console.log('[VOICE] Web: Sent audio chunk:', arrayBuffer.byteLength, 'bytes');
                     }
                   }
                 }
@@ -589,12 +576,10 @@ export default function VoiceChatRealtime() {
                     type: 'audio_input',
                     audio_data: audioHex
                   });
-                  console.log('[VOICE-HTTP] Mobile: Sent audio chunk:', audioBytes.length, 'bytes');
                 } else {
                   // WebSocket模式：直接发送二进制数据
                   if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
                     wsRef.current.send(audioBytes.buffer);
-                    console.log('[VOICE] Mobile: Sent audio chunk:', audioBytes.length, 'bytes');
                   }
                 }
               }
@@ -658,7 +643,6 @@ export default function VoiceChatRealtime() {
           return;
         }
         await httpSendMessage(message);
-        console.log('[VOICE-HTTP] Sent text message:', text);
       } else {
         // WebSocket模式
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
@@ -667,7 +651,6 @@ export default function VoiceChatRealtime() {
           return;
         }
         wsRef.current.send(JSON.stringify(message));
-        console.log('[VOICE] Sent text message:', text);
       }
 
       setIsProcessing(true);
@@ -687,7 +670,6 @@ export default function VoiceChatRealtime() {
 
   const handleEndCall = async () => {
     try {
-      console.log('[VOICE] Ending call...');
 
       // 标记为手动断开，不自动重连
       shouldAutoReconnectRef.current = false;
@@ -747,7 +729,6 @@ export default function VoiceChatRealtime() {
       case 'connection_ready':
       case 'connection_started':
         setCallStatus('listening'); // 连接成功，开始聆听
-        console.log('[VOICE] Status: listening');
         break;
 
       case 'asr_text': {
@@ -756,7 +737,6 @@ export default function VoiceChatRealtime() {
           setCurrentInterimText('');
           setMessages(prev => [...prev, { role: 'user', content: text }]);
           setCallStatus('thinking'); // 用户说完，开始思考
-          console.log('[VOICE] Status: thinking');
         } else {
           setCurrentInterimText(text);
           if (callStatus === 'listening') {
@@ -774,7 +754,6 @@ export default function VoiceChatRealtime() {
         if (recordMode) {
           saveConversationAsDiary();
         }
-        console.log('[VOICE] Status: speaking');
         break;
       }
 
@@ -805,7 +784,6 @@ export default function VoiceChatRealtime() {
           playCollectedAudio();
         }
         setCallStatus('listening'); // AI说完了，继续聆听
-        console.log('[VOICE] Status: listening');
         break;
 
       case 'asr_ended':
@@ -843,7 +821,6 @@ export default function VoiceChatRealtime() {
       try {
         await connectWebSocket();
         // 连接成功后自动开始录音（真正的通话模式）
-        console.log('[VOICE] Connected successfully, starting call...');
         await startRecording();
         Toast.show({ type: 'success', text1: '通话已连接', text2: '请开始说话' });
       } catch (error) {

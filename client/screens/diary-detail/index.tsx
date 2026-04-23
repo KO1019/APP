@@ -145,11 +145,9 @@ export default function DiaryDetailScreen() {
 
       // 检查是否为本地日记（以"local_"开头的ID）
       if (id.startsWith('local_')) {
-        console.log('[DiaryDetail] Loading from local storage');
         const localDiary = await getLocalDiaryById(id);
 
         if (localDiary) {
-          console.log('[DiaryDetail] Loaded from local storage');
           setDiary(localDiary as DiaryDetail);
           return;
         } else {
@@ -169,7 +167,6 @@ export default function DiaryDetailScreen() {
       }
 
       const apiUrl = buildApiUrl(`/api/v1/diaries/${id}`);
-      console.log('[DiaryDetail] Fetching diary from:', apiUrl);
 
       /**
        * 服务端文件：server/main.py
@@ -183,8 +180,6 @@ export default function DiaryDetailScreen() {
         },
       });
 
-      console.log('[DiaryDetail] Response status:', response.status);
-
       if (!response.ok) {
         const errorText = await response.text();
         console.error('[DiaryDetail] Fetch failed:', response.status, errorText);
@@ -192,7 +187,6 @@ export default function DiaryDetailScreen() {
       }
 
       const data = await response.json();
-      console.log('[DiaryDetail] Diary data loaded:', data);
       setDiary(data);
     } catch (error) {
       console.error('[DiaryDetail] Error fetching diary detail:', error);
@@ -216,8 +210,6 @@ export default function DiaryDetailScreen() {
   };
 
   const handleDelete = () => {
-    console.log('[DiaryDetail] 删除按钮被点击');
-
     if (Platform.OS === 'web') {
       // Web端使用 confirm
       const confirmed = window.confirm('确定要删除这篇日记吗？此操作不可恢复。');
