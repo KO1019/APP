@@ -704,7 +704,23 @@ ${content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* 天气和心情选择 */}
+          {/* 日期和时间显示 */}
+          <View style={styles.metaSection}>
+            <Text style={[styles.dateText, { color: muted }]}>
+              {formatDate()} · {new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          </View>
+
+          {/* 标题输入 */}
+          <TextInput
+            style={[styles.titleInput, { color: foreground }]}
+            placeholder="标题"
+            placeholderTextColor={muted}
+            value={title}
+            onChangeText={setTitle}
+          />
+
+          {/* 天气和心情选择 - 在内容上面 */}
           <View style={styles.metaSection}>
             <TouchableOpacity
               style={[styles.metaTag, { backgroundColor: surface, borderColor: selectedWeather ? accent : border }]}
@@ -736,22 +752,6 @@ ${content}
               </Text>
             </TouchableOpacity>
           </View>
-
-          {/* 日期和时间显示 - 放在标题下面 */}
-          <View style={styles.metaSection}>
-            <Text style={[styles.dateText, { color: muted }]}>
-              {formatDate()} · {new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
-            </Text>
-          </View>
-
-          {/* 标题输入 */}
-          <TextInput
-            style={[styles.titleInput, { color: foreground }]}
-            placeholder="标题"
-            placeholderTextColor={muted}
-            value={title}
-            onChangeText={setTitle}
-          />
 
           {/* 内容输入 */}
           <TextInput
