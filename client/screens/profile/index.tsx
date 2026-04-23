@@ -429,6 +429,7 @@ export default function ProfileScreen() {
                   if (confirmed) {
                     await logout();
                     alert('已退出登录');
+                    router.replace('/login');
                   }
                 } else {
                   // 移动端使用 Alert
@@ -444,6 +445,7 @@ export default function ProfileScreen() {
                           try {
                             await logout();
                             Toast.show({ type: 'success', text1: '已退出登录' });
+                            router.replace('/login');
                           } catch (error) {
                             Toast.show({ type: 'error', text1: '退出登录失败' });
                           }
