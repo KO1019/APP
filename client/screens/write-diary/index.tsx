@@ -886,6 +886,46 @@ ${content}
             autoFocus={!isEditMode}
           />
 
+          {/* 标签输入 */}
+          <View style={styles.tagInputSection}>
+            <View style={styles.tagInputRow}>
+              <FontAwesome6 name="tags" size={16} color={muted} style={styles.tagInputIcon} />
+              <TextInput
+                style={[styles.tagInput, { color: foreground }]}
+                placeholder="添加标签（按回车添加）"
+                placeholderTextColor={muted}
+                value={tagInput}
+                onChangeText={setTagInput}
+                onSubmitEditing={handleAddTag}
+              />
+              <TouchableOpacity
+                style={[styles.addTagButton, { backgroundColor: `${accent}15` }]}
+                onPress={handleAddTag}
+                activeOpacity={0.7}
+              >
+                <FontAwesome6 name="plus" size={14} color={accent} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* 标签显示 */}
+          {tags.length > 0 && (
+            <View style={styles.tagSection}>
+              {tags.map((tag) => (
+                <View key={tag} style={[styles.tagBadge, { backgroundColor: `${accent}15` }]}>
+                  <Text style={[styles.tagText, { color: accent }]}>#{tag}</Text>
+                  <TouchableOpacity
+                    style={styles.removeTagButton}
+                    onPress={() => handleRemoveTag(tag)}
+                    activeOpacity={0.7}
+                  >
+                    <FontAwesome6 name="xmark" size={12} color={accent} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+
           {/* 图片显示 */}
           {images.length > 0 && (
             <View style={styles.imageSection}>
@@ -1453,6 +1493,33 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
     marginVertical: 12,
+  },
+  tagInputSection: {
+    marginVertical: 12,
+  },
+  tagInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  tagInputIcon: {
+    marginRight: 8,
+  },
+  tagInput: {
+    flex: 1,
+    fontSize: 15,
+    paddingVertical: 4,
+  },
+  addTagButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
   },
   tagBadge: {
     flexDirection: 'row',

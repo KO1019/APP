@@ -60,8 +60,8 @@ export default function LoginScreen() {
         text1: '登录成功',
         text2: '欢迎回来'
       });
-      // 跳转到欢迎界面，由欢迎界面决定是否显示
-      router.replace('/welcome');
+      // 直接跳转到首页
+      router.replace('/');
     } catch (error: any) {
       let errorMessage = '登录失败，请稍后重试';
       let errorTitle = '登录失败';

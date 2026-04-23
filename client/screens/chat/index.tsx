@@ -49,7 +49,7 @@ export default function ChatScreen() {
 
       try {
         /**
-         * 服务端文件：server/src/index.ts
+         * 服务端文件：server/main.py
          * 接口：GET /api/v1/conversations/:id
          * Path 参数：id: string
          * Headers: Authorization: Bearer {token}
@@ -62,10 +62,13 @@ export default function ChatScreen() {
 
         if (response.ok) {
           const data = await response.json();
+          // 恢复完整的对话历史
           setMessages([
             { role: 'user', content: data.user_message },
             { role: 'assistant', content: data.ai_message },
           ]);
+          // 设置当前conversationId，确保后续消息发送到同一个对话中
+          setCurrentConversationId(params.conversationId);
         } else {
           // 如果云端加载失败，尝试从本地加载
           console.warn('Failed to load conversation from cloud, trying local storage');

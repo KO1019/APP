@@ -164,14 +164,36 @@ class Table:
             return type('Result', (), {'data': execute_query(query, params)})()
         else:
             # SELECT 查询
+            import json
+
             data = execute_query(query, params)
+
+            # 解析 JSON 字段
+            def parse_json_fields(row):
+                if not row:
+                    return row
+                for key, value in row.items():
+                    if value and isinstance(value, str):
+                        try:
+                            # 尝试解析为 JSON
+                            parsed = json.loads(value)
+                            if isinstance(parsed, (list, dict)):
+                                row[key] = parsed
+                        except json.JSONDecodeError:
+                            # 不是 JSON 格式，保持原样
+                            pass
+                return row
+
             if hasattr(self, '_single') and self._single:
                 # 只返回第一条记录
                 if data:
-                    return type('Result', (), {'data': data[0] if isinstance(data, list) else data})()
+                    data = parse_json_fields(data[0] if isinstance(data, list) else data)
+                    return type('Result', (), {'data': data})()
                 else:
                     return type('Result', (), {'data': None})()
             else:
+                # 处理所有记录
+                data = [parse_json_fields(row) for row in data]
                 return type('Result', (), {'data': data, 'count': len(data)})()
 
 

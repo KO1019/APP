@@ -723,7 +723,7 @@ async def get_diaries(
     if end_date:
         query = query.lte('created_at', end_date)
 
-    result = query.order('created_at', desc=True).limit(50).execute()
+    result = query.order('created_at', desc=True).range(0, 49).execute()
 
     return result.data or []
 
@@ -1003,23 +1003,24 @@ async def get_conversations(user_id: str = Depends(get_user_id)):
     import json
     conversations = []
     for conv in (result.data or []):
-        messages_json = conv.get('messages', '')
+        messages_data = conv.get('messages', '')
         user_message = ''
         ai_message = ''
 
         try:
-            if messages_json:
-                messages = json.loads(messages_json)
-                if isinstance(messages, list):
-                    # 找到用户消息和AI消息
-                    for msg in messages:
-                        if msg.get('role') == 'user' and not user_message:
-                            user_message = msg.get('content', '')
-                        elif msg.get('role') == 'assistant' and not ai_message:
-                            ai_message = msg.get('content', '')
-                        if user_message and ai_message:
-                            break
-        except json.JSONDecodeError:
+            # messages 可能已经被db_adapter解析为list，或者是JSON字符串
+            messages = messages_data if isinstance(messages_data, list) else json.loads(messages_data) if isinstance(messages_data, str) else []
+
+            if isinstance(messages, list):
+                # 找到用户消息和AI消息
+                for msg in messages:
+                    if msg.get('role') == 'user' and not user_message:
+                        user_message = msg.get('content', '')
+                    elif msg.get('role') == 'assistant' and not ai_message:
+                        ai_message = msg.get('content', '')
+                    if user_message and ai_message:
+                        break
+        except (json.JSONDecodeError, TypeError):
             pass
 
         conversations.append({
