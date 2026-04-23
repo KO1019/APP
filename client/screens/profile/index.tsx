@@ -420,26 +420,46 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <TouchableOpacity
             style={[styles.logoutButton, { backgroundColor: '#FEF2F2', borderColor: '#FECACA', borderWidth: 2 }]}
-            onPress={() => {
-              Alert.alert(
-                '退出登录',
-                '确定要退出登录吗？',
-                [
-                  { text: '取消', style: 'cancel' },
-                  {
-                    text: '确定退出',
-                    style: 'destructive',
-                    onPress: async () => {
-                      try {
-                        await logout();
-                        Toast.show({ type: 'success', text1: '已退出登录' });
-                      } catch (error) {
-                        Toast.show({ type: 'error', text1: '退出登录失败' });
-                      }
-                    },
-                  },
-                ]
-              );
+            onPress={async () => {
+              console.log('退出登录按钮被点击');
+              try {
+                // Web 端使用 confirm 对话框
+                if (Platform.OS === 'web') {
+                  const confirmed = window.confirm('确定要退出登录吗？');
+                  if (confirmed) {
+                    await logout();
+                    alert('已退出登录');
+                  }
+                } else {
+                  // 移动端使用 Alert
+                  Alert.alert(
+                    '退出登录',
+                    '确定要退出登录吗？',
+                    [
+                      { text: '取消', style: 'cancel' },
+                      {
+                        text: '确定退出',
+                        style: 'destructive',
+                        onPress: async () => {
+                          try {
+                            await logout();
+                            Toast.show({ type: 'success', text1: '已退出登录' });
+                          } catch (error) {
+                            Toast.show({ type: 'error', text1: '退出登录失败' });
+                          }
+                        },
+                      },
+                    ]
+                  );
+                }
+              } catch (error) {
+                console.error('退出登录出错:', error);
+                if (Platform.OS === 'web') {
+                  alert('退出登录失败');
+                } else {
+                  Toast.show({ type: 'error', text1: '退出登录失败' });
+                }
+              }
             }}
           >
             <FontAwesome6 name="right-from-bracket" size={24} color="#DC2626" />
