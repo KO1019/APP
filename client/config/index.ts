@@ -36,15 +36,25 @@ export const API_CONFIG = {
       return envUrl;
     }
 
-    // 本地开发环境使用本地后端
-    if (isDevelopment && isLocalhost) {
-      return 'http://localhost:9091';
-    }
-
-    // 其他开发环境（包括 dev.coze.site）使用环境变量或默认值
+    // 如果环境变量未设置，根据当前环境智能判断
     if (isDevelopment) {
-      // 尝试使用环境变量，如果没有则使用默认
-      return envUrl || 'http://localhost:9091';
+      // 检测当前URL的hostname
+      if (isWeb && window.location) {
+        const hostname = window.location.hostname;
+
+        // 如果在 dev.coze.site 域名下，使用当前域名
+        if (hostname.includes('dev.coze.site')) {
+          return window.location.origin; // 使用完整的当前域名
+        }
+
+        // 如果在 localhost 上，使用本地后端
+        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '') {
+          return 'http://localhost:9091';
+        }
+      }
+
+      // 默认开发环境地址
+      return 'http://localhost:9091';
     }
 
     // 生产环境默认值
