@@ -7,6 +7,12 @@
 const isDevelopment = __DEV__;
 const isWeb = typeof window !== 'undefined';
 
+// 检测是否在真正的本地开发环境
+const isLocalhost = isWeb && window.location &&
+  (window.location.hostname === 'localhost' ||
+   window.location.hostname === '127.0.0.1' ||
+   window.location.hostname === '');
+
 /**
  * 应用基础配置
  */
@@ -25,20 +31,23 @@ export const API_CONFIG = {
   baseUrl: (() => {
     const envUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
 
-    if (isDevelopment && isWeb) {
-      // 本地开发环境（Web）使用本地后端
-      return 'http://localhost:9091';
-    }
-
-    if (envUrl) {
+    // 优先使用环境变量配置
+    if (envUrl && envUrl.trim() !== '') {
       return envUrl;
     }
 
-    // 默认值
-    if (isDevelopment) {
+    // 本地开发环境使用本地后端
+    if (isDevelopment && isLocalhost) {
       return 'http://localhost:9091';
     }
 
+    // 其他开发环境（包括 dev.coze.site）使用环境变量或默认值
+    if (isDevelopment) {
+      // 尝试使用环境变量，如果没有则使用默认
+      return envUrl || 'http://localhost:9091';
+    }
+
+    // 生产环境默认值
     return 'https://api.yourdomain.com';
   })(),
 
