@@ -356,6 +356,29 @@ async def update_profile(profile: UpdateProfile, user_id: str = Depends(get_user
     if not db_client:
         raise HTTPException(status_code=500, detail="Database not configured")
 
+    # 如果要更新头像，先删除旧头像
+    if profile.avatar is not None:
+        # 获取当前用户信息
+        current_user = db_client.table('users').select('avatar').eq('id', user_id).single().execute()
+        old_avatar = current_user.data.get('avatar') if current_user.data else None
+
+        # 如果旧头像存在且与新头像不同，删除旧头像
+        if old_avatar and old_avatar != profile.avatar:
+            try:
+                # 从URL中提取OSS key
+                # 格式: https://bucket.oss-region.aliyuncs.com/folder/path/file.ext
+                if old_avatar.startswith('https://') or old_avatar.startswith('http://'):
+                    # 移除域名部分
+                    url_parts = old_avatar.split('/', 3)
+                    if len(url_parts) >= 4:
+                        old_key = url_parts[3]
+                        # 删除旧头像
+                        oss_storage.delete_file(old_key)
+                        print(f"[Profile] 已删除旧头像: {old_key}")
+            except Exception as e:
+                # 删除失败不影响更新操作
+                print(f"[Profile] 删除旧头像失败: {e}")
+
     # 构建更新数据
     update_data = {}
     if profile.nickname is not None:
@@ -2169,6 +2192,67 @@ async def get_file_info(file_key: str, token: str = Depends(security)):
     return {
         "success": True,
         "file": info
+    }
+
+
+@app.post('/api/v1/user/avatar')
+async def upload_avatar(
+    file: bytes = File(...),
+    filename: str = Form(...),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """上传头像并自动更新用户资料"""
+    if not check_oss_config():
+        raise HTTPException(status_code=500, detail="OSS未配置")
+
+    # 检查文件大小（最大5MB）
+    if len(file) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="头像文件大小不能超过5MB")
+
+    # 检查文件类型（只允许图片）
+    import imghdr
+    file_type = imghdr.what(None, h=file)
+    if file_type not in ['jpeg', 'jpg', 'png', 'gif', 'webp']:
+        raise HTTPException(status_code=400, detail="只支持图片格式（jpeg, png, gif, webp）")
+
+    # 获取用户ID
+    try:
+        token = credentials.credentials
+        import jwt
+        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        user_id = payload.get('userId')
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    # 获取当前用户信息
+    current_user = db_client.table('users').select('avatar').eq('id', user_id).single().execute()
+    old_avatar = current_user.data.get('avatar') if current_user.data else None
+
+    # 如果有旧头像，先删除
+    if old_avatar:
+        try:
+            if old_avatar.startswith('https://') or old_avatar.startswith('http://'):
+                url_parts = old_avatar.split('/', 3)
+                if len(url_parts) >= 4:
+                    old_key = url_parts[3]
+                    oss_storage.delete_file(old_key)
+                    print(f"[Avatar] 已删除旧头像: {old_key}")
+        except Exception as e:
+            print(f"[Avatar] 删除旧头像失败: {e}")
+
+    # 上传新头像（使用avatars文件夹）
+    success, result = oss_storage.upload_file(file, filename, folder='avatars')
+
+    if not success:
+        raise HTTPException(status_code=500, detail=f"上传失败: {result.get('error')}")
+
+    # 更新用户资料
+    db_client.table('users').update({'avatar': result['url']}).eq('id', user_id).execute()
+
+    return {
+        "success": True,
+        "message": "头像上传成功",
+        "avatar": result
     }
 
 

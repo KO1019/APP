@@ -76,6 +76,12 @@ class Table:
         self._limit = end - start + 1
         return self
 
+    def single(self):
+        """只返回一条记录"""
+        self._single = True
+        self._limit = 1
+        return self
+
     def execute(self):
         """执行查询"""
         select_columns = getattr(self, '_select_columns', '*')
@@ -135,7 +141,14 @@ class Table:
         else:
             # SELECT 查询
             data = execute_query(query, params)
-            return type('Result', (), {'data': data, 'count': len(data)})()
+            if hasattr(self, '_single') and self._single:
+                # 只返回第一条记录
+                if data:
+                    return type('Result', (), {'data': data[0] if isinstance(data, list) else data})()
+                else:
+                    return type('Result', (), {'data': None})()
+            else:
+                return type('Result', (), {'data': data, 'count': len(data)})()
 
 
 class DatabaseClient:
