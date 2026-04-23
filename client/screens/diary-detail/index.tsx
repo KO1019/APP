@@ -380,12 +380,12 @@ export default function DiaryDetailScreen() {
               </View>
             )}
 
-            {/* 位置 */}
-            {diary.location && (
+            {/* 位置 - 修复toFixed错误 */}
+            {diary.location && diary.location.latitude && diary.location.longitude && (
               <View style={[styles.infoCard, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
                 <FontAwesome6 name="location-dot" size={16} color={accent} />
                 <Text style={[styles.infoText, { color: foreground }]}>
-                  {diary.location.address || `${diary.location.lat.toFixed(4)}, ${diary.location.lng.toFixed(4)}`}
+                  {diary.location.address || `${diary.location.latitude.toFixed(4)}, ${diary.location.longitude.toFixed(4)}`}
                 </Text>
               </View>
             )}
