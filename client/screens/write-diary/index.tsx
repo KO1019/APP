@@ -195,7 +195,7 @@ export default function WriteDiaryScreen() {
     };
 
     loadDiaryForEdit();
-  }, [editId, token, router]);
+  }, [editId, token]); // 移除 router 依赖，避免无限循环
 
   // 初始化时发送AI问候
   useEffect(() => {
