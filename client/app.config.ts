@@ -37,6 +37,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         'ACCESS_FINE_LOCATION',
         'RECORD_AUDIO',
         'MODIFY_AUDIO_SETTINGS',
+        'REQUEST_INSTALL_PACKAGES',
       ],
     },
     "web": {
