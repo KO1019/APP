@@ -11,3 +11,8 @@ logs/
 *.tsbuildinfo
 node-compile-cache/
 .env
+.env.production
+__pycache__/
+*.pyc
+*.pyo
+.pycache/
