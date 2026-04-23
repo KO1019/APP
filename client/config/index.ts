@@ -54,11 +54,11 @@ export const API_CONFIG = {
       }
 
       // 默认开发环境地址
-      return 'http://localhost:9091';
+      return 'http://59.110.39.235:9091';
     }
 
     // 生产环境默认值
-    return 'https://api.yourdomain.com';
+    return 'http://59.110.39.235:9091';
   })(),
 
   // API超时时间（毫秒）
