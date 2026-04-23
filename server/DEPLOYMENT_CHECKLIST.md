@@ -33,6 +33,7 @@
 - [ ] realtime_dialog_client.py
 - [ ] protocol.py
 - [ ] config.py
+- [ ] version_manager_web.py  # 管理后台
 - [ ] requirements.txt
 
 ### 5. 环境变量配置
@@ -56,6 +57,9 @@
 - [ ] 后端服务正在运行（`sudo systemctl status ai-diary-backend`）
 - [ ] 服务已设置为开机自启（`sudo systemctl is-enabled ai-diary-backend`）
 - [ ] 端口 9091 正在监听（`sudo netstat -tulpn | grep 9091`）
+- [ ] 管理后台正在运行（`sudo systemctl status ai-diary-admin`）
+- [ ] 管理后台已设置为开机自启（`sudo systemctl is-enabled ai-diary-admin`）
+- [ ] 端口 9092 正在监听（`sudo netstat -tulpn | grep 9092`）
 
 ### 2. 功能测试
 
@@ -96,6 +100,7 @@ curl -X POST http://localhost:9091/api/v1/register \
 - [ ] Nginx 配置语法正确（`sudo nginx -t`）
 - [ ] Nginx 已重新加载（`sudo systemctl reload nginx`）
 - [ ] 通过域名可以访问后端 API
+- [ ] 通过域名可以访问管理后台
 - [ ] WebSocket 连接正常
 
 ### 4. SSL 证书检查（如使用 HTTPS）

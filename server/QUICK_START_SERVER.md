@@ -2,10 +2,27 @@
 
 ## 本地启动
 
-### 方式 1：使用启动脚本（推荐）
+### 方式 1：启动所有服务（推荐）
 
 ```bash
-# 启动服务
+# 启动所有服务（后端 + 管理后台）
+./start_all.sh
+
+# 查看日志
+tail -f logs/backend.log    # 后端日志
+tail -f logs/admin.log      # 管理后台日志
+
+# 停止所有服务
+./stop_all.sh
+
+# 重启所有服务
+./restart_all.sh
+```
+
+### 方式 2：单独启动后端服务
+
+```bash
+# 启动后端服务
 ./start.sh
 
 # 查看日志
@@ -18,14 +35,14 @@ tail -f server.log
 ./restart.sh
 ```
 
-### 方式 2：手动启动
+### 方式 3：单独启动管理后台
 
 ```bash
-# 激活虚拟环境
-source venv/bin/activate
+# 启动管理后台
+python version_manager_web.py
 
-# 启动服务
-python main.py
+# 访问管理后台
+# http://localhost:9092/version-manager
 ```
 
 ## 阿里云部署

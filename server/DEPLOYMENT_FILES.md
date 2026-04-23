@@ -2,7 +2,7 @@
 
 ## 必需文件（必须上传）
 
-### 核心代码（9 个文件）
+### 核心代码（10 个文件）
 ```
 ✓ main.py                          # 主应用文件
 ✓ database.py                      # 数据库连接模块
@@ -13,6 +13,7 @@
 ✓ realtime_dialog_client.py        # 实时对话客户端
 ✓ protocol.py                      # 协议定义
 ✓ config.py                        # 配置文件
+✓ version_manager_web.py           # 管理后台（新增）
 ```
 
 ### 配置文件（3 个文件）
@@ -27,11 +28,14 @@
 ✓ create_mysql_tables.sql          # 数据库表结构
 ```
 
-### 脚本（3 个文件）
+### 脚本（6 个文件）
 ```
-✓ start.sh                         # 启动脚本
-✓ stop.sh                          # 停止脚本
-✓ restart.sh                       # 重启脚本
+✓ start.sh                         # 启动后端服务
+✓ stop.sh                          # 停止后端服务
+✓ restart.sh                       # 重启后端服务
+✓ start_all.sh                     # 启动所有服务（新增）
+✓ stop_all.sh                      # 停止所有服务（新增）
+✓ restart_all.sh                   # 重启所有服务（新增）
 ```
 
 ### 文档（可选，但建议上传）
@@ -81,6 +85,7 @@
 - realtime_dialog_client.py
 - protocol.py
 - config.py
+- version_manager_web.py  # 管理后台
 
 配置文件：
 - .env
@@ -93,6 +98,9 @@
 - start.sh
 - stop.sh
 - restart.sh
+- start_all.sh  # 启动所有服务
+- stop_all.sh   # 停止所有服务
+- restart_all.sh # 重启所有服务
 
 文档（可选但推荐）：
 - ALIYUN_DEPLOYMENT.md
@@ -106,8 +114,10 @@
 # 上传核心文件
 scp main.py database.py db_adapter.py oss_storage.py \
     model_manager.py redis_cache.py realtime_dialog_client.py \
-    protocol.py config.py .env requirements.txt \
-    create_mysql_tables.sql start.sh stop.sh restart.sh \
+    protocol.py config.py version_manager_web.py .env \
+    requirements.txt create_mysql_tables.sql \
+    start.sh stop.sh restart.sh \
+    start_all.sh stop_all.sh restart_all.sh \
     user@your-server:/var/www/ai-diary-backend/
 
 # 上传文档
@@ -119,7 +129,7 @@ scp *.md user@your-server:/var/www/ai-diary-backend/
 # 上传所有文件
 rsync -avz --exclude='venv' --exclude='__pycache__' \
     --exclude='node_modules' --exclude='*.pyc' \
-    --exclude='.git' \
+    --exclude='.git' --exclude='logs' \
     . user@your-server:/var/www/ai-diary-backend/
 ```
 
@@ -136,8 +146,9 @@ cd /var/www/ai-diary-backend
 tar -czf ai-diary-backend.tar.gz \
     main.py database.py db_adapter.py oss_storage.py \
     model_manager.py redis_cache.py realtime_dialog_client.py \
-    protocol.py config.py .env.example requirements.txt \
+    protocol.py config.py version_manager_web.py .env.example requirements.txt \
     create_mysql_tables.sql start.sh stop.sh restart.sh \
+    start_all.sh stop_all.sh restart_all.sh \
     *.md
 
 # 上传

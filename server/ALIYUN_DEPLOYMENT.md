@@ -97,6 +97,7 @@ cd /var/www/ai-diary-backend
 - `realtime_dialog_client.py`
 - `protocol.py`
 - `config.py`
+- `version_manager_web.py`  # 管理后台
 - `.env`
 - `requirements.txt`
 
@@ -155,6 +156,17 @@ OSS_PUBLIC_READ=true
 ```
 
 ### 3.6 测试运行
+
+**方式 1：启动所有服务（推荐）**
+```bash
+./start_all.sh
+```
+
+这将同时启动：
+- 后端 API 服务（端口 9091）
+- 管理后台（端口 9092）
+
+**方式 2：单独启动后端服务**
 ```bash
 python main.py
 ```
@@ -167,7 +179,24 @@ python main.py
 🗄️  MySQL: ✅ Configured
 ```
 
-按 `Ctrl+C` 停止服务。
+**方式 3：单独启动管理后台**
+```bash
+python version_manager_web.py
+```
+
+访问管理后台：http://localhost:9092/version-manager
+
+**停止服务：**
+```bash
+# 停止所有服务
+./stop_all.sh
+
+# 或单独停止
+./stop.sh          # 停止后端服务
+pkill -f version_manager_web.py  # 停止管理后台
+```
+
+按 `Ctrl+C` 停止服务（单独启动模式）。
 
 ## 4. 使用 Systemd 管理服务
 
@@ -204,6 +233,39 @@ sudo systemctl enable ai-diary-backend
 sudo systemctl status ai-diary-backend
 ```
 
+### 4.3 创建管理后台服务文件
+
+```bash
+sudo vim /etc/systemd/system/ai-diary-admin.service
+```
+
+添加以下内容：
+```ini
+[Unit]
+Description=AI Diary Admin Panel
+After=network.target ai-diary-backend.service
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/ai-diary-backend
+Environment="PATH=/var/www/ai-diary-backend/venv/bin"
+ExecStart=/var/www/ai-diary-backend/venv/bin/python version_manager_web.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 4.4 启动管理后台服务
+```bash
+sudo systemctl daemon-reload
+sudo systemctl start ai-diary-admin
+sudo systemctl enable ai-diary-admin
+sudo systemctl status ai-diary-admin
+```
+
 ## 5. 配置 Nginx 反向代理
 
 ### 5.1 创建 Nginx 配置文件
@@ -218,14 +280,19 @@ upstream backend {
     server 127.0.0.1:9091;
 }
 
+upstream admin {
+    server 127.0.0.1:9092;
+}
+
 server {
     listen 80;
     server_name your-domain.com;
 
     client_max_body_size 100M;
 
-    location / {
-        proxy_pass http://backend;
+    # 后端 API
+    location /api/ {
+        proxy_pass http://backend/api/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -240,6 +307,32 @@ server {
         proxy_connect_timeout 300s;
         proxy_send_timeout 300s;
         proxy_read_timeout 300s;
+    }
+
+    # 管理后台
+    location /admin/ {
+        proxy_pass http://admin/version-manager/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSocket 支持
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # 超时设置
+        proxy_connect_timeout 300s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
+    }
+
+    # 健康检查
+    location / {
+        proxy_pass http://backend/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
     }
 }
 ```
@@ -271,6 +364,8 @@ sudo ufw allow 80/tcp    # HTTP
 sudo ufw allow 443/tcp   # HTTPS
 sudo ufw enable
 ```
+
+注意：管理后台通过 Nginx 反向代理访问，不需要单独开放 9092 端口。
 
 ## 8. 日志管理
 
@@ -398,10 +493,18 @@ sudo systemctl restart ai-diary-backend
 ├── realtime_dialog_client.py        # 实时对话客户端
 ├── protocol.py                      # 协议定义
 ├── config.py                        # 配置文件
+├── version_manager_web.py           # 管理后台（新增）
 ├── .env                             # 环境变量
+├── .env.example                     # 环境变量模板
 ├── requirements.txt                 # Python 依赖
+├── start.sh                         # 启动后端脚本
+├── stop.sh                          # 停止后端脚本
+├── restart.sh                       # 重启后端脚本
+├── start_all.sh                     # 启动所有服务脚本（新增）
+├── stop_all.sh                      # 停止所有服务脚本（新增）
+├── restart_all.sh                   # 重启所有服务脚本（新增）
 ├── venv/                            # 虚拟环境
-└── backup.sh                        # 备份脚本
+└── logs/                            # 日志目录（新增）
 ```
 
 ## 14. 性能优化建议
