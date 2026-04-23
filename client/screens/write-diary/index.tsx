@@ -92,6 +92,7 @@ export default function WriteDiaryScreen() {
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showBackConfirmDialog, setShowBackConfirmDialog] = useState(false);
 
   // 新增功能状态
   const [images, setImages] = useState<string[]>([]);
@@ -606,12 +607,10 @@ export default function WriteDiaryScreen() {
               onPress={() => {
                 console.log('[WriteDiary] Back button clicked, content:', content.trim(), 'images:', images.length);
                 if (content.trim() || images.length > 0) {
-                  Alert.alert('提示', '确定要离开吗？内容将不会保存', [
-                    { text: '取消', style: 'cancel' },
-                    { text: '确定', onPress: () => router.back() },
-                  ]);
+                  console.log('[WriteDiary] Showing confirm dialog');
+                  setShowBackConfirmDialog(true);
                 } else {
-                  console.log('[WriteDiary] Going back');
+                  console.log('[WriteDiary] Going back directly');
                   router.back();
                 }
               }}
@@ -1028,6 +1027,47 @@ export default function WriteDiaryScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* 返回确认对话框 */}
+      <Modal
+        visible={showBackConfirmDialog}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowBackConfirmDialog(false)}
+      >
+        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+          <View style={[styles.confirmDialog, { backgroundColor: surface }]}>
+            <FontAwesome6 name="triangle-exclamation" size={40} color={accent} />
+            <Text style={[styles.confirmDialogTitle, { color: foreground }]}>确认离开</Text>
+            <Text style={[styles.confirmDialogText, { color: muted }]}>
+              您有未保存的内容，确定要离开吗？
+            </Text>
+            <View style={styles.confirmDialogButtons}>
+              <TouchableOpacity
+                style={[styles.confirmDialogButton, { backgroundColor: `${background}80` }]}
+                onPress={() => {
+                  console.log('[WriteDiary] Cancel back');
+                  setShowBackConfirmDialog(false);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.confirmDialogButtonText, { color: foreground }]}>取消</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmDialogButton, { backgroundColor: accent }]}
+                onPress={() => {
+                  console.log('[WriteDiary] Confirm back');
+                  setShowBackConfirmDialog(false);
+                  router.back();
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.confirmDialogButtonText, { color: '#FFFFFF' }]}>确定离开</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -1417,5 +1457,37 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  confirmDialog: {
+    width: width * 0.85,
+    padding: 24,
+    borderRadius: 20,
+    alignItems: 'center',
+    gap: 16,
+  },
+  confirmDialogTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  confirmDialogText: {
+    fontSize: 15,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  confirmDialogButtons: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 12,
+    marginTop: 8,
+  },
+  confirmDialogButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  confirmDialogButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
