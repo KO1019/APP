@@ -667,17 +667,25 @@ ${content}
 
   // 格式化日期显示
   const formatDate = () => {
-    return diaryDate.toLocaleDateString('zh-CN', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      weekday: 'long'
-    });
+    try {
+      return diaryDate.toLocaleDateString('zh-CN', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        weekday: 'long'
+      }) || '';
+    } catch (e) {
+      return '';
+    }
   };
 
   // 格式化时间显示
   const formatTime = () => {
-    return diaryDate.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    try {
+      return diaryDate.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) || '';
+    } catch (e) {
+      return '';
+    }
   };
 
   // 日期变化处理
@@ -728,7 +736,7 @@ ${content}
               >
                 <Text style={[styles.headerTagText, { color: muted }]}>
                   {selectedTemplate
-                    ? TEMPLATES.find(t => t.id === selectedTemplate)?.title || '模板'
+                    ? (TEMPLATES.find(t => t.id === selectedTemplate)?.title || '模板')
                     : '选择模板'}
                 </Text>
                 <FontAwesome6 name="chevron-down" size={12} color={muted} />
@@ -786,12 +794,12 @@ ${content}
               activeOpacity={0.7}
             >
               <FontAwesome6
-                name={selectedWeather ? (WEATHERS.find(w => w.id === selectedWeather)?.icon as any) : 'cloud-sun'}
+                name={selectedWeather ? (WEATHERS.find(w => w.id === selectedWeather)?.icon as any || 'cloud-sun') : 'cloud-sun'}
                 size={18}
                 color={selectedWeather ? accent : muted}
               />
               <Text style={[styles.metaText, { color: selectedWeather ? foreground : muted }]}>
-                {selectedWeather ? WEATHERS.find(w => w.id === selectedWeather)?.label : '天气'}
+                {selectedWeather ? WEATHERS.find(w => w.id === selectedWeather)?.label || '天气' : '天气'}
               </Text>
             </TouchableOpacity>
 
@@ -801,12 +809,12 @@ ${content}
               activeOpacity={0.7}
             >
               <FontAwesome6
-                name={selectedMood ? (MOODS.find(m => m.id === selectedMood)?.icon as any) : 'face-smile'}
+                name={selectedMood ? (MOODS.find(m => m.id === selectedMood)?.icon as any || 'face-smile') : 'face-smile'}
                 size={18}
                 color={selectedMood ? accent : muted}
               />
               <Text style={[styles.metaText, { color: selectedMood ? foreground : muted }]}>
-                {selectedMood ? MOODS.find(m => m.id === selectedMood)?.label : '心情'}
+                {selectedMood ? MOODS.find(m => m.id === selectedMood)?.label || '心情' : '心情'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -816,7 +824,7 @@ ${content}
             style={[styles.titleInput, { color: foreground }]}
             placeholder="标题"
             placeholderTextColor={muted}
-            value={title}
+            value={title || ''}
             onChangeText={setTitle}
           />
 
@@ -825,7 +833,7 @@ ${content}
             style={[styles.contentInput, { color: foreground }]}
             placeholder="开始写下你的想法..."
             placeholderTextColor={muted}
-            value={content}
+            value={content || ''}
             onChangeText={setContent}
             multiline
             textAlignVertical="top"
@@ -907,7 +915,7 @@ ${content}
 
               {!aiSuggestionLoading && aiSuggestion && (
                 <>
-                  <Text style={[styles.aiSuggestionText, { color: foreground }]}>{aiSuggestion}</Text>
+                  <Text style={[styles.aiSuggestionText, { color: foreground }]}>{aiSuggestion || ''}</Text>
 
                   {(aiActionType === 'continue' || aiActionType === 'polish') && (
                     <TouchableOpacity
