@@ -919,7 +919,7 @@ async def chat_stream(chat: ChatMessage, user_id: str = Depends(get_user_id)):
 
         # 获取最近对话历史
         if db_client:
-            conv_result = db_client.table('conversations').select('user_message, ai_message').order('created_at', desc=True).limit(5).execute()
+            conv_result = db_client.table('conversations').select('user_message, ai_message').order('created_at', desc=True).range(0, 4).execute()
             if conv_result.data:
                 for conv in reversed(conv_result.data):
                     messages.append({"role": "user", "content": conv['user_message']})
