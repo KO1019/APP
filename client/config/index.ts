@@ -42,9 +42,9 @@ export const API_CONFIG = {
       if (isWeb && window.location) {
         const hostname = window.location.hostname;
 
-        // 如果在 dev.coze.site 域名下，使用当前域名
+        // 如果在 dev.coze.site 域名下（沙箱环境），使用阿里云后端
         if (hostname.includes('dev.coze.site')) {
-          return window.location.origin; // 使用完整的当前域名
+          return 'http://59.110.39.235:9091';
         }
 
         // 如果在 localhost 上，使用本地后端
