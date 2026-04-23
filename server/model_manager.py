@@ -39,6 +39,7 @@ class ModelConfig:
     priority: int = 0               # 优先级（0最高）
     supports_stream: bool = True    # 是否支持流式输出
     cost_factor: float = 1.0        # 成本因子（用于成本计算）
+    cannot_switch: bool = False     # 是否禁止切换（固定模型）
 
 
 class ModelManager:
@@ -72,6 +73,16 @@ class ModelManager:
             api_key=ark_api_key,
             base_url=os.getenv('ARK_BASE_URL', 'https://ark.cn-beijing.volces.com/api/v3'),
             priority=0,  # 最高优先级
+        )
+
+        # 豆包实时语音模型（端到端，必须固定使用）
+        self.models['ark-realtime'] = ModelConfig(
+            name='ark-realtime',
+            provider=ModelProvider.ARK,
+            api_key=ark_api_key,
+            base_url=os.getenv('ARK_REALTIME_BASE_URL', 'wss://ark.cn-beijing.volces.com/api/v3'),
+            priority=0,  # 最高优先级
+            cannot_switch=True,  # 禁止切换，因为前端已适配
         )
 
         # ========== 阿里云DashScope模型 ==========
@@ -130,8 +141,8 @@ class ModelManager:
         # 情绪分析：需要准确判断，使用强大模型，固定qwen-max
         self.task_models[TaskType.MOOD_ANALYSIS] = ['qwen-max']
 
-        # 实时语音对话：需要低延迟，使用快速模型
-        self.task_models[TaskType.REALTIME_VOICE] = ['qwen-flash', 'ark-chat']
+        # 实时语音对话：必须使用豆包的端到端模型（前端已适配），固定不可切换
+        self.task_models[TaskType.REALTIME_VOICE] = ['ark-realtime']
 
     def get_available_models(self, task_type: TaskType) -> List[ModelConfig]:
         """
@@ -211,7 +222,22 @@ class ModelManager:
         if not available_models:
             raise Exception("没有可用的模型")
 
-        # 依次尝试每个模型
+        # 检查是否是固定模型（不能切换）
+        if len(available_models) == 1 and available_models[0].cannot_switch:
+            model = available_models[0]
+            try:
+                print(f"[ModelManager] 使用固定模型: {model.name} (任务: {task_type.value})")
+                async for chunk in self._call_single_model(model, messages, stream):
+                    if chunk:
+                        self.record_success(model.name)
+                    yield chunk
+                return
+            except Exception as e:
+                print(f"[ModelManager] 固定模型 {model.name} 调用失败: {str(e)}")
+                self.record_failure(model.name)
+                raise Exception(f"固定模型 {model.name} 调用失败，无法切换")
+
+        # 依次尝试每个模型（支持切换）
         for model in available_models:
             try:
                 print(f"[ModelManager] 尝试使用模型: {model.name} (任务: {task_type.value})")

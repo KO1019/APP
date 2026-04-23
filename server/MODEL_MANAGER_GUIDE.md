@@ -44,7 +44,8 @@
 | 模型名称 | 优先级 | 特点 | 适用场景 |
 |---------|-------|------|---------|
 | `ark-max` | 0 | 最强大的模型 | 复杂任务、情绪分析 |
-| `ark-chat` | 1 | 通用对话模型 | 日常对话、实时语音 |
+| `ark-chat` | 1 | 通用对话模型 | 日常对话 |
+| `ark-realtime` | 0 | 端到端实时语音模型 | **实时语音对话（固定，不可切换）** |
 
 ### 阿里云DashScope模型
 
@@ -108,18 +109,21 @@
 
 ### 4. REALTIME_VOICE - 实时语音对话
 
-**使用模型**：`qwen-flash` → `ark-chat`
+**使用模型**：`ark-realtime`（固定，不可切换）
 
 **特点**：
-- 极低延迟要求（< 1秒）
-- 快速响应优先
-- 可以接受简化回答
+- 端到端实时语音处理
+- 前端已适配豆包接口
+- 极低延迟要求
+- **必须使用豆包模型，不能切换**
 
 **示例**：
 ```
-用户：现在的天气怎么样？
-系统：使用 qwen-flash 实时回复
+用户：（语音输入）今天的天气怎么样？
+系统：使用 ark-realtime 实时处理语音并回复
 ```
+
+**重要说明**：实时语音对话必须使用豆包的端到端模型，因为前端已经适配了豆包的实时语音接口。如果切换到其他模型，前端将无法正常工作。
 
 ---
 
@@ -186,11 +190,17 @@
 ```env
 # 豆包ARK配置
 ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+ARK_REALTIME_BASE_URL=wss://ark.cn-beijing.volces.com/api/v3
 ARK_API_KEY=your-ark-api-key-here
 
 # 阿里云DashScope配置
 DASHSCOPE_API_KEY=your-dashscope-api-key-here
 ```
+
+**重要**：
+- `ARK_API_KEY` 必须配置，用于豆包的所有模型（包括实时语音）
+- `ARK_REALTIME_BASE_URL` 是WebSocket地址，用于实时语音对话
+- `DASHSCOPE_API_KEY` 是可选的，用于阿里云千问模型
 
 ### 获取API密钥
 
@@ -364,7 +374,9 @@ self.models['qwen-plus'] = ModelConfig(
 
 ### Q3: 为什么某些任务使用固定模型？
 
-**A**: 某些任务（如情绪分析）需要极高的准确性，不能容忍错误，因此使用固定的高质量模型。
+**A**: 某些任务有特殊要求：
+- **情绪分析**：需要极高的准确性，不能容忍错误，使用固定的高质量模型（qwen-max）
+- **实时语音对话**：必须使用豆包的端到端模型（ark-realtime），因为前端已适配了豆包的实时语音接口。如果切换到其他模型，前端将无法正常工作
 
 ### Q4: 黑名单持续时间可以调整吗？
 
@@ -426,17 +438,18 @@ self.models['qwen-max'] = ModelConfig(
 | CHAT | qwen-flash → qwen-plus → ark-chat | ✅ 是 |
 | DIARY_GENERATION | qwen-plus → qwen-max | ⚠️ 半固定 |
 | MOOD_ANALYSIS | qwen-max | ❌ 否 |
-| REALTIME_VOICE | qwen-flash → ark-chat | ✅ 是 |
+| REALTIME_VOICE | ark-realtime | ❌ 否（端到端模型，前端已适配） |
 
 ### B. 模型特性对比
 
-| 模型 | 响应速度 | 准确性 | 成本 | 流式支持 |
-|-----|---------|--------|------|---------|
-| qwen-max | 中 | 最高 | 高 | ✅ |
-| qwen-plus | 快 | 高 | 中 | ✅ |
-| qwen-flash | 最快 | 中 | 低 | ✅ |
-| ark-max | 中 | 最高 | 高 | ✅ |
-| ark-chat | 快 | 中 | 中 | ✅ |
+| 模型 | 响应速度 | 准确性 | 成本 | 流式支持 | 固定/可切换 |
+|-----|---------|--------|------|---------|------------|
+| qwen-max | 中 | 最高 | 高 | ✅ | ⚠️ 半固定 |
+| qwen-plus | 快 | 高 | 中 | ✅ | ⚠️ 半固定 |
+| qwen-flash | 最快 | 中 | 低 | ✅ | ✅ 可切换 |
+| ark-max | 中 | 最高 | 高 | ✅ | ✅ 可切换 |
+| ark-chat | 快 | 中 | 中 | ✅ | ✅ 可切换 |
+| ark-realtime | 极快 | 高 | 中 | ✅ | ❌ 固定（端到端） |
 
 ### C. 相关文件
 
