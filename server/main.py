@@ -9,7 +9,7 @@ import uuid
 import hashlib
 import asyncio
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
@@ -1419,6 +1419,238 @@ async def get_models_status():
         "success": True,
         "models": status
     }
+
+
+# ========== 用户管理API ==========
+
+class UserUpdate(BaseModel):
+    nickname: Optional[str] = None
+    email: Optional[str] = None
+    is_admin: Optional[bool] = None
+    is_active: Optional[bool] = None
+
+
+class PasswordUpdate(BaseModel):
+    new_password: str
+
+
+@app.get('/api/v1/admin/users')
+async def get_all_users(skip: int = 0, limit: int = 50):
+    """获取所有用户列表（管理员接口）"""
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
+
+    # 获取用户总数
+    count_result = admin_supabase.table('users').select('*', count='exact').execute()
+    total = count_result.count if hasattr(count_result, 'count') else 0
+
+    # 获取用户列表（按创建时间倒序）
+    result = admin_supabase.table('users').select('*')\
+        .order('created_at', desc=True)\
+        .range(skip, skip + limit - 1)\
+        .execute()
+
+    # 统计每个用户的活跃度（日记数量）
+    user_ids = [u['id'] for u in result.data]
+    diary_stats = {}
+    if user_ids:
+        for user_id in user_ids:
+            diary_result = admin_supabase.table('diaries').select('*', count='exact').eq('user_id', user_id).execute()
+            diary_stats[user_id] = diary_result.count if hasattr(diary_result, 'count') else 0
+
+    # 为每个用户添加活跃度数据
+    users_with_stats = []
+    for user in result.data:
+        user_data = user.copy()
+        user_data['diary_count'] = diary_stats.get(user['id'], 0)
+        users_with_stats.append(user_data)
+
+    return {
+        "success": True,
+        "users": users_with_stats,
+        "total": total,
+        "skip": skip,
+        "limit": limit
+    }
+
+
+@app.get('/api/v1/admin/users/{user_id}')
+async def get_user_by_id(user_id: str):
+    """获取指定用户详情（管理员接口）"""
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
+
+    result = admin_supabase.table('users').select('*').eq('id', user_id).execute()
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    user = result.data[0]
+
+    # 获取用户的日记统计
+    diary_result = admin_supabase.table('diaries').select('*', count='exact').eq('user_id', user_id).execute()
+    user['diary_count'] = diary_result.count if hasattr(diary_result, 'count') else 0
+
+    # 获取最近的登录记录（如果有的话）
+    # TODO: 需要在数据库中添加登录记录表
+
+    return {
+        "success": True,
+        "user": user
+    }
+
+
+@app.put('/api/v1/admin/users/{user_id}')
+async def update_user(user_id: str, user_update: UserUpdate):
+    """更新用户信息（管理员接口）"""
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
+
+    # 检查用户是否存在
+    existing = admin_supabase.table('users').select('*').eq('id', user_id).execute()
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    # 更新用户信息
+    update_data = {k: v for k, v in user_update.dict().items() if v is not None}
+    update_data['updated_at'] = datetime.now().isoformat()
+
+    result = admin_supabase.table('users').update(update_data).eq('id', user_id).execute()
+
+    return {
+        "success": True,
+        "message": "用户信息更新成功",
+        "user": result.data[0] if result.data else existing.data[0]
+    }
+
+
+@app.put('/api/v1/admin/users/{user_id}/password')
+async def reset_user_password(user_id: str, password_update: PasswordUpdate):
+    """重置用户密码（管理员接口）"""
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
+
+    # 检查用户是否存在
+    existing = admin_supabase.table('users').select('*').eq('id', user_id).execute()
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    # 校验密码长度
+    if len(password_update.new_password) < 6:
+        raise HTTPException(status_code=400, detail="密码长度至少6个字符")
+
+    # 更新密码
+    password_hash = hash_password(password_update.new_password)
+    update_data = {
+        'password_hash': password_hash,
+        'updated_at': datetime.now().isoformat()
+    }
+
+    admin_supabase.table('users').update(update_data).eq('id', user_id).execute()
+
+    return {
+        "success": True,
+        "message": "密码重置成功"
+    }
+
+
+@app.delete('/api/v1/admin/users/{user_id}')
+async def delete_user(user_id: str):
+    """删除用户（管理员接口）"""
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
+
+    # 检查用户是否存在
+    existing = admin_supabase.table('users').select('*').eq('id', user_id).execute()
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    # 删除用户的所有日记
+    admin_supabase.table('diaries').delete().eq('user_id', user_id).execute()
+
+    # 删除用户
+    admin_supabase.table('users').delete().eq('id', user_id).execute()
+
+    return {
+        "success": True,
+        "message": "用户删除成功"
+    }
+
+
+@app.get('/api/v1/admin/users/{user_id}/diaries')
+async def get_user_diaries(user_id: str, skip: int = 0, limit: int = 20):
+    """获取指定用户的日记列表（管理员接口）"""
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
+
+    # 检查用户是否存在
+    existing = admin_supabase.table('users').select('*').eq('id', user_id).execute()
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    # 获取用户日记
+    result = admin_supabase.table('diaries').select('*')\
+        .eq('user_id', user_id)\
+        .order('created_at', desc=True)\
+        .range(skip, skip + limit - 1)\
+        .execute()
+
+    return {
+        "success": True,
+        "diaries": result.data,
+        "user_id": user_id
+    }
+
+
+@app.get('/api/v1/admin/stats')
+async def get_admin_stats():
+    """获取管理员统计数据（管理员接口）"""
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
+
+    try:
+        # 获取用户总数
+        users_result = admin_supabase.table('users').select('*', count='exact').execute()
+        total_users = users_result.count if hasattr(users_result, 'count') else 0
+
+        # 获取管理员数量
+        try:
+            admin_result = admin_supabase.table('users').select('*', count='exact').eq('is_admin', True).execute()
+            admin_count = admin_result.count if hasattr(admin_result, 'count') else 0
+        except Exception:
+            # 如果 is_admin 字段不存在，返回 0
+            admin_count = 0
+
+        # 获取活跃用户数量（最近30天有日记的用户）
+        thirty_days_ago = (datetime.now() - timedelta(days=30)).isoformat()
+        active_users_result = admin_supabase.table('diaries').select('user_id', count='exact')\
+            .gte('created_at', thirty_days_ago)\
+            .execute()
+        active_user_ids = set(d['user_id'] for d in active_users_result.data) if active_users_result.data else set()
+        active_users_count = len(active_user_ids)
+
+        # 获取日记总数
+        diaries_result = admin_supabase.table('diaries').select('*', count='exact').execute()
+        total_diaries = diaries_result.count if hasattr(diaries_result, 'count') else 0
+
+        # 获取最近30天的日记数量
+        recent_diaries_result = admin_supabase.table('diaries').select('*', count='exact')\
+            .gte('created_at', thirty_days_ago)\
+            .execute()
+        recent_diaries_count = recent_diaries_result.count if hasattr(recent_diaries_result, 'count') else 0
+
+        return {
+            "success": True,
+            "stats": {
+                "total_users": total_users,
+                "admin_count": admin_count,
+                "active_users_count": active_users_count,
+                "total_diaries": total_diaries,
+                "recent_diaries_count": recent_diaries_count
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取统计数据失败: {str(e)}")
 
 
 # ========== 主程序 ==========

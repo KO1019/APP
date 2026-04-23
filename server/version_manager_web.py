@@ -249,6 +249,15 @@ HTML_TEMPLATE = """
             background: #218838;
         }
 
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #138496;
+        }
+
         .btn-secondary {
             background: #6c757d;
             color: white;
@@ -457,6 +466,8 @@ HTML_TEMPLATE = """
 
         <div class="nav">
             <button onclick="showSection('dashboard')" class="active" id="nav-dashboard">📊 仪表盘</button>
+            <button onclick="showSection('users')" id="nav-users">👥 用户管理</button>
+            <button onclick="showSection('stats')" id="nav-stats">📈 数据统计</button>
             <button onclick="showSection('create')" id="nav-create">➕ 创建版本</button>
             <button onclick="showSection('list')" id="nav-list">📋 版本列表</button>
             <button onclick="showSection('active')" id="nav-active">✅ 激活的版本</button>
@@ -466,6 +477,24 @@ HTML_TEMPLATE = """
             <!-- 仪表盘 -->
             <div id="dashboard" class="section active">
                 <div class="dashboard" id="dashboard-content">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+
+            <!-- 用户管理 -->
+            <div id="users" class="section">
+                <div class="filter-bar">
+                    <input type="text" id="user-search" placeholder="搜索用户名或邮箱..." oninput="searchUsers()">
+                    <button onclick="loadUsers()" class="btn btn-secondary btn-small">刷新</button>
+                </div>
+                <div id="users-content">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+
+            <!-- 数据统计 -->
+            <div id="stats" class="section">
+                <div id="stats-content">
                     <div class="loading">加载中...</div>
                 </div>
             </div>
@@ -558,6 +587,71 @@ HTML_TEMPLATE = """
         </div>
     </div>
 
+    <!-- 用户编辑模态框 -->
+    <div id="user-edit-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <h2>编辑用户信息</h2>
+            <div id="user-edit-message"></div>
+            <form id="user-edit-form">
+                <input type="hidden" id="edit-user-id">
+                <div class="form-group">
+                    <label for="edit-username">用户名</label>
+                    <input type="text" id="edit-username" readonly style="background: #f8f9fa;">
+                </div>
+                <div class="form-group">
+                    <label for="edit-nickname">昵称</label>
+                    <input type="text" id="edit-nickname" name="nickname">
+                </div>
+                <div class="form-group">
+                    <label for="edit-email">邮箱</label>
+                    <input type="email" id="edit-email" name="email">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="edit-is-admin" name="is_admin">
+                        管理员权限
+                    </label>
+                    <small style="display: block; margin-top: 5px;">管理员拥有所有权限</small>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="edit-is-active" name="is_active">
+                        启用用户
+                    </label>
+                    <small style="display: block; margin-top: 5px;">禁用后用户无法登录</small>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" onclick="closeUserEditModal()" class="btn btn-secondary">取消</button>
+                    <button type="button" onclick="saveUser()" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 密码重置模态框 -->
+    <div id="password-reset-modal" class="modal">
+        <div class="modal-content">
+            <h2>重置用户密码</h2>
+            <p>请输入新密码（至少6个字符）</p>
+            <div id="password-reset-message"></div>
+            <form id="password-reset-form">
+                <input type="hidden" id="reset-user-id">
+                <div class="form-group">
+                    <label for="new-password">新密码 *</label>
+                    <input type="password" id="new-password" name="new_password" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label for="confirm-password">确认密码 *</label>
+                    <input type="password" id="confirm-password" name="confirm_password" required minlength="6">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" onclick="closePasswordResetModal()" class="btn btn-secondary">取消</button>
+                    <button type="button" onclick="resetPassword()" class="btn btn-primary">重置密码</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         const API_BASE = '/api/v1';
 
@@ -571,6 +665,8 @@ HTML_TEMPLATE = """
 
             // 加载数据
             if (sectionId === 'dashboard') loadDashboard();
+            if (sectionId === 'users') loadUsers();
+            if (sectionId === 'stats') loadStats();
             if (sectionId === 'list') loadVersions();
             if (sectionId === 'active') loadActiveVersions();
         }
@@ -828,6 +924,322 @@ HTML_TEMPLATE = """
         window.onload = function() {
             loadDashboard();
         };
+
+        // ========== 用户管理相关函数 ==========
+
+        // 加载用户列表
+        async function loadUsers() {
+            const content = document.getElementById('users-content');
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/users?skip=0&limit=50`);
+                const data = await response.json();
+
+                if (!data.users || data.users.length === 0) {
+                    content.innerHTML = '<div class="empty">没有找到用户</div>';
+                    return;
+                }
+
+                let html = '<table class="versions-table"><thead><tr>';
+                html += '<th>用户名</th><th>昵称</th><th>邮箱</th><th>日记数</th><th>角色</th><th>状态</th><th>注册时间</th><th>操作</th>';
+                html += '</tr></thead><tbody>';
+
+                data.users.forEach(u => {
+                    html += '<tr>';
+                    html += `<td><strong>${u.username}</strong></td>`;
+                    html += `<td>${u.nickname || '-'}</td>`;
+                    html += `<td>${u.email || '-'}</td>`;
+                    html += `<td>${u.diary_count || 0}</td>`;
+                    html += `<td>${u.is_admin ? '<span class="badge badge-danger">管理员</span>' : '<span class="badge badge-info">用户</span>'}</td>`;
+                    html += `<td>${u.is_active ? '<span class="badge badge-success">启用</span>' : '<span class="badge badge-warning">禁用</span>'}</td>`;
+                    html += `<td>${new Date(u.created_at).toLocaleDateString('zh-CN')}</td>`;
+                    html += '<td>';
+                    html += `<button onclick="editUser('${u.id}')" class="btn btn-secondary btn-small">编辑</button> `;
+                    html += `<button onclick="openPasswordReset('${u.id}')" class="btn btn-primary btn-small">重置密码</button> `;
+                    html += `<button onclick="viewUserDiaries('${u.id}', '${u.username}')" class="btn btn-info btn-small">查看日记</button> `;
+                    html += `<button onclick="deleteUser('${u.id}')" class="btn btn-danger btn-small">删除</button>`;
+                    html += '</td>';
+                    html += '</tr>';
+                });
+
+                html += '</tbody></table>';
+                content.innerHTML = html;
+            } catch (error) {
+                content.innerHTML = '<div class="error">加载失败: ' + error.message + '</div>';
+            }
+        }
+
+        // 搜索用户
+        let searchTimeout = null;
+        function searchUsers() {
+            clearTimeout(searchTimeout);
+            const searchTerm = document.getElementById('user-search').value.toLowerCase();
+            if (!searchTerm) {
+                loadUsers();
+                return;
+            }
+            searchTimeout = setTimeout(async () => {
+                const content = document.getElementById('users-content');
+                try {
+                    const response = await fetch(`${API_BASE}/admin/users?skip=0&limit=50`);
+                    const data = await response.json();
+                    const filteredUsers = data.users.filter(u =>
+                        u.username.toLowerCase().includes(searchTerm) ||
+                        (u.email && u.email.toLowerCase().includes(searchTerm)) ||
+                        (u.nickname && u.nickname.toLowerCase().includes(searchTerm))
+                    );
+
+                    if (!filteredUsers || filteredUsers.length === 0) {
+                        content.innerHTML = '<div class="empty">没有找到匹配的用户</div>';
+                        return;
+                    }
+
+                    let html = '<table class="versions-table"><thead><tr>';
+                    html += '<th>用户名</th><th>昵称</th><th>邮箱</th><th>日记数</th><th>角色</th><th>状态</th><th>注册时间</th><th>操作</th>';
+                    html += '</tr></thead><tbody>';
+
+                    filteredUsers.forEach(u => {
+                        html += '<tr>';
+                        html += `<td><strong>${u.username}</strong></td>`;
+                        html += `<td>${u.nickname || '-'}</td>`;
+                        html += `<td>${u.email || '-'}</td>`;
+                        html += `<td>${u.diary_count || 0}</td>`;
+                        html += `<td>${u.is_admin ? '<span class="badge badge-danger">管理员</span>' : '<span class="badge badge-info">用户</span>'}</td>`;
+                        html += `<td>${u.is_active ? '<span class="badge badge-success">启用</span>' : '<span class="badge badge-warning">禁用</span>'}</td>`;
+                        html += `<td>${new Date(u.created_at).toLocaleDateString('zh-CN')}</td>`;
+                        html += '<td>';
+                        html += `<button onclick="editUser('${u.id}')" class="btn btn-secondary btn-small">编辑</button> `;
+                        html += `<button onclick="openPasswordReset('${u.id}')" class="btn btn-primary btn-small">重置密码</button> `;
+                        html += `<button onclick="deleteUser('${u.id}')" class="btn btn-danger btn-small">删除</button>`;
+                        html += '</td>';
+                        html += '</tr>';
+                    });
+
+                    html += '</tbody></table>';
+                    content.innerHTML = html;
+                } catch (error) {
+                    content.innerHTML = '<div class="error">加载失败: ' + error.message + '</div>';
+                }
+            }, 300);
+        }
+
+        // 编辑用户
+        async function editUser(userId) {
+            try {
+                const response = await fetch(`${API_BASE}/admin/users/${userId}`);
+                const data = await response.json();
+                const user = data.user;
+
+                document.getElementById('edit-user-id').value = user.id;
+                document.getElementById('edit-username').value = user.username;
+                document.getElementById('edit-nickname').value = user.nickname || '';
+                document.getElementById('edit-email').value = user.email || '';
+                document.getElementById('edit-is-admin').checked = user.is_admin;
+                document.getElementById('edit-is-active').checked = user.is_active;
+
+                document.getElementById('user-edit-modal').classList.add('active');
+            } catch (error) {
+                alert('加载用户信息失败: ' + error.message);
+            }
+        }
+
+        // 保存用户信息
+        async function saveUser() {
+            const userId = document.getElementById('edit-user-id').value;
+            const message = document.getElementById('user-edit-message');
+
+            const data = {
+                nickname: document.getElementById('edit-nickname').value,
+                email: document.getElementById('edit-email').value,
+                is_admin: document.getElementById('edit-is-admin').checked,
+                is_active: document.getElementById('edit-is-active').checked
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/users/${userId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    message.innerHTML = '<div class="success">✅ 用户信息更新成功！</div>';
+                    setTimeout(() => {
+                        closeUserEditModal();
+                        loadUsers();
+                    }, 1500);
+                } else {
+                    const error = await response.json();
+                    message.innerHTML = '<div class="error">❌ 更新失败: ' + (error.detail || '未知错误') + '</div>';
+                }
+            } catch (error) {
+                message.innerHTML = '<div class="error">❌ 请求失败: ' + error.message + '</div>';
+            }
+        }
+
+        // 关闭用户编辑模态框
+        function closeUserEditModal() {
+            document.getElementById('user-edit-modal').classList.remove('active');
+            document.getElementById('user-edit-message').innerHTML = '';
+        }
+
+        // 打开密码重置模态框
+        function openPasswordReset(userId) {
+            document.getElementById('reset-user-id').value = userId;
+            document.getElementById('new-password').value = '';
+            document.getElementById('confirm-password').value = '';
+            document.getElementById('password-reset-message').innerHTML = '';
+            document.getElementById('password-reset-modal').classList.add('active');
+        }
+
+        // 关闭密码重置模态框
+        function closePasswordResetModal() {
+            document.getElementById('password-reset-modal').classList.remove('active');
+            document.getElementById('password-reset-message').innerHTML = '';
+        }
+
+        // 重置密码
+        async function resetPassword() {
+            const userId = document.getElementById('reset-user-id').value;
+            const newPassword = document.getElementById('new-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            const message = document.getElementById('password-reset-message');
+
+            if (newPassword !== confirmPassword) {
+                message.innerHTML = '<div class="error">❌ 两次输入的密码不一致</div>';
+                return;
+            }
+
+            if (newPassword.length < 6) {
+                message.innerHTML = '<div class="error">❌ 密码长度至少6个字符</div>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/users/${userId}/password`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ new_password: newPassword })
+                });
+
+                if (response.ok) {
+                    message.innerHTML = '<div class="success">✅ 密码重置成功！</div>';
+                    setTimeout(() => {
+                        closePasswordResetModal();
+                    }, 1500);
+                } else {
+                    const error = await response.json();
+                    message.innerHTML = '<div class="error">❌ 重置失败: ' + (error.detail || '未知错误') + '</div>';
+                }
+            } catch (error) {
+                message.innerHTML = '<div class="error">❌ 请求失败: ' + error.message + '</div>';
+            }
+        }
+
+        // 查看用户日记
+        async function viewUserDiaries(userId, username) {
+            try {
+                const response = await fetch(`${API_BASE}/admin/users/${userId}/diaries?skip=0&limit=20`);
+                const data = await response.json();
+
+                let html = `<h2 style="margin-bottom: 20px; color: #495057;">${username} 的日记</h2>`;
+
+                if (!data.diaries || data.diaries.length === 0) {
+                    html += '<div class="empty">该用户还没有写日记</div>';
+                } else {
+                    data.diaries.forEach(d => {
+                        html += '<div class="version-detail">';
+                        html += `<h3>${d.title || '无标题'} - ${new Date(d.created_at).toLocaleString('zh-CN')}</h3>`;
+                        html += `<p><strong>心情:</strong> ${d.mood || '未记录'}</p>`;
+                        html += `<div class="release-notes"><strong>内容:</strong><br>${d.content}</div>`;
+                        html += '</div>';
+                    });
+                }
+
+                html += `<button onclick="loadUsers()" class="btn btn-secondary">返回用户列表</button>`;
+                document.getElementById('users-content').innerHTML = html;
+            } catch (error) {
+                alert('加载用户日记失败: ' + error.message);
+            }
+        }
+
+        // 删除用户
+        let pendingDeleteUser = null;
+        function deleteUser(userId) {
+            pendingDeleteUser = userId;
+            document.getElementById('confirm-title').textContent = '删除用户';
+            document.getElementById('confirm-message').textContent = '删除用户将同时删除其所有日记，此操作无法恢复！确定要继续吗？';
+            document.getElementById('confirm-btn').onclick = confirmDeleteUser;
+            document.getElementById('confirm-btn').className = 'btn btn-danger';
+            document.getElementById('confirm-modal').classList.add('active');
+        }
+
+        async function confirmDeleteUser() {
+            if (!pendingDeleteUser) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/users/${pendingDeleteUser}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    alert('✅ 用户删除成功！');
+                    loadUsers();
+                } else {
+                    const error = await response.json();
+                    alert('❌ 删除失败: ' + (error.detail || '未知错误'));
+                }
+            } catch (error) {
+                alert('❌ 请求失败: ' + error.message);
+            } finally {
+                closeModal();
+            }
+        }
+
+        // ========== 数据统计相关函数 ==========
+
+        // 加载数据统计
+        async function loadStats() {
+            const content = document.getElementById('stats-content');
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/stats`);
+                const data = await response.json();
+
+                const stats = data.stats;
+
+                let html = '<div class="dashboard">';
+                html += '<div class="card"><h3>👥 总用户数</h3>';
+                html += `<div class="version-info">${stats.total_users}</div>`;
+                html += '<div class="build-number">所有注册用户</div>';
+                html += '</div>';
+
+                html += '<div class="card"><h3>👑 管理员数量</h3>';
+                html += `<div class="version-info">${stats.admin_count}</div>`;
+                html += '<div class="build-number">拥有管理权限</div>';
+                html += '</div>';
+
+                html += '<div class="card"><h3>🔥 活跃用户</h3>';
+                html += `<div class="version-info">${stats.active_users_count}</div>`;
+                html += '<div class="build-number">最近30天有日记</div>';
+                html += '</div>';
+
+                html += '<div class="card"><h3>📔 日记总数</h3>';
+                html += `<div class="version-info">${stats.total_diaries}</div>`;
+                html += '<div class="build-number">所有用户日记</div>';
+                html += '</div>';
+
+                html += '<div class="card"><h3>🆕 最近日记</h3>';
+                html += `<div class="version-info">${stats.recent_diaries_count}</div>`;
+                html += '<div class="build-number">最近30天新增</div>';
+                html += '</div>';
+                html += '</div>';
+
+                content.innerHTML = html;
+            } catch (error) {
+                content.innerHTML = '<div class="error">加载失败: ' + error.message + '</div>';
+            }
+        }
     </script>
 </body>
 </html>
