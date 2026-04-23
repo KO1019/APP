@@ -104,6 +104,10 @@ export default function WriteDiaryScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
+  // Web端日期时间输入
+  const [webDateInput, setWebDateInput] = useState('');
+  const [webTimeInput, setWebTimeInput] = useState('');
+
   // 编辑模式：是否正在编辑现有日记
   const [isEditMode, setIsEditMode] = useState(false);
   const [loadingDiary, setLoadingDiary] = useState(false);
@@ -767,7 +771,14 @@ ${content}
           {/* 日期显示 */}
           <View style={styles.metaSection}>
             <TouchableOpacity
-              onPress={() => setShowDatePicker(true)}
+              onPress={() => {
+                // 初始化日期输入
+                const year = diaryDate.getFullYear();
+                const month = String(diaryDate.getMonth() + 1).padStart(2, '0');
+                const day = String(diaryDate.getDate()).padStart(2, '0');
+                setWebDateInput(`${year}-${month}-${day}`);
+                setShowDatePicker(true);
+              }}
               activeOpacity={0.7}
               style={styles.dateTouchable}
             >
@@ -776,7 +787,13 @@ ${content}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => setShowTimePicker(true)}
+              onPress={() => {
+                // 初始化时间输入
+                const hours = String(diaryDate.getHours()).padStart(2, '0');
+                const minutes = String(diaryDate.getMinutes()).padStart(2, '0');
+                setWebTimeInput(`${hours}:${minutes}`);
+                setShowTimePicker(true);
+              }}
               activeOpacity={0.7}
               style={styles.dateTouchable}
             >
@@ -1184,28 +1201,38 @@ ${content}
                   <Text style={[styles.pickerCancel, { color: muted }]}>取消</Text>
                 </TouchableOpacity>
                 <Text style={[styles.pickerTitle, { color: foreground }]}>选择日期</Text>
-                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                <TouchableOpacity onPress={() => {
+                  if (webDateInput) {
+                    const parts = webDateInput.split('-');
+                    if (parts.length === 3) {
+                      const [year, month, day] = parts.map(Number);
+                      if (year && month && day) {
+                        const newDate = new Date(diaryDate);
+                        newDate.setFullYear(year, month - 1, day);
+                        setDiaryDate(newDate);
+                      }
+                    }
+                  }
+                  setShowDatePicker(false);
+                }}>
                   <Text style={[styles.pickerConfirm, { color: accent }]}>确认</Text>
                 </TouchableOpacity>
               </View>
-              <input
-                type="date"
-                value={diaryDate.toISOString().split('T')[0]}
-                onChange={(e) => {
-                  if (e.target.value) {
-                    const newDate = new Date(e.target.value);
-                    newDate.setHours(diaryDate.getHours(), diaryDate.getMinutes());
-                    setDiaryDate(newDate);
-                  }
-                }}
-                style={{
-                  padding: 16,
-                  fontSize: 16,
-                  borderWidth: 1,
-                  borderColor: border,
-                  borderRadius: 8,
-                }}
+              <TextInput
+                style={[
+                  styles.webDateInput,
+                  { borderColor: border, color: foreground, backgroundColor: `${background}50` }
+                ]}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={muted}
+                value={webDateInput}
+                onChangeText={setWebDateInput}
+                keyboardType="numeric"
+                maxLength={10}
               />
+              <Text style={[styles.webDateHint, { color: muted }]}>
+                格式：YYYY-MM-DD，例如：2025-01-15
+              </Text>
             </View>
           </TouchableOpacity>
         </Modal>
@@ -1235,29 +1262,35 @@ ${content}
                   <Text style={[styles.pickerCancel, { color: muted }]}>取消</Text>
                 </TouchableOpacity>
                 <Text style={[styles.pickerTitle, { color: foreground }]}>选择时间</Text>
-                <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                <TouchableOpacity onPress={() => {
+                  if (webTimeInput) {
+                    const [hours, minutes] = webTimeInput.split(':').map(Number);
+                    if (!isNaN(hours) && !isNaN(minutes)) {
+                      const newDate = new Date(diaryDate);
+                      newDate.setHours(hours, minutes);
+                      setDiaryDate(newDate);
+                    }
+                  }
+                  setShowTimePicker(false);
+                }}>
                   <Text style={[styles.pickerConfirm, { color: accent }]}>确认</Text>
                 </TouchableOpacity>
               </View>
-              <input
-                type="time"
-                value={`${diaryDate.getHours().toString().padStart(2, '0')}:${diaryDate.getMinutes().toString().padStart(2, '0')}`}
-                onChange={(e) => {
-                  if (e.target.value) {
-                    const [hours, minutes] = e.target.value.split(':').map(Number);
-                    const newDate = new Date(diaryDate);
-                    newDate.setHours(hours, minutes);
-                    setDiaryDate(newDate);
-                  }
-                }}
-                style={{
-                  padding: 16,
-                  fontSize: 16,
-                  borderWidth: 1,
-                  borderColor: border,
-                  borderRadius: 8,
-                }}
+              <TextInput
+                style={[
+                  styles.webDateInput,
+                  { borderColor: border, color: foreground, backgroundColor: `${background}50` }
+                ]}
+                placeholder="HH:MM"
+                placeholderTextColor={muted}
+                value={webTimeInput}
+                onChangeText={setWebTimeInput}
+                keyboardType="numeric"
+                maxLength={5}
               />
+              <Text style={[styles.webDateHint, { color: muted }]}>
+                格式：HH:MM，例如：14:30
+              </Text>
             </View>
           </TouchableOpacity>
         </Modal>
@@ -1556,6 +1589,18 @@ const styles = StyleSheet.create({
   pickerConfirm: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  webDateInput: {
+    padding: 16,
+    fontSize: 16,
+    borderWidth: 1,
+    borderRadius: 12,
+    marginTop: 16,
+  },
+  webDateHint: {
+    fontSize: 13,
+    marginTop: 12,
+    textAlign: 'center',
   },
   // 模板项
   templateItem: {
