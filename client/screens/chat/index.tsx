@@ -39,13 +39,22 @@ export default function ChatScreen() {
   const { token, isOfflineMode, user } = useAuth();
   const params = useSafeSearchParams<{ initialMessage: string; conversationId: string; relatedDiaryId: string }>();
 
+  console.log('[Chat] ChatScreen initialized, params:', params);
+
   // 保存当前的conversationId，用于本地存储
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(params.conversationId || null);
+
+  console.log('[Chat] State initialized, currentConversationId:', currentConversationId);
 
   // 加载特定对话的历史记录
   useEffect(() => {
     const loadConversation = async () => {
-      if (!params.conversationId || !token) return;
+      console.log('[Chat] loadConversation called, params.conversationId:', params.conversationId, 'token:', !!token);
+
+      if (!params.conversationId || !token) {
+        console.log('[Chat] loadConversation skipped: missing conversationId or token');
+        return;
+      }
 
       try {
         /**
@@ -54,14 +63,18 @@ export default function ChatScreen() {
          * Path 参数：id: string
          * Headers: Authorization: Bearer {token}
          */
+        console.log('[Chat] Fetching conversation:', params.conversationId);
         const response = await fetch(buildApiUrl(`/api/v1/conversations/${params.conversationId}`), {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
         });
 
+        console.log('[Chat] Fetch response status:', response.status);
+
         if (response.ok) {
           const data = await response.json();
+          console.log('[Chat] Conversation loaded:', data);
           // 恢复完整的对话历史
           setMessages([
             { role: 'user', content: data.user_message },
@@ -71,10 +84,10 @@ export default function ChatScreen() {
           setCurrentConversationId(params.conversationId);
         } else {
           // 如果云端加载失败，尝试从本地加载
-          console.warn('Failed to load conversation from cloud, trying local storage');
+          console.warn('[Chat] Failed to load conversation from cloud, trying local storage');
         }
       } catch (error) {
-        console.error('Error loading conversation:', error);
+        console.error('[Chat] Error loading conversation:', error);
       }
     };
 
