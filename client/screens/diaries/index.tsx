@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Modal, KeyboardAvoidingView, Platform, TextInput, ScrollView } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 import { usePassword } from '@/contexts/PasswordContext';
@@ -19,6 +19,7 @@ import {
 } from '@/utils/localStorage';
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown, ZoomIn } from 'react-native-reanimated';
 import { SmartDateInput } from '@/components/SmartDateInput';
+import Slider from '@react-native-community/slider';
 
 interface Diary {
   id: string;
@@ -85,7 +86,9 @@ export default function DiariesScreen() {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState<'start' | 'end' | null>(null);
+  const [selectedMood, setSelectedMood] = useState<string>(''); // 情绪筛选
+  const [minIntensity, setMinIntensity] = useState<number>(0); // 最小心情强度
+  const [keyword, setKeyword] = useState<string>(''); // 关键字搜索
 
   const [background, surface, accent, foreground, muted, border] = useCSSVariable([
     '--color-background',
@@ -98,25 +101,41 @@ export default function DiariesScreen() {
 
   // 应用筛选
   useEffect(() => {
-    if (!startDate && !endDate) {
+    if (!startDate && !endDate && !selectedMood && minIntensity === 0 && !keyword) {
       setFilteredDiaries(diaries);
     } else {
       const filtered = diaries.filter(diary => {
+        // 时间筛选
         const diaryDate = new Date(diary.created_at);
         const start = startDate ? new Date(startDate) : null;
         const end = endDate ? new Date(endDate) : null;
 
-        // 设置时间为当天的开始和结束
         if (start) start.setHours(0, 0, 0, 0);
         if (end) end.setHours(23, 59, 59, 999);
 
         if (start && diaryDate < start) return false;
         if (end && diaryDate > end) return false;
+
+        // 情绪筛选
+        if (selectedMood && diary.mood !== selectedMood) return false;
+
+        // 心情强度筛选
+        if (minIntensity > 0 && diary.mood_intensity && diary.mood_intensity < minIntensity) return false;
+
+        // 关键字搜索
+        if (keyword) {
+          const lowerKeyword = keyword.toLowerCase();
+          const titleMatch = diary.title?.toLowerCase().includes(lowerKeyword);
+          const contentMatch = diary.content.toLowerCase().includes(lowerKeyword);
+          const tagsMatch = diary.tags?.some(tag => tag.toLowerCase().includes(lowerKeyword));
+          if (!titleMatch && !contentMatch && !tagsMatch) return false;
+        }
+
         return true;
       });
       setFilteredDiaries(filtered);
     }
-  }, [diaries, startDate, endDate]);
+  }, [diaries, startDate, endDate, selectedMood, minIntensity, keyword]);
 
   const fetchDiaries = useCallback(async () => {
     try {
@@ -288,6 +307,9 @@ export default function DiariesScreen() {
   const handleClearFilter = () => {
     setStartDate('');
     setEndDate('');
+    setSelectedMood('');
+    setMinIntensity(0);
+    setKeyword('');
     setShowFilterModal(false);
   };
 
@@ -366,7 +388,7 @@ export default function DiariesScreen() {
         {startDate || endDate ? '没有符合条件的日记' : '还没有日记'}
       </Text>
       <Text style={[styles.emptySubtext, { color: muted }]}>
-        {startDate || endDate ? '尝试调整筛选条件' : '点击下方按钮开始记录'}
+        {startDate || endDate || selectedMood || minIntensity > 0 || keyword ? '尝试调整筛选条件' : '点击下方按钮开始记录'}
       </Text>
     </View>
   );
@@ -381,15 +403,15 @@ export default function DiariesScreen() {
               style={[styles.filterButton, { borderColor: border }]}
               onPress={() => setShowFilterModal(true)}
             >
-              <FontAwesome6 name="filter" size={16} color={startDate || endDate ? accent : muted} />
-              <Text style={[styles.filterButtonText, { color: startDate || endDate ? accent : muted }]}>
-                {startDate || endDate ? '筛选中' : '筛选'}
+              <FontAwesome6 name="filter" size={16} color={startDate || endDate || selectedMood || minIntensity > 0 || keyword ? accent : muted} />
+              <Text style={[styles.filterButtonText, { color: startDate || endDate || selectedMood || minIntensity > 0 || keyword ? accent : muted }]}>
+                {startDate || endDate || selectedMood || minIntensity > 0 || keyword ? '筛选中' : '筛选'}
               </Text>
             </TouchableOpacity>
           </View>
           <Text style={[styles.subtitle, { color: muted }]}>
-            {startDate || endDate
-              ? `${startDate ? startDate : '开始'} 至 ${endDate || '结束'} (${filteredDiaries.length}篇)`
+            {startDate || endDate || selectedMood || minIntensity > 0 || keyword
+              ? `筛选条件 (${filteredDiaries.length}篇)`
               : '记录每一天的心情'}
           </Text>
         </View>
@@ -437,87 +459,171 @@ export default function DiariesScreen() {
             exiting={FadeOut.duration(200)}
           >
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: foreground }]}>时间筛选</Text>
+              <Text style={[styles.modalTitle, { color: foreground }]}>筛选日记</Text>
               <TouchableOpacity onPress={() => setShowFilterModal(false)}>
                 <FontAwesome6 name="xmark" size={20} color={muted} />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.modalBody}>
-              <SmartDateInput
-                label="开始日期"
-                value={startDate}
-                onChange={setStartDate}
-                placeholder="请选择开始日期"
-                mode="date"
-                displayFormat="YYYY-MM-DD"
-              />
-
-              <SmartDateInput
-                label="结束日期"
-                value={endDate}
-                onChange={setEndDate}
-                placeholder="请选择结束日期"
-                mode="date"
-                displayFormat="YYYY-MM-DD"
-                containerStyle={{ marginTop: 8 }}
-              />
-
-              <View style={styles.quickFilterContainer}>
-                <Text style={[styles.quickFilterTitle, { color: foreground }]}>快捷筛选</Text>
-                <View style={styles.quickFilterButtons}>
-                  <TouchableOpacity
-                    style={[styles.quickFilterButton, { backgroundColor: `${accent}15`, borderColor: accent }]}
-                    onPress={() => {
-                      const today = new Date();
-                      const year = today.getFullYear();
-                      const month = String(today.getMonth() + 1).padStart(2, '0');
-                      const day = String(today.getDate()).padStart(2, '0');
-                      setStartDate(`${year}-${month}-${day}`);
-                      setEndDate(`${year}-${month}-${day}`);
-                    }}
-                  >
-                    <Text style={[styles.quickFilterButtonText, { color: accent }]}>今天</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.quickFilterButton, { backgroundColor: `${accent}15`, borderColor: accent }]}
-                    onPress={() => {
-                      const end = new Date();
-                      const start = new Date();
-                      start.setDate(start.getDate() - 7);
-                      const startYear = start.getFullYear();
-                      const startMonth = String(start.getMonth() + 1).padStart(2, '0');
-                      const startDay = String(start.getDate()).padStart(2, '0');
-                      const endYear = end.getFullYear();
-                      const endMonth = String(end.getMonth() + 1).padStart(2, '0');
-                      const endDay = String(end.getDate()).padStart(2, '0');
-                      setStartDate(`${startYear}-${startMonth}-${startDay}`);
-                      setEndDate(`${endYear}-${endMonth}-${endDay}`);
-                    }}
-                  >
-                    <Text style={[styles.quickFilterButtonText, { color: accent }]}>近7天</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.quickFilterButton, { backgroundColor: `${accent}15`, borderColor: accent }]}
-                    onPress={() => {
-                      const end = new Date();
-                      const start = new Date();
-                      start.setDate(start.getDate() - 30);
-                      const startYear = start.getFullYear();
-                      const startMonth = String(start.getMonth() + 1).padStart(2, '0');
-                      const startDay = String(start.getDate()).padStart(2, '0');
-                      const endYear = end.getFullYear();
-                      const endMonth = String(end.getMonth() + 1).padStart(2, '0');
-                      const endDay = String(end.getDate()).padStart(2, '0');
-                      setStartDate(`${startYear}-${startMonth}-${startDay}`);
-                      setEndDate(`${endYear}-${endMonth}-${endDay}`);
-                    }}
-                  >
-                    <Text style={[styles.quickFilterButtonText, { color: accent }]}>近30天</Text>
-                  </TouchableOpacity>
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              {/* 关键字搜索 */}
+              <View style={styles.filterSection}>
+                <Text style={[styles.filterLabel, { color: foreground }]}>关键字搜索</Text>
+                <View style={[styles.searchBox, { borderColor: border }]}>
+                  <FontAwesome6 name="search" size={16} color={muted} />
+                  <TextInput
+                    style={[styles.searchInput, { color: foreground }]}
+                    placeholder="搜索标题、内容或标签"
+                    placeholderTextColor={muted}
+                    value={keyword}
+                    onChangeText={setKeyword}
+                  />
+                  {keyword && (
+                    <TouchableOpacity onPress={() => setKeyword('')}>
+                      <FontAwesome6 name="xmark" size={14} color={muted} />
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
-            </View>
+
+              {/* 情绪筛选 */}
+              <View style={styles.filterSection}>
+                <Text style={[styles.filterLabel, { color: foreground }]}>情绪</Text>
+                <View style={styles.moodButtons}>
+                  <TouchableOpacity
+                    style={[
+                      styles.moodButton,
+                      !selectedMood && { backgroundColor: `${accent}20`, borderColor: accent }
+                    ]}
+                    onPress={() => setSelectedMood('')}
+                  >
+                    <Text style={[styles.moodButtonText, { color: !selectedMood ? accent : foreground }]}>全部</Text>
+                  </TouchableOpacity>
+                  {Object.entries(emotionLabels).map(([key, label]) => (
+                    <TouchableOpacity
+                      key={key}
+                      style={[
+                        styles.moodButton,
+                        selectedMood === key && { backgroundColor: `${emotionColors[key]}20`, borderColor: emotionColors[key] }
+                      ]}
+                      onPress={() => setSelectedMood(key)}
+                    >
+                      <View style={[styles.moodDot, { backgroundColor: emotionColors[key] }]} />
+                      <Text style={[
+                        styles.moodButtonText,
+                        { color: selectedMood === key ? emotionColors[key] : foreground }
+                      ]}>
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* 心情强度 */}
+              <View style={styles.filterSection}>
+                <View style={styles.intensityHeader}>
+                  <Text style={[styles.filterLabel, { color: foreground }]}>心情强度</Text>
+                  <Text style={[styles.intensityValue, { color: accent }]}>{minIntensity === 0 ? '不限' : `${minIntensity}+`}</Text>
+                </View>
+                <Slider
+                  style={styles.slider}
+                  minimumValue={0}
+                  maximumValue={5}
+                  step={1}
+                  value={minIntensity}
+                  onValueChange={setMinIntensity}
+                  minimumTrackTintColor={accent}
+                  maximumTrackTintColor={border}
+                  thumbTintColor={accent}
+                />
+                <View style={styles.sliderLabels}>
+                  <Text style={[styles.sliderLabel, { color: muted }]}>不限</Text>
+                  <Text style={[styles.sliderLabel, { color: muted }]}>1</Text>
+                  <Text style={[styles.sliderLabel, { color: muted }]}>2</Text>
+                  <Text style={[styles.sliderLabel, { color: muted }]}>3</Text>
+                  <Text style={[styles.sliderLabel, { color: muted }]}>4</Text>
+                  <Text style={[styles.sliderLabel, { color: muted }]}>5</Text>
+                </View>
+              </View>
+
+              {/* 时间范围 */}
+              <View style={styles.filterSection}>
+                <Text style={[styles.filterLabel, { color: foreground }]}>时间范围</Text>
+                <SmartDateInput
+                  label="开始日期"
+                  value={startDate}
+                  onChange={setStartDate}
+                  placeholder="请选择开始日期"
+                  mode="date"
+                  displayFormat="YYYY-MM-DD"
+                  containerStyle={{ marginBottom: 12 }}
+                />
+
+                <SmartDateInput
+                  label="结束日期"
+                  value={endDate}
+                  onChange={setEndDate}
+                  placeholder="请选择结束日期"
+                  mode="date"
+                  displayFormat="YYYY-MM-DD"
+                />
+
+                <View style={styles.quickFilterContainer}>
+                  <View style={styles.quickFilterButtons}>
+                    <TouchableOpacity
+                      style={[styles.quickFilterButton, { backgroundColor: `${accent}15`, borderColor: accent }]}
+                      onPress={() => {
+                        const today = new Date();
+                        const year = today.getFullYear();
+                        const month = String(today.getMonth() + 1).padStart(2, '0');
+                        const day = String(today.getDate()).padStart(2, '0');
+                        setStartDate(`${year}-${month}-${day}`);
+                        setEndDate(`${year}-${month}-${day}`);
+                      }}
+                    >
+                      <Text style={[styles.quickFilterButtonText, { color: accent }]}>今天</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.quickFilterButton, { backgroundColor: `${accent}15`, borderColor: accent }]}
+                      onPress={() => {
+                        const end = new Date();
+                        const start = new Date();
+                        start.setDate(start.getDate() - 7);
+                        const startYear = start.getFullYear();
+                        const startMonth = String(start.getMonth() + 1).padStart(2, '0');
+                        const startDay = String(start.getDate()).padStart(2, '0');
+                        const endYear = end.getFullYear();
+                        const endMonth = String(end.getMonth() + 1).padStart(2, '0');
+                        const endDay = String(end.getDate()).padStart(2, '0');
+                        setStartDate(`${startYear}-${startMonth}-${startDay}`);
+                        setEndDate(`${endYear}-${endMonth}-${endDay}`);
+                      }}
+                    >
+                      <Text style={[styles.quickFilterButtonText, { color: accent }]}>近7天</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.quickFilterButton, { backgroundColor: `${accent}15`, borderColor: accent }]}
+                      onPress={() => {
+                        const end = new Date();
+                        const start = new Date();
+                        start.setDate(start.getDate() - 30);
+                        const startYear = start.getFullYear();
+                        const startMonth = String(start.getMonth() + 1).padStart(2, '0');
+                        const startDay = String(start.getDate()).padStart(2, '0');
+                        const endYear = end.getFullYear();
+                        const endMonth = String(end.getMonth() + 1).padStart(2, '0');
+                        const endDay = String(end.getDate()).padStart(2, '0');
+                        setStartDate(`${startYear}-${startMonth}-${startDay}`);
+                        setEndDate(`${endYear}-${endMonth}-${endDay}`);
+                      }}
+                    >
+                      <Text style={[styles.quickFilterButtonText, { color: accent }]}>近30天</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </ScrollView>
 
             <View style={styles.modalFooter}>
               <TouchableOpacity
@@ -718,32 +824,33 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 24,
     elevation: 12,
-    maxHeight: '80%',
+    maxHeight: '85%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,0,0,0.05)',
+    marginHorizontal: -20,
+    paddingHorizontal: 20,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
   },
   modalBody: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingVertical: 16,
   },
   modalFooter: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
     paddingVertical: 16,
     gap: 12,
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.05)',
+    marginHorizontal: -20,
+    paddingHorizontal: 20,
   },
   modalButton: {
     flex: 1,
@@ -768,15 +875,10 @@ const styles = StyleSheet.create({
   },
   // 快捷筛选样式
   quickFilterContainer: {
-    marginTop: 24,
+    marginTop: 16,
     paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: 'rgba(234, 88, 12, 0.1)',
-  },
-  quickFilterTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 12,
   },
   quickFilterButtons: {
     flexDirection: 'row',
@@ -792,6 +894,82 @@ const styles = StyleSheet.create({
   },
   quickFilterButtonText: {
     fontSize: 14,
+    fontWeight: '600',
+  },
+  // 筛选区块样式
+  filterSection: {
+    marginBottom: 20,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(234, 88, 12, 0.08)',
+  },
+  filterLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  // 搜索框样式
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    gap: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+  },
+  // 情绪按钮样式
+  moodButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  moodButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,0,0,0.08)',
+    gap: 6,
+  },
+  moodDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  moodButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // 心情强度样式
+  intensityHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  intensityValue: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  slider: {
+    width: '100%',
+    height: 40,
+  },
+  sliderLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+    marginTop: -8,
+  },
+  sliderLabel: {
+    fontSize: 11,
     fontWeight: '600',
   },
 });

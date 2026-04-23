@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,8 @@ import {
   Keyboard,
   Platform,
   ViewStyle,
-  TextStyle
+  TextStyle,
+  TextInput
 } from 'react-native';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import dayjs from 'dayjs';
@@ -68,6 +69,7 @@ export const SmartDateInput = ({
   iconSize = 18
 }: SmartDateInputProps) => {
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+  const webInputRef = useRef<any>(null);
 
   // 默认展示格式
   const format = displayFormat || (mode === 'time' ? 'HH:mm' : 'YYYY-MM-DD');
@@ -125,6 +127,21 @@ export const SmartDateInput = ({
     onChange(serverString);
   };
 
+  // Web 端的原生日期输入处理
+  const handleWebInputChange = (e: any) => {
+    const text = e.target.value;
+    if (text && text.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      onChange(text);
+    }
+  };
+
+  // 在 Web 端设置 input 的 type 属性
+  useEffect(() => {
+    if (Platform.OS === 'web' && webInputRef.current) {
+      webInputRef.current.type = mode === 'time' ? 'time' : 'date';
+    }
+  }, [mode]);
+
   // 根据 mode 选择图标
   const iconName = mode === 'time' ? 'clock' : 'calendar';
 
@@ -133,63 +150,97 @@ export const SmartDateInput = ({
       {/* 标题 */}
       {label && <Text style={[styles.label, { color: THEME.foreground }, labelStyle]}>{label}</Text>}
 
-      {/* 
-         这里用 TouchableOpacity 模拟 Input。
-         模拟组件永远不会唤起键盘。
-      */}
-      <TouchableOpacity
-        style={[
+      {Platform.OS === 'web' ? (
+        // Web 端：使用原生 HTML 日期输入框
+        <View style={[
           styles.inputBox,
           { backgroundColor: THEME.surface, borderColor: error ? '#EF4444' : THEME.border },
           error ? styles.inputBoxError : null,
           inputStyle
-        ]}
-        onPress={showDatePicker}
-        activeOpacity={0.7}
-      >
-        <Text
-          style={[
-            styles.text,
-            { color: value ? THEME.foreground : THEME.muted },
-            textStyle,
-            !value && styles.placeholder,
-            !value && placeholderTextStyle
-          ]}
-          numberOfLines={1}
-        >
-          {displayString || placeholder}
-        </Text>
+        ]}>
+          <TextInput
+            ref={webInputRef as any}
+            style={[
+              styles.webInput,
+              { color: value ? THEME.foreground : THEME.muted },
+              textStyle,
+              !value && styles.placeholder,
+              !value && placeholderTextStyle
+            ]}
+            placeholder={placeholder}
+            placeholderTextColor={THEME.muted}
+            value={displayString || ''}
+            onChange={handleWebInputChange as any}
+            // 禁用自动填充
+            autoComplete="off"
+            autoCorrect={false}
+            spellCheck={false}
+          />
+          <FontAwesome6
+            name={iconName}
+            size={iconSize}
+            color={iconColor || (value ? THEME.accent : THEME.muted)}
+            style={styles.icon}
+          />
+        </View>
+      ) : (
+        // 移动端：使用 react-native-modal-datetime-picker
+        <>
+          <TouchableOpacity
+            style={[
+              styles.inputBox,
+              { backgroundColor: THEME.surface, borderColor: error ? '#EF4444' : THEME.border },
+              error ? styles.inputBoxError : null,
+              inputStyle
+            ]}
+            onPress={showDatePicker}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={[
+                styles.text,
+                { color: value ? THEME.foreground : THEME.muted },
+                textStyle,
+                !value && styles.placeholder,
+                !value && placeholderTextStyle
+              ]}
+              numberOfLines={1}
+            >
+              {displayString || placeholder}
+            </Text>
 
-        <FontAwesome6
-          name={iconName}
-          size={iconSize}
-          color={iconColor || (value ? THEME.accent : THEME.muted)}
-          style={styles.icon}
-        />
-      </TouchableOpacity>
+            <FontAwesome6
+              name={iconName}
+              size={iconSize}
+              color={iconColor || (value ? THEME.accent : THEME.muted)}
+              style={styles.icon}
+            />
+          </TouchableOpacity>
 
-      {error && <Text style={[styles.errorText, { color: '#EF4444' }, errorTextStyle]}>{error}</Text>}
+          {error && <Text style={[styles.errorText, { color: '#EF4444' }, errorTextStyle]}>{error}</Text>}
 
-      {/* 
-         DateTimePickerModal 是 React Native Modal。
-         它会覆盖在所有 View 之上。
-      */}
-      <DateTimePickerModal
-        isVisible={isDatePickerVisible}
-        mode={mode}
-        date={dateObjectForPicker} // 传入 Date 对象
-        onConfirm={handleConfirm}
-        onCancel={hideDatePicker}
-        // iOS 只有用这个 display 样式才最稳，避免乱七八糟的 inline 样式
-        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-        // 自动适配系统深色模式
-        isDarkModeEnabled={false}
-        // 强制使用中文环境
-        locale="zh-CN"
-        confirmTextIOS="确定"
-        cancelTextIOS="取消"
-        buttonTextColorIOS={THEME.accent}
-      />
+          {/*
+             DateTimePickerModal 是 React Native Modal。
+             它会覆盖在所有 View 之上。
+          */}
+          <DateTimePickerModal
+            isVisible={isDatePickerVisible}
+            mode={mode}
+            date={dateObjectForPicker} // 传入 Date 对象
+            onConfirm={handleConfirm}
+            onCancel={hideDatePicker}
+            // iOS 只有用这个 display 样式才最稳，避免乱七八糟的 inline 样式
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            // 自动适配系统深色模式
+            isDarkModeEnabled={false}
+            // 强制使用中文环境
+            locale="zh-CN"
+            confirmTextIOS="确定"
+            cancelTextIOS="取消"
+            buttonTextColorIOS={THEME.accent}
+          />
+        </>
+      )}
     </View>
   );
 };
@@ -227,6 +278,12 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 16,
     flex: 1,
+  },
+  webInput: {
+    fontSize: 16,
+    flex: 1,
+    padding: 0,
+    backgroundColor: 'transparent',
   },
   placeholder: {
     opacity: 0.7,
