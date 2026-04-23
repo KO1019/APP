@@ -1280,7 +1280,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  // 顶部导航栏
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1317,12 +1316,10 @@ const styles = StyleSheet.create({
   headerTagText: {
     fontSize: 14,
   },
-  // 滚动视图
   scrollView: {
     flex: 1,
     paddingHorizontal: 24,
   },
-  // 元信息区域
   metaSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1346,14 +1343,12 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: 14,
   },
-  // 标题输入
   titleInput: {
     fontSize: 28,
     fontWeight: '700',
     paddingVertical: 8,
     marginBottom: 8,
   },
-  // 内容输入
   contentInput: {
     fontSize: 18,
     lineHeight: 28,
@@ -1361,7 +1356,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     textAlignVertical: 'top',
   },
-  // 图片区域
   imageSection: {
     marginVertical: 16,
   },
@@ -1385,7 +1379,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // 标签区域
   tagSection: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1406,7 +1399,6 @@ const styles = StyleSheet.create({
   removeTagButton: {
     padding: 2,
   },
-  // 位置信息
   locationSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1416,7 +1408,6 @@ const styles = StyleSheet.create({
   locationText: {
     fontSize: 13,
   },
-  // AI建议框
   aiSuggestionBox: {
     marginTop: 16,
     padding: 16,
@@ -1462,7 +1453,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginLeft: 8,
   },
-  // 底部工具栏
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1500,7 +1490,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  // 加载中
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -1510,7 +1499,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 12,
   },
-  // 弹窗通用
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
@@ -1532,7 +1520,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
-  // 选择器弹窗
   pickerModal: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
@@ -1557,7 +1544,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  // 模板项
   templateItem: {
     padding: 16,
     borderRadius: 12,
@@ -1571,7 +1557,6 @@ const styles = StyleSheet.create({
   templateItemPrompt: {
     fontSize: 14,
   },
-  // 天气网格
   weatherGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1588,7 +1573,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 8,
   },
-  // 心情网格
   moodGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1605,7 +1589,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 6,
   },
-  // 确认对话框
   confirmDialog: {
     padding: 32,
     borderRadius: 20,
