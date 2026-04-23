@@ -1225,7 +1225,7 @@ ${content}
                 ]}
                 placeholder="YYYY-MM-DD"
                 placeholderTextColor={muted}
-                value={webDateInput}
+                value={webDateInput || ''}
                 onChangeText={setWebDateInput}
                 keyboardType="numeric"
                 maxLength={10}
@@ -1283,7 +1283,7 @@ ${content}
                 ]}
                 placeholder="HH:MM"
                 placeholderTextColor={muted}
-                value={webTimeInput}
+                value={webTimeInput || ''}
                 onChangeText={setWebTimeInput}
                 keyboardType="numeric"
                 maxLength={5}

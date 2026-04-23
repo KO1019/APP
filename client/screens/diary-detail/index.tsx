@@ -19,7 +19,7 @@ interface DiaryDetail {
   tags: string[] | null;
   created_at: string;
   images?: string[] | null;
-  location?: { lat: number; lng: number; address?: string } | null;
+  location?: { latitude: number; longitude: number; address?: string } | null;
   weather?: string | null;
   template_id?: string | null;
 }
@@ -38,7 +38,9 @@ const emotionColors: Record<string, string> = {
   '未识别': '#94a3b8',
   // 新的情绪映射
   'happy': '#FFD93D',
+  'excited': '#FFB703',
   'calm': '#6BCB77',
+  'neutral': '#9CA3AF',
   'anxious': '#4D96FF',
   'sad': '#6B7280',
   'angry': '#FF6B6B',
@@ -47,11 +49,24 @@ const emotionColors: Record<string, string> = {
 
 const emotionLabels: Record<string, string> = {
   'happy': '开心',
+  'excited': '兴奋',
   'calm': '平静',
+  'neutral': '中性',
   'anxious': '焦虑',
   'sad': '悲伤',
   'angry': '愤怒',
   'tired': '疲惫',
+};
+
+const emotionIcons: Record<string, string> = {
+  'happy': 'face-laugh-beam',
+  'excited': 'face-grin-stars',
+  'calm': 'face-smile',
+  'neutral': 'face-meh',
+  'anxious': 'face-frown-open',
+  'sad': 'face-sad-tear',
+  'angry': 'face-angry',
+  'tired': 'face-tired',
 };
 
 const weatherIcons: Record<string, string> = {
@@ -90,6 +105,33 @@ export default function DiaryDetailScreen() {
     '--color-border',
     '--color-destructive',
   ]) as string[];
+
+  // 解析content中的图片占位符，返回分段内容数组
+  const parseContentWithImages = (content: string, images: string[] | undefined | null) => {
+    if (!images || images.length === 0) {
+      return [{ type: 'text' as const, content }];
+    }
+
+    // 匹配 [图片:img_xxx] 格式
+    const parts = content.split(/\[图片:(.*?)\]/g);
+    const result: Array<{ type: 'text' | 'image'; content: string; imageIndex?: number }> = [];
+
+    parts.forEach((part, index) => {
+      if (part.startsWith('img_')) {
+        // 这是一个图片ID
+        const imageId = part;
+        const imageIndex = images.findIndex(uri => uri.includes(imageId));
+        if (imageIndex !== -1) {
+          result.push({ type: 'image', content: images[imageIndex], imageIndex });
+        }
+      } else if (part) {
+        // 这是文本内容
+        result.push({ type: 'text', content: part });
+      }
+    });
+
+    return result.length > 0 ? result : [{ type: 'text', content }];
+  };
 
   const fetchDiaryDetail = useCallback(async () => {
     if (!id) {
@@ -324,14 +366,12 @@ export default function DiaryDetailScreen() {
           <View style={styles.contentContainer}>
             {/* 日期和时间 */}
             <View style={styles.metaRow}>
-              <View style={[styles.metaItem, { backgroundColor: `${accent}10` }]}>
-                <FontAwesome6 name="calendar" size={16} color={accent} />
-                <Text style={[styles.metaText, { color: foreground }]}>{dateStr}</Text>
-              </View>
-              <View style={[styles.metaItem, { backgroundColor: `${muted}10` }]}>
-                <FontAwesome6 name="clock" size={16} color={muted} />
-                <Text style={[styles.metaText, { color: muted }]}>{timeStr}</Text>
-              </View>
+              <Text style={[styles.metaText, { color: muted }]}>
+                {dateStr}
+              </Text>
+              <Text style={[styles.metaText, { color: muted }]}>
+                {timeStr}
+              </Text>
             </View>
 
             {/* 天气和情绪 */}
@@ -345,7 +385,7 @@ export default function DiaryDetailScreen() {
                 )}
                 {diary.mood && (
                   <View style={[styles.badge, { backgroundColor: `${emotionColor}20` }]}>
-                    <FontAwesome6 name="face-smile" size={18} color={emotionColor} />
+                    <FontAwesome6 name={emotionIcons[diary.mood] as any || 'face-smile'} size={18} color={emotionColor} />
                     <Text style={[styles.badgeText, { color: foreground }]}>{emotionLabel}</Text>
                     {diary.mood_intensity && (
                       <Text style={[styles.intensityText, { color: muted }]}>({diary.mood_intensity}%)</Text>
@@ -360,25 +400,23 @@ export default function DiaryDetailScreen() {
               <Text style={[styles.diaryTitle, { color: foreground }]}>{displayTitle}</Text>
             )}
 
-            {/* 内容 */}
-            <Text style={[styles.contentText, { color: foreground }]}>{displayContent}</Text>
-
-            {/* 图片网格 */}
-            {diary.images && diary.images.length > 0 && (
-              <View style={styles.imagesContainer}>
-                <Text style={[styles.sectionTitle, { color: muted }]}>图片</Text>
-                <View style={styles.imageGrid}>
-                  {diary.images.map((imageUri, index) => (
+            {/* 内容（包含嵌入的图片） */}
+            {parseContentWithImages(diary.content, diary.images).map((part, index) => (
+              <View key={index}>
+                {part.type === 'text' && part.content.trim() && (
+                  <Text style={[styles.contentText, { color: foreground }]}>{part.content}</Text>
+                )}
+                {part.type === 'image' && (
+                  <View style={styles.inlineImageContainer}>
                     <Image
-                      key={index}
-                      source={{ uri: imageUri }}
-                      style={styles.image}
+                      source={{ uri: part.content }}
+                      style={styles.inlineImage}
                       resizeMode="cover"
                     />
-                  ))}
-                </View>
+                  </View>
+                )}
               </View>
-            )}
+            ))}
 
             {/* 位置 - 修复toFixed错误 */}
             {diary.location && diary.location.latitude && diary.location.longitude && (
@@ -478,13 +516,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
   },
   contentContainer: {
-    padding: 20,
+    padding: 24,
     paddingBottom: 40,
-    gap: 20,
+    gap: 16,
   },
   metaRow: {
     flexDirection: 'row',
-    gap: 12,
+    alignItems: 'center',
+    gap: 24,
+    marginVertical: 8,
   },
   metaItem: {
     flexDirection: 'row',
@@ -496,7 +536,6 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 14,
-    fontWeight: '500',
   },
   weatherMoodRow: {
     flexDirection: 'row',
@@ -526,6 +565,15 @@ const styles = StyleSheet.create({
   contentText: {
     fontSize: 16,
     lineHeight: 26,
+    marginBottom: 12,
+  },
+  inlineImageContainer: {
+    marginVertical: 12,
+  },
+  inlineImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
   },
   imagesContainer: {
     gap: 12,
