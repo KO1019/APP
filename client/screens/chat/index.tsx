@@ -47,6 +47,12 @@ export default function ChatScreen() {
 
   console.log('[Chat] State initialized, currentConversationId:', currentConversationId);
 
+  // 监控messages变化
+  useEffect(() => {
+    console.log('[Chat] Messages changed:', messages);
+    console.log('[Chat] Last message:', messages[messages.length - 1]);
+  }, [messages]);
+
   // 加载特定对话的历史记录
   useEffect(() => {
     const loadConversation = async () => {
@@ -80,11 +86,14 @@ export default function ChatScreen() {
           if (response.ok) {
             const data = await response.json();
             console.log('[Chat] Conversation loaded from cloud:', data);
+            console.log('[Chat] user_message:', data.user_message, 'ai_message:', data.ai_message);
             // 恢复完整的对话历史
-            setMessages([
+            const newMessages = [
               { role: 'user', content: data.user_message },
               { role: 'assistant', content: data.ai_message },
-            ]);
+            ];
+            console.log('[Chat] Setting messages:', newMessages);
+            setMessages(newMessages);
             // 设置当前conversationId，确保后续消息发送到同一个对话中
             setCurrentConversationId(params.conversationId);
             return;
@@ -182,13 +191,14 @@ export default function ChatScreen() {
 
       if (response.ok) {
         const data = await response.json();
+        console.log('[Chat] Recent conversations fetched:', data);
         // 只取最近2条对话
         setRecentConversations(data.slice(0, 2));
       } else {
         setRecentConversations([]);
       }
     } catch (error) {
-      console.error('Error fetching recent conversations:', error);
+      console.error('[Chat] Error fetching recent conversations:', error);
       setRecentConversations([]);
     }
   }, [token]);
@@ -673,7 +683,10 @@ export default function ChatScreen() {
                       <TouchableOpacity
                         key={conv.id}
                         style={[styles.conversationCard, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}
-                        onPress={() => router.push('/chat', { conversationId: conv.id })}
+                        onPress={() => {
+                          console.log('[Chat] Clicked recent conversation:', conv.id, 'user_message:', conv.user_message, 'ai_message:', conv.ai_message);
+                          router.push('/chat', { conversationId: conv.id });
+                        }}
                       >
                         <Text style={[styles.conversationUserMsg, { color: foreground }]} numberOfLines={1}>
                           {conv.user_message}
