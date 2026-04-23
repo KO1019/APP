@@ -1041,6 +1041,74 @@ async def get_conversations(user_id: str = Depends(get_user_id)):
     return conversations
 
 
+@app.delete('/api/v1/conversations/{conversation_id}')
+async def delete_conversation(conversation_id: str, user_id: str = Depends(get_user_id)):
+    """删除对话"""
+    if not db_client:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    # 检查对话是否存在且属于当前用户
+    result = db_client.table('conversations').select('*').eq('id', conversation_id).maybe_single().execute()
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    if result.data.get('user_id') != user_id:
+        raise HTTPException(status_code=403, detail="You don't have permission to delete this conversation")
+
+    # 删除对话
+    db_client.table('conversations').delete().eq('id', conversation_id).execute()
+
+    return {"success": True, "message": "Conversation deleted successfully"}
+
+
+@app.get('/api/v1/conversations/{conversation_id}')
+async def get_conversation_by_id(conversation_id: str, user_id: str = Depends(get_user_id)):
+    """获取单个对话详情"""
+    if not db_client:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    # 检查对话是否存在且属于当前用户
+    result = db_client.table('conversations').select('*').eq('id', conversation_id).execute()
+
+    if not result.data or len(result.data) == 0:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    conv_data = result.data[0]
+
+    if conv_data.get('user_id') != user_id:
+        raise HTTPException(status_code=403, detail="You don't have permission to access this conversation")
+
+    # 转换数据格式
+    import json
+    messages_json = conv_data.get('messages', '')
+    user_message = ''
+    ai_message = ''
+
+    try:
+        if messages_json:
+            messages = json.loads(messages_json)
+            if isinstance(messages, list):
+                for msg in messages:
+                    if msg.get('role') == 'user' and not user_message:
+                        user_message = msg.get('content', '')
+                    elif msg.get('role') == 'assistant' and not ai_message:
+                        ai_message = msg.get('content', '')
+                    if user_message and ai_message:
+                        break
+    except json.JSONDecodeError:
+        pass
+
+    return {
+        'id': conv_data.get('id'),
+        'user_message': user_message,
+        'ai_message': ai_message,
+        'created_at': conv_data.get('created_at'),
+        'user_id': conv_data.get('user_id'),
+        'title': conv_data.get('title', '')
+    }
+
+
 # ========== 会话管理（用于HTTP长轮询） ==========
 import asyncio
 voice_sessions = {}  # session_id -> {'client': RealtimeDialogClient, 'message_queue': asyncio.Queue, 'lock': asyncio.Lock}

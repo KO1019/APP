@@ -206,11 +206,11 @@ export default function ConversationHistoryScreen() {
       // 1. 先删除本地数据
       await deleteLocalChatMessage(conversationId);
 
-      // 2. 如果是在线模式且用户开启了云端同步，同时删除云端数据
-      if (!isOfflineMode && user?.cloud_sync_enabled) {
+      // 2. 如果是在线模式且已登录，同时删除云端数据
+      if (!isOfflineMode && token) {
         try {
           /**
-           * 服务端文件：server/src/index.ts
+           * 服务端文件：server/main.py
            * 接口：DELETE /api/v1/conversations/:id
            * Path 参数：id: string
            * Headers: Authorization: Bearer {token}
