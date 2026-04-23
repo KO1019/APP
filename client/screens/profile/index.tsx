@@ -22,6 +22,7 @@ interface MenuItem {
   title: string;
   subtitle?: string;
   action?: () => void;
+  isLogout?: boolean;  // 是否为退出登录按钮
 }
 
 export default function ProfileScreen() {
@@ -353,55 +354,44 @@ export default function ProfileScreen() {
         router.push('/about');
       },
     },
-    {
-      icon: 'right-from-bracket',
-      title: '退出登录',
-      subtitle: '退出当前账户',
-      action: () => {
-        Alert.alert(
-          '退出登录',
-          '确定要退出登录吗？',
-          [
-            { text: '取消', style: 'cancel' },
-            {
-              text: '确定退出',
-              style: 'destructive',
-              onPress: async () => {
-                try {
-                  await logout();
-                  Toast.show({ type: 'success', text1: '已退出登录' });
-                } catch (error) {
-                  Toast.show({ type: 'error', text1: '退出登录失败' });
-                }
-              },
-            },
-          ]
-        );
-      },
-    },
-  ], [hasPassword, canUseBiometric, biometricEnabled, isOfflineMode, syncing, router, syncToCloud, fetchHealthTips, deleteAllData, exportAllData, updating, checkAndShowUpdate, logout]);
+  ], [hasPassword, canUseBiometric, biometricEnabled, isOfflineMode, syncing, router, syncToCloud, fetchHealthTips, deleteAllData, exportAllData, updating, checkAndShowUpdate]);
 
-  const renderMenuItem = (item: MenuItem, index: number) => (
-    <TouchableOpacity
-      key={index}
-      style={[
-        styles.menuItem,
-        { backgroundColor: surface, borderColor: border, borderWidth: 1 }
-      ]}
-      onPress={item.action}
-    >
-      <View style={[styles.menuIcon, { backgroundColor: `${accent}20` }]}>
-        <FontAwesome6 name={item.icon as any} size={20} color={accent} />
-      </View>
-      <View style={styles.menuContent}>
-        <Text style={[styles.menuTitle, { color: foreground }]}>{item.title}</Text>
-        {item.subtitle && (
-          <Text style={[styles.menuSubtitle, { color: muted }]}>{item.subtitle}</Text>
-        )}
-      </View>
-      <FontAwesome6 name="chevron-right" size={16} color={muted} />
-    </TouchableOpacity>
-  );
+  const renderMenuItem = (item: MenuItem, index: number) => {
+    const isLogout = item.isLogout;
+    const iconColor = isLogout ? '#DC2626' : accent;  // 退出登录使用红色
+    const iconBgColor = isLogout ? '#FEE2E2' : `${accent}20`;  // 退出登录使用浅红色背景
+    const titleColor = isLogout ? '#DC2626' : foreground;  // 退出登录文字使用红色
+
+    return (
+      <TouchableOpacity
+        key={index}
+        style={[
+          styles.menuItem,
+          {
+            backgroundColor: surface,
+            borderColor: isLogout ? '#FECACA' : border,  // 退出登录使用浅红色边框
+            borderWidth: isLogout ? 2 : 1,  // 退出登录边框更粗
+          }
+        ]}
+        onPress={item.action}
+      >
+        <View style={[styles.menuIcon, { backgroundColor: iconBgColor }]}>
+          <FontAwesome6 name={item.icon as any} size={20} color={iconColor} />
+        </View>
+        <View style={styles.menuContent}>
+          <Text style={[styles.menuTitle, { color: titleColor, fontWeight: isLogout ? '600' : '500' }]}>
+            {item.title}
+          </Text>
+          {item.subtitle && (
+            <Text style={[styles.menuSubtitle, { color: isLogout ? '#DC2626' : muted }]}>
+              {item.subtitle}
+            </Text>
+          )}
+        </View>
+        <FontAwesome6 name={isLogout ? 'right-from-bracket' : 'chevron-right'} size={16} color={isLogout ? '#DC2626' : muted} />
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <Screen>
@@ -423,7 +413,38 @@ export default function ProfileScreen() {
 
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: muted }]}>其他</Text>
-          {menuItems.slice(2).map((item, index) => renderMenuItem(item, index + 2))}
+          {menuItems.slice(2, -1).map((item, index) => renderMenuItem(item, index + 2))}
+        </View>
+
+        {/* 退出登录按钮 - 单独显示，更突出 */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={[styles.logoutButton, { backgroundColor: '#FEF2F2', borderColor: '#FECACA', borderWidth: 2 }]}
+            onPress={() => {
+              Alert.alert(
+                '退出登录',
+                '确定要退出登录吗？',
+                [
+                  { text: '取消', style: 'cancel' },
+                  {
+                    text: '确定退出',
+                    style: 'destructive',
+                    onPress: async () => {
+                      try {
+                        await logout();
+                        Toast.show({ type: 'success', text1: '已退出登录' });
+                      } catch (error) {
+                        Toast.show({ type: 'error', text1: '退出登录失败' });
+                      }
+                    },
+                  },
+                ]
+              );
+            }}
+          >
+            <FontAwesome6 name="right-from-bracket" size={24} color="#DC2626" />
+            <Text style={[styles.logoutButtonText, { color: '#DC2626' }]}>退出登录</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={[styles.footer, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
@@ -577,6 +598,21 @@ const styles = StyleSheet.create({
   },
   footerVersion: {
     fontSize: 12,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    marginHorizontal: 16,
+    borderRadius: 12,
+    gap: 12,
+    marginBottom: 20,
+  },
+  logoutButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   modalOverlay: {
     position: 'absolute',
