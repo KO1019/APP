@@ -704,11 +704,31 @@ ${content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* 日期和时间显示 */}
-          <View style={styles.metaSection}>
+          {/* 日期、天气、心情 - 整合在一起 */}
+          <View style={styles.headerMeta}>
             <Text style={[styles.dateText, { color: muted }]}>
               {formatDate()} · {new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
             </Text>
+            <TouchableOpacity
+              onPress={handleOpenWeather}
+              activeOpacity={0.7}
+            >
+              <FontAwesome6
+                name={selectedWeather ? (WEATHERS.find(w => w.id === selectedWeather)?.icon as any) : 'cloud-sun'}
+                size={14}
+                color={selectedWeather ? accent : '#C0C0C0'}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleOpenMood}
+              activeOpacity={0.7}
+            >
+              <FontAwesome6
+                name={selectedMood ? (MOODS.find(m => m.id === selectedMood)?.icon as any) : 'face-smile'}
+                size={14}
+                color={selectedMood ? MOODS.find(m => m.id === selectedMood)?.color : '#C0C0C0'}
+              />
+            </TouchableOpacity>
           </View>
 
           {/* 标题输入 */}
@@ -719,39 +739,6 @@ ${content}
             value={title}
             onChangeText={setTitle}
           />
-
-          {/* 天气和心情选择 - 在内容上面 */}
-          <View style={styles.metaSection}>
-            <TouchableOpacity
-              style={[styles.metaTag, { backgroundColor: surface, borderColor: selectedWeather ? accent : border }]}
-              onPress={handleOpenWeather}
-              activeOpacity={0.7}
-            >
-              <FontAwesome6
-                name={selectedWeather ? (WEATHERS.find(w => w.id === selectedWeather)?.icon as any) : 'cloud-sun'}
-                size={16}
-                color={selectedWeather ? accent : muted}
-              />
-              <Text style={[styles.metaTagText, { color: selectedWeather ? accent : muted }]}>
-                {selectedWeather ? WEATHERS.find(w => w.id === selectedWeather)?.label : '天气'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.metaTag, { backgroundColor: surface, borderColor: selectedMood ? MOODS.find(m => m.id === selectedMood)?.color : border }]}
-              onPress={handleOpenMood}
-              activeOpacity={0.7}
-            >
-              <FontAwesome6
-                name={selectedMood ? (MOODS.find(m => m.id === selectedMood)?.icon as any) : 'face-smile'}
-                size={16}
-                color={selectedMood ? MOODS.find(m => m.id === selectedMood)?.color : muted}
-              />
-              <Text style={[styles.metaTagText, { color: selectedMood ? (MOODS.find(m => m.id === selectedMood)?.color || foreground) : muted }]}>
-                {selectedMood ? MOODS.find(m => m.id === selectedMood)?.label : '心情'}
-              </Text>
-            </TouchableOpacity>
-          </View>
 
           {/* 内容输入 */}
           <TextInput
@@ -1144,12 +1131,16 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
   },
-  // 元信息区域
-  metaSection: {
+  // 元信息区域（整合日期、天气、心情）
+  headerMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'space-between',
     marginVertical: 12,
+    paddingHorizontal: 4,
+  },
+  dateText: {
+    fontSize: 13,
   },
   metaTag: {
     flexDirection: 'row',
@@ -1162,9 +1153,6 @@ const styles = StyleSheet.create({
   },
   metaTagText: {
     fontSize: 13,
-  },
-  dateText: {
-    fontSize: 14,
   },
   // 标题输入
   titleInput: {
