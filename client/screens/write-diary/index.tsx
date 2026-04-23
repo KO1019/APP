@@ -704,6 +704,39 @@ ${content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {/* 天气和心情选择 */}
+          <View style={styles.metaSection}>
+            <TouchableOpacity
+              style={styles.metaItem}
+              onPress={handleOpenWeather}
+              activeOpacity={0.7}
+            >
+              <FontAwesome6
+                name={selectedWeather ? (WEATHERS.find(w => w.id === selectedWeather)?.icon as any) : 'cloud-sun'}
+                size={18}
+                color={selectedWeather ? accent : muted}
+              />
+              <Text style={[styles.metaText, { color: selectedWeather ? foreground : muted }]}>
+                {selectedWeather ? WEATHERS.find(w => w.id === selectedWeather)?.label : '天气'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.metaItem}
+              onPress={handleOpenMood}
+              activeOpacity={0.7}
+            >
+              <FontAwesome6
+                name={selectedMood ? (MOODS.find(m => m.id === selectedMood)?.icon as any) : 'face-smile'}
+                size={18}
+                color={selectedMood ? accent : muted}
+              />
+              <Text style={[styles.metaText, { color: selectedMood ? foreground : muted }]}>
+                {selectedMood ? MOODS.find(m => m.id === selectedMood)?.label : '心情'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           {/* 日期和时间显示 - 放在标题下面 */}
           <View style={styles.metaSection}>
             <Text style={[styles.dateText, { color: muted }]}>
@@ -831,30 +864,6 @@ ${content}
 
         {/* 底部工具栏 */}
         <View style={[styles.toolbar, { backgroundColor: surface, borderTopColor: border, paddingTop: insets.bottom }]}>
-          <TouchableOpacity
-            style={styles.toolbarButton}
-            onPress={handleOpenWeather}
-            activeOpacity={0.7}
-          >
-            <FontAwesome6
-              name={selectedWeather ? (WEATHERS.find(w => w.id === selectedWeather)?.icon as any) : 'cloud-sun'}
-              size={20}
-              color={selectedWeather ? accent : muted}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.toolbarButton}
-            onPress={handleOpenMood}
-            activeOpacity={0.7}
-          >
-            <FontAwesome6
-              name={selectedMood ? (MOODS.find(m => m.id === selectedMood)?.icon as any) : 'face-smile'}
-              size={20}
-              color={selectedMood ? accent : muted}
-            />
-          </TouchableOpacity>
-
           <TouchableOpacity
             style={styles.toolbarButton}
             onPress={handleGetLocation}
