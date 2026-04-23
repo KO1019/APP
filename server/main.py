@@ -919,11 +919,17 @@ async def chat_stream(chat: ChatMessage, user_id: str = Depends(get_user_id)):
 
         # 获取最近对话历史
         if db_client:
-            conv_result = db_client.table('conversations').select('user_message, ai_message').order('created_at', desc=True).range(0, 4).execute()
-            if conv_result.data:
-                for conv in reversed(conv_result.data):
-                    messages.append({"role": "user", "content": conv['user_message']})
-                    messages.append({"role": "assistant", "content": conv['ai_message']})
+            try:
+                conv_result = db_client.table('conversations').select('messages').order('created_at', desc=True).range(0, 4).execute()
+                if conv_result.data:
+                    for conv in reversed(conv_result.data):
+                        messages_json = conv.get('messages', [])
+                        if isinstance(messages_json, list):
+                            for msg in messages_json:
+                                if msg.get('role') in ['user', 'assistant']:
+                                    messages.append(msg)
+            except Exception as e:
+                logger.error(f"Error fetching conversation history: {e}")
 
         if not messages or messages[0]['role'] != 'system':
             messages.insert(0, {
@@ -940,12 +946,36 @@ async def chat_stream(chat: ChatMessage, user_id: str = Depends(get_user_id)):
 
         # 保存对话记录
         if db_client:
-            db_client.table('conversations').insert({
-                'user_id': user_id,
-                'user_message': chat.message,
-                'ai_message': full_response,
-                'related_diary_id': chat.diaryId
-            }).execute()
+            try:
+                # 获取当前会话或创建新会话
+                session_id = chat.conversationId or f"session_{uuid.uuid4()}"
+
+                # 检查会话是否已存在
+                existing_conv = db_client.table('conversations').select('*').eq('id', session_id).execute()
+
+                user_msg = {"role": "user", "content": chat.message}
+                ai_msg = {"role": "assistant", "content": full_response}
+
+                if existing_conv.data:
+                    # 更新现有会话的消息列表
+                    current_messages = existing_conv.data[0].get('messages', [])
+                    if isinstance(current_messages, list):
+                        current_messages.append(user_msg)
+                        current_messages.append(ai_msg)
+                        db_client.table('conversations').update({
+                            'messages': current_messages,
+                            'updated_at': datetime.now().isoformat()
+                        }).eq('id', session_id).execute()
+                else:
+                    # 创建新会话
+                    db_client.table('conversations').insert({
+                        'id': session_id,
+                        'user_id': user_id,
+                        'title': chat.message[:50] if len(chat.message) > 50 else chat.message,  # 使用第一条消息作为标题
+                        'messages': [user_msg, ai_msg]
+                    }).execute()
+            except Exception as e:
+                logger.error(f"Error saving conversation: {e}")
 
     return StreamingResponse(generate(), media_type="text/event-stream; charset=utf-8")
 
