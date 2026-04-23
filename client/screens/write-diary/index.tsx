@@ -13,7 +13,6 @@ import {
   Modal,
   ActivityIndicator,
   Image,
-  FlatList,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
@@ -27,7 +26,6 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import RNSSE from 'react-native-sse';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
@@ -103,21 +101,33 @@ export default function WriteDiaryScreen() {
   const [loadingDiary, setLoadingDiary] = useState(false);
   const [diary, setDiary] = useState<DiaryData | null>(null);
 
-  // AI陪伴功能状态
-  const [showAIPanel, setShowAIPanel] = useState(false); // AI伴写面板
-  const [showAIButton, setShowAIButton] = useState(false); // AI按钮（智能显示）
-  const [aiActionType, setAIActionType] = useState<'continue' | 'inspiration' | 'polish' | 'analyze'>('continue'); // AI操作类型
-  const [aiLoading, setAILoading] = useState(false);
-  const [aiResult, setAIResult] = useState(''); // AI生成的结果
+  // AI陪伴功能状态（嵌入式，参考WPS）
+  const [aiSuggestion, setAiSuggestion] = useState(''); // AI建议内容
+  const [aiSuggestionLoading, setAiSuggestionLoading] = useState(false); // AI加载中
+  const [aiActionType, setAiActionType] = useState<'continue' | 'inspiration' | 'polish' | 'analyze'>('continue'); // AI操作类型
+  const [inputTimer, setInputTimer] = useState<NodeJS.Timeout | null>(null); // 输入定时器
 
-  // 监听用户输入，智能显示AI按钮
+  // 监听用户输入，智能触发AI续写
   useEffect(() => {
-    if (content && content.trim().length > 10) {
-      setShowAIButton(true);
-    } else {
-      setShowAIButton(false);
+    // 清除之前的定时器
+    if (inputTimer) {
+      clearTimeout(inputTimer);
     }
-  }, [content]); // HMR更新触发点
+
+    // 如果内容超过20个字且没有AI建议，3秒后触发AI续写
+    if (content && content.trim().length > 20 && !aiSuggestion) {
+      const timer = setTimeout(() => {
+        triggerAIContinue();
+      }, 3000);
+      setInputTimer(timer);
+    }
+
+    return () => {
+      if (inputTimer) {
+        clearTimeout(inputTimer);
+      }
+    };
+  }, [content, aiSuggestion]);
 
   const [background, surface, accent, foreground, muted, border] = useCSSVariable([
     '--color-background',
@@ -201,77 +211,37 @@ export default function WriteDiaryScreen() {
     };
 
     loadDiaryForEdit();
-  }, [editId, token]); // 移除 router 依赖，避免无限循环
+  }, [editId, token]);
 
-  // 处理AI伴写功能
-  const handleAIAction = async (action: AIActionType) => {
-    if (aiLoading) return;
+  // 触发AI续写（自动）
+  const triggerAIContinue = async () => {
+    if (!content || content.trim().length < 20) return;
 
-    setAIActionType(action);
-    setAILoading(true);
-    setAIResult('');
+    setAiSuggestionLoading(true);
+    setAiActionType('continue');
 
     try {
-      const token = await AsyncStorage.getItem('authToken');
-      if (!token) {
-        Alert.alert('错误', '请先登录');
+      const authToken = await AsyncStorage.getItem('authToken');
+      if (!authToken) {
+        setAiSuggestionLoading(false);
         return;
       }
 
-      // 根据不同操作类型构建不同的prompt
-      let prompt = '';
-      switch (action) {
-        case 'continue':
-          prompt = `请根据以下日记内容，帮我续写2-3句话，保持原有的写作风格和情绪：
+      const prompt = `请根据以下日记内容，帮我续写2-3句话，保持原有的写作风格和情绪：
 
-${content || '(日记内容为空，请先开始写作)'}
+${content}
 
 要求：
 1. 保持原有的写作风格和语气
 2. 延续当前的情绪氛围
 3. 每句话不要太长，简洁自然
 4. 直接给出续写内容，不要添加其他解释`;
-          break;
-        case 'inspiration':
-          prompt = `请根据以下日记内容，给我3-5个写作灵感和思路建议：
-
-${content || '(日记内容为空，请先开始写作)'}
-
-要求：
-1. 从不同角度提供灵感（情感、事件、思考等）
-2. 每个灵感都要具体可操作
-3. 帮助用户深入思考和表达
-4. 用列表形式呈现，每个灵感单独一行`;
-          break;
-        case 'polish':
-          prompt = `请帮我对以下日记内容进行润色和优化，让表达更加流畅自然：
-
-${content || '(日记内容为空，请先开始写作)'}
-
-要求：
-1. 保持原有的意思和情感
-2. 优化语句表达，让文字更流畅
-3. 适当调整结构，让逻辑更清晰
-4. 只返回优化后的完整日记内容，不要添加其他说明`;
-          break;
-        case 'analyze':
-          prompt = `请分析以下日记内容的情绪和特点：
-
-${content || '(日记内容为空，请先开始写作)'}
-
-要求：
-1. 识别并描述日记中的情绪
-2. 分析日记的核心主题和亮点
-3. 给出简短的反馈和鼓励
-4. 用温和友好的语气`;
-          break;
-      }
 
       const response = await fetch(buildApiUrl('/api/v1/ai/chat'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
           messages: [
@@ -289,27 +259,121 @@ ${content || '(日记内容为空，请先开始写作)'}
 
       const result = await response.json();
       if (result.content) {
-        setAIResult(result.content);
+        setAiSuggestion(result.content);
+      }
+    } catch (error) {
+      console.error('Error in AI continue:', error);
+    } finally {
+      setAiSuggestionLoading(false);
+    }
+  };
+
+  // 手动触发AI功能（灵感、润色、分析）
+  const handleAIAction = async (action: AIActionType) => {
+    if (aiSuggestionLoading) return;
+
+    setAiActionType(action);
+    setAiSuggestionLoading(true);
+    setAiSuggestion('');
+
+    try {
+      const authToken = await AsyncStorage.getItem('authToken');
+      if (!authToken) {
+        Alert.alert('错误', '请先登录');
+        return;
+      }
+
+      // 根据不同操作类型构建不同的prompt
+      let prompt = '';
+      switch (action) {
+        case 'continue':
+          prompt = `请根据以下日记内容，帮我续写2-3句话，保持原有的写作风格和情绪：
+
+${content}
+
+要求：
+1. 保持原有的写作风格和语气
+2. 延续当前的情绪氛围
+3. 每句话不要太长，简洁自然
+4. 直接给出续写内容，不要添加其他解释`;
+          break;
+        case 'inspiration':
+          prompt = `请根据以下日记内容，给我3-5个写作灵感和思路建议：
+
+${content}
+
+要求：
+1. 从不同角度提供灵感（情感、事件、思考等）
+2. 每个灵感都要具体可操作
+3. 帮助用户深入思考和表达
+4. 用列表形式呈现，每个灵感单独一行`;
+          break;
+        case 'polish':
+          prompt = `请帮我对以下日记内容进行润色和优化，让表达更加流畅自然：
+
+${content}
+
+要求：
+1. 保持原有的意思和情感
+2. 优化语句表达，让文字更流畅
+3. 适当调整结构，让逻辑更清晰
+4. 只返回优化后的完整日记内容，不要添加其他说明`;
+          break;
+        case 'analyze':
+          prompt = `请分析以下日记内容的情绪和特点：
+
+${content}
+
+要求：
+1. 识别并描述日记中的情绪
+2. 分析日记的核心主题和亮点
+3. 给出简短的反馈和鼓励
+4. 用温和友好的语气`;
+          break;
+      }
+
+      const response = await fetch(buildApiUrl('/api/v1/ai/chat'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('AI响应失败');
+      }
+
+      const result = await response.json();
+      if (result.content) {
+        setAiSuggestion(result.content);
       }
     } catch (error) {
       console.error('Error in AI action:', error);
       Alert.alert('错误', 'AI处理失败，请重试');
     } finally {
-      setAILoading(false);
+      setAiSuggestionLoading(false);
     }
   };
 
-  // 应用AI结果（续写或润色）
-  const handleApplyAIResult = () => {
+  // 应用AI建议（续写或润色）
+  const handleApplySuggestion = () => {
     if (aiActionType === 'continue') {
       // 续写：追加到内容后面
-      setContent(prev => prev + ' ' + aiResult);
+      setContent(prev => prev + (prev.endsWith(' ') ? '' : ' ') + aiSuggestion);
     } else if (aiActionType === 'polish') {
       // 润色：替换整个内容
-      setContent(aiResult);
+      setContent(aiSuggestion);
     }
-    setAIResult('');
-    setShowAIPanel(false);
+    setAiSuggestion('');
   };
 
   // 选择模板
@@ -317,13 +381,6 @@ ${content || '(日记内容为空，请先开始写作)'}
     setSelectedTemplate(template.id);
     setContent(template.prompt);
     setShowTemplateModal(false);
-  };
-  // 触发HMR更新 - 修复编译问题
-
-  // 旧的AI聊天功能（已废弃，保留函数避免编译错误）
-  const handleSendAIMessage = async () => {
-    // AI聊天功能已替换为AI伴写功能
-    console.log('AI聊天功能已废弃');
   };
 
   // 选择图片
@@ -554,27 +611,6 @@ ${content || '(日记内容为空，请先开始写作)'}
     }
   };
 
-  // 渲染AI消息
-  const renderAIMessage = ({ item }: { item: AIMessage }) => {
-    const isUser = item.role === 'user';
-
-    return (
-      <View style={[
-        styles.aiMessageBubble,
-        isUser
-          ? styles.aiMessageBubbleUser
-          : { backgroundColor: surface, borderColor: border, borderWidth: 1 },
-      ]}>
-        <Text style={[
-          styles.aiMessageText,
-          { color: foreground },
-        ]}>
-          {item.content}
-        </Text>
-      </View>
-    );
-  };
-
   if (loadingDiary) {
     return (
       <Screen safeAreaEdges={['left', 'right', 'top']}>
@@ -651,18 +687,6 @@ ${content || '(日记内容为空，请先开始写作)'}
             keyboardShouldPersistTaps="handled"
             pointerEvents="box-none"
           >
-            {/* AI伴写浮动按钮 - 智能显示 */}
-            {showAIButton && !showAIPanel && (
-              <TouchableOpacity
-                style={[styles.floatingAIButton, { backgroundColor: accent }]}
-                onPress={() => setShowAIPanel(true)}
-                activeOpacity={0.8}
-              >
-                <FontAwesome6 name="robot" size={20} color="#fff" />
-                <Text style={styles.floatingAIButtonText}>AI来帮忙</Text>
-              </TouchableOpacity>
-            )}
-
             {/* 模板选择 */}
             {!isEditMode && (
               <TouchableOpacity
@@ -768,15 +792,104 @@ ${content || '(日记内容为空，请先开始写作)'}
             />
 
             {/* 内容输入 */}
-            <TextInput
-              style={[styles.contentInput, { color: foreground }]}
-              placeholder="写下你的想法..."
-              placeholderTextColor={muted}
-              value={content}
-              onChangeText={setContent}
-              multiline
-              textAlignVertical="top"
-            />
+            <View>
+              <TextInput
+                style={[styles.contentInput, { color: foreground }]}
+                placeholder="写下你的想法..."
+                placeholderTextColor={muted}
+                value={content}
+                onChangeText={setContent}
+                multiline
+                textAlignVertical="top"
+              />
+
+              {/* AI建议显示（嵌入式，参考WPS） */}
+              {(aiSuggestionLoading || aiSuggestion) && (
+                <View style={[styles.aiSuggestionBox, { backgroundColor: `${accent}05`, borderColor: `${accent}20`, borderWidth: 1 }]}>
+                  <View style={styles.aiSuggestionHeader}>
+                    <FontAwesome6 name="robot" size={16} color={accent} />
+                    <Text style={[styles.aiSuggestionTitle, { color: accent }]}>
+                      {aiActionType === 'continue' && 'AI续写建议'}
+                      {aiActionType === 'inspiration' && '写作灵感'}
+                      {aiActionType === 'polish' && '润色建议'}
+                      {aiActionType === 'analyze' && '情绪分析'}
+                    </Text>
+                    <TouchableOpacity onPress={() => setAiSuggestion('')} activeOpacity={0.6}>
+                      <FontAwesome6 name="xmark" size={16} color={muted} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {aiSuggestionLoading && (
+                    <View style={styles.aiSuggestionLoading}>
+                      <ActivityIndicator size="small" color={accent} />
+                      <Text style={[styles.aiSuggestionLoadingText, { color: muted }]}>AI正在思考...</Text>
+                    </View>
+                  )}
+
+                  {!aiSuggestionLoading && aiSuggestion && (
+                    <>
+                      <Text style={[styles.aiSuggestionText, { color: foreground }]}>{aiSuggestion}</Text>
+
+                      {(aiActionType === 'continue' || aiActionType === 'polish') && (
+                        <TouchableOpacity
+                          style={[styles.aiSuggestionApplyBtn, { backgroundColor: accent }]}
+                          onPress={handleApplySuggestion}
+                          activeOpacity={0.7}
+                        >
+                          <FontAwesome6 name="check" size={16} color="#FFFFFF" />
+                          <Text style={styles.aiSuggestionApplyBtnText}>
+                            {aiActionType === 'continue' ? '接受续写' : '应用润色'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </>
+                  )}
+                </View>
+              )}
+
+              {/* AI工具栏 */}
+              <View style={[styles.aiToolBar, { backgroundColor: `${accent}08` }]}>
+                <TouchableOpacity
+                  style={styles.aiToolButton}
+                  onPress={() => handleAIAction('continue')}
+                  disabled={aiSuggestionLoading}
+                  activeOpacity={0.7}
+                >
+                  <FontAwesome6 name="pen-fancy" size={16} color={accent} />
+                  <Text style={[styles.aiToolButtonText, { color: foreground }]}>续写</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.aiToolButton}
+                  onPress={() => handleAIAction('inspiration')}
+                  disabled={aiSuggestionLoading}
+                  activeOpacity={0.7}
+                >
+                  <FontAwesome6 name="lightbulb" size={16} color={accent} />
+                  <Text style={[styles.aiToolButtonText, { color: foreground }]}>灵感</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.aiToolButton}
+                  onPress={() => handleAIAction('polish')}
+                  disabled={aiSuggestionLoading}
+                  activeOpacity={0.7}
+                >
+                  <FontAwesome6 name="wand-magic-sparkles" size={16} color={accent} />
+                  <Text style={[styles.aiToolButtonText, { color: foreground }]}>润色</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.aiToolButton}
+                  onPress={() => handleAIAction('analyze')}
+                  disabled={aiSuggestionLoading}
+                  activeOpacity={0.7}
+                >
+                  <FontAwesome6 name="heart-pulse" size={16} color={accent} />
+                  <Text style={[styles.aiToolButtonText, { color: foreground }]}>分析</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
 
             {/* 情绪选择 */}
             <View style={styles.moodSection}>
@@ -851,138 +964,19 @@ ${content || '(日记内容为空，请先开始写作)'}
             </View>
 
             {/* 位置信息 */}
-            {location && location.latitude && location.longitude && (
+            {location && location.lat && location.lng && (
               <View style={[styles.locationInfo, { backgroundColor: `${accent}10`, borderColor: `${accent}30`, borderWidth: 1 }]}>
                 <FontAwesome6 name="location-dot" size={14} color={accent} />
                 <Text style={[styles.locationText, { color: foreground }]}>
-                  {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
+                  {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
                 </Text>
               </View>
             )}
-            {/* 触发HMR更新 - 修复.toFixed错误 */}
 
             <View style={{ height: 40 }} />
           </ScrollView>
         </KeyboardAvoidingView>
       </View>
-
-      {/* AI伴写面板 */}
-      <Modal
-        visible={showAIPanel}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowAIPanel(false)}
-      >
-        <View style={[styles.modalOverlay, { backgroundColor: `${background}90` }]}>
-          <View style={[styles.aiModalContent, { backgroundColor: surface }]}>
-            {/* 头部 */}
-            <View style={[styles.aiModalHeader, { borderBottomColor: `${accent}20` }]}>
-              <TouchableOpacity
-                style={styles.aiModalCloseBtn}
-                onPress={() => setShowAIPanel(false)}
-                activeOpacity={0.6}
-              >
-                <FontAwesome6 name="xmark" size={24} color={foreground} />
-              </TouchableOpacity>
-              <Text style={[styles.aiModalTitle, { color: foreground }]}>AI伴写助手</Text>
-              <View style={{ width: 40 }} />
-            </View>
-
-            {/* 操作按钮 */}
-            <ScrollView style={styles.aiModalBody} showsVerticalScrollIndicator={false}>
-              <View style={styles.aiActionsGrid}>
-                {/* 续写 */}
-                <TouchableOpacity
-                  style={[styles.aiActionButton, { backgroundColor: `${accent}10`, borderColor: `${accent}30` }]}
-                  onPress={() => handleAIAction('continue')}
-                  disabled={aiLoading}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.aiActionIcon, { backgroundColor: `${accent}20` }]}>
-                    <FontAwesome6 name="pen-fancy" size={24} color={accent} />
-                  </View>
-                  <Text style={[styles.aiActionTitle, { color: foreground }]}>智能续写</Text>
-                  <Text style={[styles.aiActionDesc, { color: muted }]}>自动续写2-3句话</Text>
-                  <Text style={[styles.aiActionHint, { color: `${accent}70` }]}>基于当前内容</Text>
-                </TouchableOpacity>
-
-                {/* 灵感 */}
-                <TouchableOpacity
-                  style={[styles.aiActionButton, { backgroundColor: `${accent}10`, borderColor: `${accent}30` }]}
-                  onPress={() => handleAIAction('inspiration')}
-                  disabled={aiLoading}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.aiActionIcon, { backgroundColor: `${accent}20` }]}>
-                    <FontAwesome6 name="lightbulb" size={24} color={accent} />
-                  </View>
-                  <Text style={[styles.aiActionTitle, { color: foreground }]}>写作灵感</Text>
-                  <Text style={[styles.aiActionDesc, { color: muted }]}>获取3-5个思路</Text>
-                  <Text style={[styles.aiActionHint, { color: `${accent}70` }]}>突破创作瓶颈</Text>
-                </TouchableOpacity>
-
-                {/* 润色 */}
-                <TouchableOpacity
-                  style={[styles.aiActionButton, { backgroundColor: `${accent}10`, borderColor: `${accent}30` }]}
-                  onPress={() => handleAIAction('polish')}
-                  disabled={aiLoading}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.aiActionIcon, { backgroundColor: `${accent}20` }]}>
-                    <FontAwesome6 name="wand-magic-sparkles" size={24} color={accent} />
-                  </View>
-                  <Text style={[styles.aiActionTitle, { color: foreground }]}>智能润色</Text>
-                  <Text style={[styles.aiActionDesc, { color: muted }]}>优化表达流畅度</Text>
-                  <Text style={[styles.aiActionHint, { color: `${accent}70` }]}>保持原意不变</Text>
-                </TouchableOpacity>
-
-                {/* 分析 */}
-                <TouchableOpacity
-                  style={[styles.aiActionButton, { backgroundColor: `${accent}10`, borderColor: `${accent}30` }]}
-                  onPress={() => handleAIAction('analyze')}
-                  disabled={aiLoading}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.aiActionIcon, { backgroundColor: `${accent}20` }]}>
-                    <FontAwesome6 name="heart-pulse" size={24} color={accent} />
-                  </View>
-                  <Text style={[styles.aiActionTitle, { color: foreground }]}>情绪分析</Text>
-                  <Text style={[styles.aiActionDesc, { color: muted }]}>识别日记情绪</Text>
-                  <Text style={[styles.aiActionHint, { color: `${accent}70` }]}>获取反馈建议</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* AI结果展示 */}
-              {aiLoading && (
-                <View style={styles.aiLoadingBox}>
-                  <ActivityIndicator size="small" color={accent} />
-                  <Text style={[styles.aiLoadingText, { color: muted }]}>AI正在思考...</Text>
-                </View>
-              )}
-
-              {aiResult && !aiLoading && (
-                <View style={styles.aiResultBox}>
-                  <Text style={[styles.aiResultLabel, { color: foreground }]}>AI建议：</Text>
-                  <Text style={[styles.aiResultText, { color: foreground }]}>{aiResult}</Text>
-
-                  {(aiActionType === 'continue' || aiActionType === 'polish') && (
-                    <TouchableOpacity
-                      style={[styles.aiApplyButton, { backgroundColor: accent }]}
-                      onPress={handleApplyAIResult}
-                      activeOpacity={0.7}
-                    >
-                      <FontAwesome6 name="check" size={16} color="#FFFFFF" />
-                      <Text style={styles.aiApplyButtonText}>
-                        {aiActionType === 'continue' ? '应用续写' : '应用润色'}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              )}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
 
       {/* 模板选择弹窗 */}
       <Modal visible={showTemplateModal} transparent animationType="slide">
@@ -1153,8 +1147,8 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderBottomWidth: 1,
     backgroundColor: 'transparent',
-    elevation: 1, // Android 阴影
-    zIndex: 100, // 确保在其他元素上方
+    elevation: 1,
+    zIndex: 100,
   },
   backButton: {
     width: 40,
@@ -1191,48 +1185,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
   },
-  // 浮动AI按钮（智能显示）
-  floatingAIButton: {
-    position: 'absolute',
-    bottom: 120,
-    right: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    borderRadius: 30,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-    zIndex: 100,
-  },
-  floatingAIButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#fff',
-    marginLeft: 8,
-  },
-  aiAssistantButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  aiAssistantButtonContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  aiAssistantButtonText: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  aiAssistantButtonSubtext: {
-    fontSize: 12,
-    marginTop: 2,
-  },
   templateSelector: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1242,6 +1194,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   templateSelectorText: {
+    flex: 1,
+    marginLeft: 12,
     fontSize: 15,
     fontWeight: '500',
   },
@@ -1306,7 +1260,74 @@ const styles = StyleSheet.create({
     minHeight: 200,
     padding: 12,
     borderRadius: 12,
+    marginBottom: 8,
+  },
+  // AI建议框（嵌入式，参考WPS）
+  aiSuggestionBox: {
+    marginTop: 8,
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  aiSuggestionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  aiSuggestionTitle: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  aiSuggestionLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  aiSuggestionLoadingText: {
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  aiSuggestionText: {
+    fontSize: 14,
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  aiSuggestionApplyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  aiSuggestionApplyBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginLeft: 6,
+  },
+  // AI工具栏
+  aiToolBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
     marginBottom: 16,
+  },
+  aiToolButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  aiToolButtonText: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginLeft: 6,
   },
   moodSection: {
     marginBottom: 16,
@@ -1399,6 +1420,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '80%',
+    width: '90%',
     padding: 20,
   },
   modalHeader: {
@@ -1472,226 +1494,36 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  aiChatModalContent: {
-    flex: 1,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-  },
-  aiChatHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-  },
-  aiChatBackButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  aiChatTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  aiChatMessages: {
-    flex: 1,
-  },
-  aiChatMessagesContent: {
-    padding: 16,
-  },
-  aiMessageBubble: {
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  aiMessageBubbleUser: {
-    backgroundColor: '#007AFF',
-    marginLeft: 40,
-  },
-  aiMessageText: {
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  aiLoadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    marginTop: 8,
-  },
-  aiLoadingText: {
-    fontSize: 14,
-    marginLeft: 8,
-  },
-  aiChatInputArea: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 20,
-    borderTopWidth: 1,
-  },
-  aiChatInput: {
-    flex: 1,
-    fontSize: 15,
-    padding: 12,
-    borderRadius: 20,
-    maxHeight: 100,
-    marginRight: 12,
-    borderWidth: 1,
-  },
-  aiChatSendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   confirmDialog: {
-    backgroundColor: '#FFFFFF',
-    width: width * 0.85,
     padding: 24,
-    borderRadius: 20,
+    borderRadius: 16,
     alignItems: 'center',
-    gap: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 24,
-    elevation: 12,
+    width: '85%',
   },
   confirmDialogTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
   },
   confirmDialogText: {
-    fontSize: 15,
+    fontSize: 14,
     textAlign: 'center',
-    lineHeight: 22,
+    marginBottom: 24,
   },
   confirmDialogButtons: {
     flexDirection: 'row',
     width: '100%',
     gap: 12,
-    marginTop: 8,
   },
   confirmDialogButton: {
     flex: 1,
     padding: 14,
-    borderRadius: 12,
+    borderRadius: 10,
     alignItems: 'center',
   },
   confirmDialogButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  // AI伴写面板样式
-  aiModalContent: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: 'hidden',
-  },
-  aiModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-  },
-  aiModalCloseBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  aiModalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  aiModalBody: {
-    flex: 1,
-    padding: 20,
-  },
-  aiActionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 20,
-  },
-  aiActionButton: {
-    flex: 1,
-    minWidth: '45%',
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    gap: 8,
-  },
-  aiActionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  aiActionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-  aiActionDesc: {
-    fontSize: 13,
-    marginBottom: 2,
-  },
-  aiActionHint: {
-    fontSize: 11,
-  },
-  aiLoadingBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    padding: 20,
-    backgroundColor: 'rgba(234, 88, 12, 0.05)',
-    borderRadius: 12,
-  },
-  aiLoadingText: {
-    fontSize: 14,
-  },
-  aiResultBox: {
-    padding: 16,
-    backgroundColor: 'rgba(234, 88, 12, 0.05)',
-    borderRadius: 12,
-    gap: 12,
-  },
-  aiResultLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  aiResultText: {
     fontSize: 15,
-    lineHeight: 22,
-  },
-  aiApplyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    gap: 8,
-    alignSelf: 'flex-start',
-  },
-  aiApplyButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontWeight: '500',
   },
 });
