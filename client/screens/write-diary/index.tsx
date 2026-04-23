@@ -403,9 +403,29 @@ ${content}
       });
 
       if (!result.canceled && result.assets) {
-        const newImages = result.assets.map(asset => asset.uri);
-        setImages([...images, ...newImages].slice(0, 9)); // 最多9张
-        console.log('[WriteDiary] Images added:', newImages.length);
+        const newImages = result.assets.map((asset, index) => ({
+          uri: asset.uri,
+          id: `img_${Date.now()}_${index}`,
+        }));
+
+        // 将图片占位符插入到内容中
+        const newImageCount = newImages.length;
+        const placeholders = newImages.map(img => `[图片:${img.id}]`).join(' ');
+
+        // 添加图片到数组
+        setImages([...images, ...newImages.map(img => img.uri)].slice(0, 9));
+
+        // 在光标位置插入占位符（如果可能），否则追加到末尾
+        setContent(prev => {
+          const hasText = prev && prev.trim().length > 0;
+          if (hasText) {
+            return prev + '\n\n' + placeholders + '\n\n';
+          } else {
+            return placeholders + '\n\n';
+          }
+        });
+
+        console.log('[WriteDiary] Images added:', newImageCount);
       }
     } catch (error) {
       console.error('[WriteDiary] Error picking image:', error);
@@ -490,7 +510,7 @@ ${content}
 
       const diaryData = {
         id: isEditMode && editId ? editId : `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        title: title.trim() || new Date().toLocaleDateString('zh-CN'),
+        title: title.trim() || '无标题',
         content: content.trim(),
         mood: selectedMood,
         mood_intensity: selectedMood ? moodIntensity : null,
@@ -868,30 +888,6 @@ ${content}
 
         {/* 底部工具栏 */}
         <View style={[styles.toolbar, { backgroundColor: surface, borderTopColor: border, paddingTop: insets.bottom }]}>
-          <TouchableOpacity
-            style={styles.toolbarButton}
-            onPress={handleOpenWeather}
-            activeOpacity={0.7}
-          >
-            <FontAwesome6
-              name={selectedWeather ? (WEATHERS.find(w => w.id === selectedWeather)?.icon as any) : 'cloud-sun'}
-              size={20}
-              color={selectedWeather ? accent : muted}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.toolbarButton}
-            onPress={handleOpenMood}
-            activeOpacity={0.7}
-          >
-            <FontAwesome6
-              name={selectedMood ? (MOODS.find(m => m.id === selectedMood)?.icon as any) : 'face-smile'}
-              size={20}
-              color={selectedMood ? accent : muted}
-            />
-          </TouchableOpacity>
-
           <TouchableOpacity
             style={styles.toolbarButton}
             onPress={handleGetLocation}
