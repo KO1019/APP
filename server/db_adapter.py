@@ -113,9 +113,21 @@ class Table:
         # 执行查询
         if hasattr(self, '_insert_data'):
             # INSERT 查询
+            import json
+
             columns = ', '.join(self._insert_data.keys())
             placeholders = ', '.join(['%s'] * len(self._insert_data))
-            values = tuple(self._insert_data.values())
+
+            # 转换值为SQL参数（处理JSON字段）
+            values = []
+            for value in self._insert_data.values():
+                if isinstance(value, (list, dict)):
+                    # JSON 字段需要转换为 JSON 字符串
+                    values.append(json.dumps(value, ensure_ascii=False))
+                else:
+                    values.append(value)
+
+            values = tuple(values)
 
             insert_query = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders})"
             execute_insert(insert_query, values)
@@ -130,11 +142,23 @@ class Table:
             return type('Result', (), {'data': []})()
         elif hasattr(self, '_update_data'):
             # UPDATE 查询
+            import json
+
             update_query = query.replace(f"SELECT {select_columns} FROM", "UPDATE")
             update_query = update_query.split(" ORDER BY")[0]  # 更新不需要 ORDER BY
+
+            # 转换值为SQL参数（处理JSON字段）
+            update_values = []
+            for value in self._update_data.values():
+                if isinstance(value, (list, dict)):
+                    # JSON 字段需要转换为 JSON 字符串
+                    update_values.append(json.dumps(value, ensure_ascii=False))
+                else:
+                    update_values.append(value)
+
             set_clause = ', '.join([f"{k} = %s" for k in self._update_data.keys()])
             update_query = update_query.replace(" WHERE", f" SET {set_clause} WHERE")
-            update_params = tuple(self._update_data.values()) + params
+            update_params = tuple(update_values) + params
             rowcount = execute_update(update_query, update_params)
             # 返回更新后的数据
             return type('Result', (), {'data': execute_query(query, params)})()

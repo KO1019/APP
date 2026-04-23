@@ -779,7 +779,7 @@ async def update_diary(diary_id: str, diary: DiaryCreate, user_id: str = Depends
 
 class GenerateDiaryFromChat(BaseModel):
     """从聊天记录生成日记"""
-    conversation_text: str
+    conversation: str
     conversation_id: Optional[str] = None
 
 
@@ -824,7 +824,7 @@ async def generate_diary_from_chat(data: GenerateDiaryFromChat, user_id: str = D
 
         messages = [
             SystemMessage(content=system_prompt),
-            HumanMessage(content=f"以下是对话记录：\n\n{data.conversation_text}\n\n请根据这段对话生成日记。")
+            HumanMessage(content=f"以下是对话记录：\n\n{data.conversation}\n\n请根据这段对话生成日记。")
         ]
 
         # 调用LLM生成日记
@@ -861,11 +861,14 @@ async def generate_diary_from_chat(data: GenerateDiaryFromChat, user_id: str = D
 
         # 保存日记到数据库
         insert_data = {
+            "id": str(uuid.uuid4()),
             "user_id": user_id,
             "title": diary_data.get('title', ''),
             "content": diary_data.get('content', ''),
             "mood": diary_data.get('mood', '中性'),
-            "tags": diary_data.get('tags', [])
+            "tags": diary_data.get('tags', []),
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat()
         }
 
         result = db_client.table('diaries').insert(insert_data).execute()
@@ -1000,9 +1003,42 @@ async def get_conversations(user_id: str = Depends(get_user_id)):
     if not db_client:
         raise HTTPException(status_code=500, detail="Database not configured")
 
-    result = db_client.table('conversations').select('*', count='exact').eq('user_id', user_id).order('created_at', desc=True).range(0, 99).execute()
+    result = db_client.table('conversations').select('*').eq('user_id', user_id).order('created_at', desc=True).range(0, 99).execute()
 
-    return result.data or []
+    # 转换数据格式：从messages JSON字段中提取user_message和ai_message
+    import json
+    conversations = []
+    for conv in (result.data or []):
+        messages_json = conv.get('messages', '')
+        user_message = ''
+        ai_message = ''
+
+        try:
+            if messages_json:
+                messages = json.loads(messages_json)
+                if isinstance(messages, list):
+                    # 找到用户消息和AI消息
+                    for msg in messages:
+                        if msg.get('role') == 'user' and not user_message:
+                            user_message = msg.get('content', '')
+                        elif msg.get('role') == 'assistant' and not ai_message:
+                            ai_message = msg.get('content', '')
+                        if user_message and ai_message:
+                            break
+        except json.JSONDecodeError:
+            pass
+
+        conversations.append({
+            'id': conv.get('id'),
+            'user_message': user_message,
+            'ai_message': ai_message,
+            'related_diary_id': conv.get('related_diary_id'),
+            'created_at': conv.get('created_at'),
+            'user_id': conv.get('user_id'),
+            'title': conv.get('title', '')
+        })
+
+    return conversations
 
 
 # ========== 会话管理（用于HTTP长轮询） ==========
