@@ -387,9 +387,6 @@ export default function DiaryDetailScreen() {
                   <View style={[styles.badge, { backgroundColor: `${emotionColor}20` }]}>
                     <FontAwesome6 name={emotionIcons[diary.mood] as any || 'face-smile'} size={18} color={emotionColor} />
                     <Text style={[styles.badgeText, { color: foreground }]}>{emotionLabel}</Text>
-                    {diary.mood_intensity && (
-                      <Text style={[styles.intensityText, { color: muted }]}>({diary.mood_intensity}%)</Text>
-                    )}
                   </View>
                 )}
               </View>
