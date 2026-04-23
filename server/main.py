@@ -123,6 +123,7 @@ class DiaryCreate(BaseModel):
 
 class ChatMessage(BaseModel):
     message: str
+    conversationId: Optional[str] = None
     diaryId: Optional[str] = None
 
 
@@ -929,7 +930,7 @@ async def chat_stream(chat: ChatMessage, user_id: str = Depends(get_user_id)):
                                 if msg.get('role') in ['user', 'assistant']:
                                     messages.append(msg)
             except Exception as e:
-                logger.error(f"Error fetching conversation history: {e}")
+                print(f"Error fetching conversation history: {e}")
 
         if not messages or messages[0]['role'] != 'system':
             messages.insert(0, {
@@ -975,7 +976,7 @@ async def chat_stream(chat: ChatMessage, user_id: str = Depends(get_user_id)):
                         'messages': [user_msg, ai_msg]
                     }).execute()
             except Exception as e:
-                logger.error(f"Error saving conversation: {e}")
+                print(f"Error saving conversation: {e}")
 
     return StreamingResponse(generate(), media_type="text/event-stream; charset=utf-8")
 
