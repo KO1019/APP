@@ -724,13 +724,13 @@ ${content}
             }}
             activeOpacity={0.6}
           >
-            <FontAwesome6 name="xmark" size={24} color={foreground} />
+            <FontAwesome6 name="xmark" size={24} color={foreground || '#111111'} />
           </TouchableOpacity>
 
           <View style={styles.headerCenter}>
             {!isEditMode && (
               <TouchableOpacity
-                style={[styles.headerTag, { backgroundColor: surface, borderColor: border }]}
+                style={[styles.headerTag, { backgroundColor: surface || '#F5F5F5', borderColor: border || '#E5E5E5' }]}
                 onPress={() => setShowTemplateModal(true)}
                 activeOpacity={0.7}
               >
@@ -745,7 +745,7 @@ ${content}
           </View>
 
           <TouchableOpacity
-            style={[styles.headerButton, { backgroundColor: `${accent}15` }]}
+            style={[styles.headerButton, { backgroundColor: `${accent || '#4F46E5'}15` }]}
             onPress={handleSubmit}
             disabled={submitting}
             activeOpacity={0.6}
@@ -753,7 +753,7 @@ ${content}
             {submitting ? (
               <ActivityIndicator size="small" color={accent} />
             ) : (
-              <Text style={[styles.headerButtonText, { color: accent }]}>完成</Text>
+              <Text style={[styles.headerButtonText, { color: accent || '#4F46E5' }]}>完成</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -866,7 +866,7 @@ ${content}
           {tags.length > 0 && (
             <View style={styles.tagSection}>
               {tags.map((tag) => (
-                <View key={tag} style={[styles.tagBadge, { backgroundColor: `${accent}15` }]}>
+                <View key={tag} style={[styles.tagBadge, { backgroundColor: `${accent || '#4F46E5'}15` }]}>
                   <Text style={[styles.tagText, { color: accent }]}>#{tag}</Text>
                   <TouchableOpacity
                     style={styles.removeTagButton}
@@ -892,7 +892,7 @@ ${content}
 
           {/* AI建议显示（嵌入式，参考WPS） */}
           {(aiSuggestionLoading || aiSuggestion) && (
-            <View style={[styles.aiSuggestionBox, { backgroundColor: `${accent}05`, borderColor: `${accent}20`, borderWidth: 1 }]}>
+            <View style={[styles.aiSuggestionBox, { backgroundColor: `${accent || '#4F46E5'}05`, borderColor: `${accent || '#4F46E5'}20`, borderWidth: 1 }]}>
               <View style={styles.aiSuggestionHeader}>
                 <FontAwesome6 name="robot" size={16} color={accent} />
                 <Text style={[styles.aiSuggestionTitle, { color: accent }]}>
@@ -919,7 +919,7 @@ ${content}
 
                   {(aiActionType === 'continue' || aiActionType === 'polish') && (
                     <TouchableOpacity
-                      style={[styles.aiSuggestionApplyBtn, { backgroundColor: accent }]}
+                      style={[styles.aiSuggestionApplyBtn, { backgroundColor: accent || '#4F46E5' }]}
                       onPress={handleApplySuggestion}
                       activeOpacity={0.7}
                     >
@@ -938,7 +938,7 @@ ${content}
         </ScrollView>
 
         {/* 底部工具栏 */}
-        <View style={[styles.toolbar, { backgroundColor: surface, borderTopColor: border, paddingTop: insets.bottom }]}>
+        <View style={[styles.toolbar, { backgroundColor: surface || '#F5F5F5', borderTopColor: border || '#E5E5E5', paddingTop: insets.bottom }]}>
           <TouchableOpacity
             style={styles.toolbarButton}
             onPress={handleGetLocation}
@@ -958,13 +958,13 @@ ${content}
           >
             <FontAwesome6 name="image" size={20} color={accent} />
             {images.length > 0 && (
-              <View style={[styles.badge, { backgroundColor: accent }]}>
+              <View style={[styles.badge, { backgroundColor: accent || '#4F46E5' }]}>
                 <Text style={styles.badgeText}>{images.length}</Text>
               </View>
             )}
           </TouchableOpacity>
 
-          <View style={[styles.toolbarDivider, { backgroundColor: border }]} />
+          <View style={[styles.toolbarDivider, { backgroundColor: border || '#E5E5E5' }]} />
 
           <TouchableOpacity
             style={styles.toolbarButton}
@@ -1007,7 +1007,7 @@ ${content}
       {/* 模板选择弹窗 */}
       <Modal visible={showTemplateModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: surface }]}>
+          <View style={[styles.modalContent, { backgroundColor: surface || '#F5F5F5' }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: foreground }]}>选择模板</Text>
               <TouchableOpacity onPress={() => setShowTemplateModal(false)}>
@@ -1045,7 +1045,7 @@ ${content}
           activeOpacity={1}
           onPress={() => setShowWeatherModal(false)}
         >
-          <View style={[styles.pickerModal, { backgroundColor: surface }]}>
+          <View style={[styles.pickerModal, { backgroundColor: surface || '#F5F5F5' }]}>
             <View style={styles.pickerHeader}>
               <TouchableOpacity onPress={() => setShowWeatherModal(false)}>
                 <Text style={[styles.pickerCancel, { color: muted }]}>取消</Text>
