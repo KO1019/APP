@@ -183,6 +183,7 @@ export default function ChatScreen() {
           body: JSON.stringify({
             message: userMessage,
             conversation_id: params.conversationId, // 如果有existing conversation ID，传递给后端
+            diaryId: params.relatedDiaryId || null, // 传递关联的日记ID
           }),
         });
 
@@ -320,12 +321,62 @@ export default function ChatScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      // 只有在没有消息且没有对话ID时才加载空状态数据
-      if (messages.length === 0 && !params.conversationId) {
-        fetchSuggestedTopics();
-        fetchRecentConversations();
-      }
-    }, [messages.length, params.conversationId, fetchSuggestedTopics, fetchRecentConversations])
+      // 当有关联日记ID时，自动发送初始消息让AI分析日记
+      const initChatWithDiary = async () => {
+        if (params.relatedDiaryId && messages.length === 0 && !params.conversationId) {
+          const initMessage = '请分析我刚刚写的这篇日记';
+          setMessages([{ role: 'user', content: initMessage }]);
+          setLoading(true);
+
+          const headers: HeadersInit = { 'Content-Type': 'application/json' };
+          const token = await AsyncStorage.getItem('authToken');
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+
+          const sse = new RNSSE(buildApiUrl('/api/v1/chat'), {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              message: initMessage,
+              conversation_id: null,
+              diaryId: params.relatedDiaryId,
+            }),
+          });
+
+          let aiResponse = '';
+          sse.addEventListener('message', (event) => {
+            if (event.data === '[DONE]') {
+              sse.close();
+              setLoading(false);
+            } else {
+              try {
+                const data = JSON.parse(event.data);
+                if (data.content) {
+                  aiResponse += data.content;
+                  setMessages(prev => [
+                    ...prev.slice(0, -1),
+                    { role: 'assistant', content: aiResponse }
+                  ]);
+                }
+              } catch (e) {
+                console.error('Error parsing SSE data:', e);
+              }
+            }
+          });
+
+          sse.addEventListener('error', (error) => {
+            console.error('SSE error:', error);
+            sse.close();
+            setLoading(false);
+          });
+        } else if (messages.length === 0 && !params.conversationId) {
+          // 只有在没有消息且没有对话ID且没有关联日记时才加载空状态数据
+          fetchSuggestedTopics();
+          fetchRecentConversations();
+        }
+      };
+
+      initChatWithDiary();
+    }, [messages.length, params.conversationId, params.relatedDiaryId, fetchSuggestedTopics, fetchRecentConversations])
   );
 
   const renderMessage = (message: Message, index: number) => {
