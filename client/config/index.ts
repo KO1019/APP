@@ -3,9 +3,11 @@
  * 集中管理所有配置项，便于部署时修改
  */
 
+import { Platform } from 'react-native';
+
 // 环境判断（兼容 Node.js 和浏览器环境）
 const isDevelopment = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
-const isWeb = typeof window !== 'undefined';
+const isWeb = Platform.OS === 'web';
 
 // 检测是否在真正的本地开发环境
 const isLocalhost = isWeb && window.location &&
@@ -36,28 +38,15 @@ export const API_CONFIG = {
       return envUrl;
     }
 
-    // 如果环境变量未设置，根据当前环境智能判断
-    if (isDevelopment) {
-      // 检测当前URL的hostname
-      if (isWeb && window.location) {
-        const hostname = window.location.hostname;
-
-        // 注意：dev.coze.site 使用 HTTPS，后端使用 HTTP
-        // 由于浏览器的混合内容安全策略，HTTPS 页面无法向 HTTP 后端发起请求
-        // 如果需要在 dev.coze.site 环境中测试，请在本地环境运行前端和后端
-
-        // 如果在 localhost 上，使用本地后端
-        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '') {
-          return 'http://localhost:9091';
-        }
-      }
-
-      // 默认开发环境地址
+    // 根据平台自动选择后端地址
+    if (isWeb) {
+      // Web 环境（沙盒）：使用本地后端
+      // 注意：需要在沙箱中启动本地后端服务
+      return 'http://localhost:9091';
+    } else {
+      // 移动端（iOS/Android）：使用阿里云后端
       return 'http://59.110.39.235:9091';
     }
-
-    // 生产环境默认值
-    return 'http://59.110.39.235:9091';
   })(),
 
   // API超时时间（毫秒）
