@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 import { usePassword } from '@/contexts/PasswordContext';
@@ -18,14 +18,7 @@ import {
   type LocalDiary,
 } from '@/utils/localStorage';
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown, ZoomIn } from 'react-native-reanimated';
-
-// 格式化日期为 YYYY-MM-DD
-const formatDate = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+import { SmartDateInput } from '@/components/SmartDateInput';
 
 interface Diary {
   id: string;
@@ -451,31 +444,24 @@ export default function DiariesScreen() {
             </View>
 
             <View style={styles.modalBody}>
-              <View style={styles.dateInputContainer}>
-                <Text style={[styles.dateLabel, { color: foreground }]}>开始日期</Text>
-                <TextInput
-                  style={[styles.dateInput, { backgroundColor: background, color: foreground, borderColor: border }]}
-                  value={startDate}
-                  onChangeText={setStartDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={muted}
-                />
-              </View>
+              <SmartDateInput
+                label="开始日期"
+                value={startDate}
+                onChange={setStartDate}
+                placeholder="请选择开始日期"
+                mode="date"
+                displayFormat="YYYY-MM-DD"
+              />
 
-              <View style={styles.dateInputContainer}>
-                <Text style={[styles.dateLabel, { color: foreground }]}>结束日期</Text>
-                <TextInput
-                  style={[styles.dateInput, { backgroundColor: background, color: foreground, borderColor: border }]}
-                  value={endDate}
-                  onChangeText={setEndDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={muted}
-                />
-              </View>
-
-              <Text style={[styles.hintText, { color: muted }]}>
-                格式：YYYY-MM-DD（例如：2026-04-01）
-              </Text>
+              <SmartDateInput
+                label="结束日期"
+                value={endDate}
+                onChange={setEndDate}
+                placeholder="请选择结束日期"
+                mode="date"
+                displayFormat="YYYY-MM-DD"
+                containerStyle={{ marginTop: 8 }}
+              />
 
               <View style={styles.quickFilterContainer}>
                 <Text style={[styles.quickFilterTitle, { color: foreground }]}>快捷筛选</Text>
@@ -484,8 +470,11 @@ export default function DiariesScreen() {
                     style={[styles.quickFilterButton, { backgroundColor: `${accent}15`, borderColor: accent }]}
                     onPress={() => {
                       const today = new Date();
-                      setStartDate(formatDate(today));
-                      setEndDate(formatDate(today));
+                      const year = today.getFullYear();
+                      const month = String(today.getMonth() + 1).padStart(2, '0');
+                      const day = String(today.getDate()).padStart(2, '0');
+                      setStartDate(`${year}-${month}-${day}`);
+                      setEndDate(`${year}-${month}-${day}`);
                     }}
                   >
                     <Text style={[styles.quickFilterButtonText, { color: accent }]}>今天</Text>
@@ -496,8 +485,14 @@ export default function DiariesScreen() {
                       const end = new Date();
                       const start = new Date();
                       start.setDate(start.getDate() - 7);
-                      setStartDate(formatDate(start));
-                      setEndDate(formatDate(end));
+                      const startYear = start.getFullYear();
+                      const startMonth = String(start.getMonth() + 1).padStart(2, '0');
+                      const startDay = String(start.getDate()).padStart(2, '0');
+                      const endYear = end.getFullYear();
+                      const endMonth = String(end.getMonth() + 1).padStart(2, '0');
+                      const endDay = String(end.getDate()).padStart(2, '0');
+                      setStartDate(`${startYear}-${startMonth}-${startDay}`);
+                      setEndDate(`${endYear}-${endMonth}-${endDay}`);
                     }}
                   >
                     <Text style={[styles.quickFilterButtonText, { color: accent }]}>近7天</Text>
@@ -508,8 +503,14 @@ export default function DiariesScreen() {
                       const end = new Date();
                       const start = new Date();
                       start.setDate(start.getDate() - 30);
-                      setStartDate(formatDate(start));
-                      setEndDate(formatDate(end));
+                      const startYear = start.getFullYear();
+                      const startMonth = String(start.getMonth() + 1).padStart(2, '0');
+                      const startDay = String(start.getDate()).padStart(2, '0');
+                      const endYear = end.getFullYear();
+                      const endMonth = String(end.getMonth() + 1).padStart(2, '0');
+                      const endDay = String(end.getDate()).padStart(2, '0');
+                      setStartDate(`${startYear}-${startMonth}-${startDay}`);
+                      setEndDate(`${endYear}-${endMonth}-${endDay}`);
                     }}
                   >
                     <Text style={[styles.quickFilterButtonText, { color: accent }]}>近30天</Text>
@@ -735,26 +736,6 @@ const styles = StyleSheet.create({
   modalBody: {
     paddingHorizontal: 20,
     paddingVertical: 20,
-  },
-  dateInputContainer: {
-    marginBottom: 20,
-  },
-  dateLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  dateInput: {
-    fontSize: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  hintText: {
-    fontSize: 12,
-    marginTop: -12,
-    marginBottom: 8,
   },
   modalFooter: {
     flexDirection: 'row',
