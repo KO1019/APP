@@ -9,6 +9,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
 import { buildApiUrl } from '@/utils';
 import { useAppUpdate } from '@/hooks/useAppUpdate';
+import { UpdateProgressModal } from '@/components/UpdateProgressModal';
 import AnnouncementModal from '@/components/AnnouncementModal';
 import { useAnnouncements } from '@/hooks/useAnnouncements';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -62,7 +63,7 @@ export default function DiariesScreen() {
   const router = useSafeRouter();
   const { isLocked, hasPassword, lockApp, decryptData } = usePassword();
   const { isAuthenticated, isLoading: authLoading, token, logout, isOfflineMode, user } = useAuth();
-  const { checkAutoUpdate, UpdateModal } = useAppUpdate();
+  const { checkAutoUpdate, downloadProgress, downloading, showProgressModal } = useAppUpdate();
 
   // 公告弹窗
   const {
@@ -487,7 +488,11 @@ export default function DiariesScreen() {
         </View>
       </Modal>
 
-      <UpdateModal />
+      <UpdateProgressModal
+        visible={showProgressModal}
+        downloading={downloading}
+        downloadProgress={downloadProgress}
+      />
 
       <AnnouncementModal
         visible={announcementVisible}

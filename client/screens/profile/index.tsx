@@ -9,6 +9,7 @@ import { useCSSVariable } from 'uniwind';
 import Toast from 'react-native-toast-message';
 import { buildApiUrl } from '@/utils';
 import { useAppUpdate } from '@/hooks/useAppUpdate';
+import { UpdateProgressModal } from '@/components/UpdateProgressModal';
 import {
   getLocalDiaries,
   getLocalChatMessages,
@@ -35,7 +36,7 @@ export default function ProfileScreen() {
     exportAllData,
     deleteAllData,
   } = usePassword();
-  const { checkAndShowUpdate, loading: updating, UpdateModal } = useAppUpdate();
+  const { checkAndShowUpdate, loading: updating, downloadProgress, downloading, showProgressModal } = useAppUpdate();
 
   const [showHealthTips, setShowHealthTips] = useState(false);
   const [healthTips, setHealthTips] = useState<any>(null);
@@ -458,7 +459,11 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       )}
 
-      <UpdateModal />
+      <UpdateProgressModal
+        visible={showProgressModal}
+        downloading={downloading}
+        downloadProgress={downloadProgress}
+      />
     </Screen>
   );
 }
