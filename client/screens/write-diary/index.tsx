@@ -28,6 +28,7 @@ import { useCSSVariable } from 'uniwind';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import RNSSE from 'react-native-sse';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
@@ -192,21 +193,6 @@ export default function WriteDiaryScreen() {
     loadDiaryForEdit();
   }, [editId, token]); // 移除 router 依赖，避免无限循环
 
-  // 初始化时发送AI问候
-  useEffect(() => {
-    if (!isEditMode) {
-      setAIMessages([
-        {
-          id: 'init',
-          role: 'assistant',
-          content: '你好！我是你的AI写作助手。在写日记的过程中，如果你有任何想法需要分享，或者希望我给你一些建议，随时都可以告诉我。我会一直陪伴着你。',
-          timestamp: new Date().toISOString(),
-        },
-      ]);
-    }
-  }, [isEditMode]);
-
-  // 发送消息给AI
   // 处理AI伴写功能
   const handleAIAction = async (action: AIActionType) => {
     if (aiLoading) return;
@@ -322,6 +308,7 @@ ${content || '(日记内容为空，请先开始写作)'}
     setContent(template.prompt);
     setShowTemplateModal(false);
   };
+  // 触发HMR更新 - 修复编译问题
 
   // 旧的AI聊天功能（已废弃，保留函数避免编译错误）
   const handleSendAIMessage = async () => {
@@ -877,8 +864,8 @@ ${content || '(日记内容为空，请先开始写作)'}
         animationType="slide"
         onRequestClose={() => setShowAIPanel(false)}
       >
-        <Animated.View style={[styles.modalOverlay, { backgroundColor: `${background}90` }]} entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
-          <Animated.View style={[styles.aiModalContent, { backgroundColor: surface }]} entering={SlideInUp.duration(300).springify().damping(25)} exiting={SlideOutDown.duration(200)}>
+        <View style={[styles.modalOverlay, { backgroundColor: `${background}90` }]}>
+          <View style={[styles.aiModalContent, { backgroundColor: surface }]}>
             {/* 头部 */}
             <View style={[styles.aiModalHeader, { borderBottomColor: `${accent}20` }]}>
               <TouchableOpacity
@@ -965,7 +952,7 @@ ${content || '(日记内容为空，请先开始写作)'}
               )}
 
               {aiResult && !aiLoading && (
-                <Animated.View style={styles.aiResultBox} entering={FadeIn.duration(300)}>
+                <View style={styles.aiResultBox}>
                   <Text style={[styles.aiResultLabel, { color: foreground }]}>AI建议：</Text>
                   <Text style={[styles.aiResultText, { color: foreground }]}>{aiResult}</Text>
 
@@ -981,11 +968,11 @@ ${content || '(日记内容为空，请先开始写作)'}
                       </Text>
                     </TouchableOpacity>
                   )}
-                </Animated.View>
+                </View>
               )}
             </ScrollView>
-          </Animated.View>
-        </Animated.View>
+          </View>
+        </View>
       </Modal>
 
       {/* 模板选择弹窗 */}
