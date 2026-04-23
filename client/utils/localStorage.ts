@@ -13,7 +13,12 @@ export interface LocalDiary {
   title: string;
   content: string;
   mood: string;
+  mood_intensity?: number | null;
+  weather?: string | null;
   tags: string[];
+  images: string[];
+  location?: { latitude: number; longitude: number } | null;
+  template_id?: string | null;
   created_at: string;
   updated_at: string;
   is_uploaded?: boolean; // 是否已上传到云端
