@@ -724,36 +724,36 @@ ${content}
             }}
             activeOpacity={0.6}
           >
-            <FontAwesome6 name="xmark" size={24} color={foreground || '#111111'} />
+            <FontAwesome6 name="xmark" size={24} color={foreground} />
           </TouchableOpacity>
 
           <View style={styles.headerCenter}>
             {!isEditMode && (
               <TouchableOpacity
-                style={[styles.headerTag, { backgroundColor: surface || '#F5F5F5', borderColor: border || '#E5E5E5' }]}
+                style={[styles.headerTag, { backgroundColor: surface, borderColor: border }]}
                 onPress={() => setShowTemplateModal(true)}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.headerTagText, { color: muted || '#666666' }]}>
+                <Text style={[styles.headerTagText, { color: muted }]}>
                   {selectedTemplate
-                    ? (TEMPLATES.find(t => t.id === selectedTemplate)?.title ?? '模板')
+                    ? (TEMPLATES.find(t => t.id === selectedTemplate)?.title || '模板')
                     : '选择模板'}
                 </Text>
-                <FontAwesome6 name="chevron-down" size={12} color={muted || '#666666'} />
+                <FontAwesome6 name="chevron-down" size={12} color={muted} />
               </TouchableOpacity>
             )}
           </View>
 
           <TouchableOpacity
-            style={[styles.headerButton, { backgroundColor: `${accent || '#4F46E5'}15` }]}
+            style={[styles.headerButton, { backgroundColor: `${accent}15` }]}
             onPress={handleSubmit}
             disabled={submitting}
             activeOpacity={0.6}
           >
             {submitting ? (
-              <ActivityIndicator size="small" color={accent || '#4F46E5'} />
+              <ActivityIndicator size="small" color={accent} />
             ) : (
-              <Text style={[styles.headerButtonText, { color: accent || '#4F46E5' }]}>完成</Text>
+              <Text style={[styles.headerButtonText, { color: accent }]}>完成</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -771,8 +771,8 @@ ${content}
               activeOpacity={0.7}
               style={styles.dateTouchable}
             >
-              <Text style={[styles.dateText, { color: muted || '#666666' }]}>
-                {formatDate() || ''}
+              <Text style={[styles.dateText, { color: muted }]}>
+                {formatDate()}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -780,8 +780,8 @@ ${content}
               activeOpacity={0.7}
               style={styles.dateTouchable}
             >
-              <Text style={[styles.timeText, { color: muted || '#666666' }]}>
-                {formatTime() || ''}
+              <Text style={[styles.timeText, { color: muted }]}>
+                {formatTime()}
               </Text>
             </TouchableOpacity>
           </View>
@@ -796,9 +796,9 @@ ${content}
               <FontAwesome6
                 name={selectedWeather ? (WEATHERS.find(w => w.id === selectedWeather)?.icon as any || 'cloud-sun') : 'cloud-sun'}
                 size={18}
-                color={selectedWeather ? (accent || '#4F46E5') : (muted || '#666666')}
+                color={selectedWeather ? accent : muted}
               />
-              <Text style={[styles.metaText, { color: selectedWeather ? (foreground || '#111111') : (muted || '#666666') }]}>
+              <Text style={[styles.metaText, { color: selectedWeather ? foreground : muted }]}>
                 {selectedWeather ? WEATHERS.find(w => w.id === selectedWeather)?.label || '天气' : '天气'}
               </Text>
             </TouchableOpacity>
@@ -811,9 +811,9 @@ ${content}
               <FontAwesome6
                 name={selectedMood ? (MOODS.find(m => m.id === selectedMood)?.icon as any || 'face-smile') : 'face-smile'}
                 size={18}
-                color={selectedMood ? (accent || '#4F46E5') : (muted || '#666666')}
+                color={selectedMood ? accent : muted}
               />
-              <Text style={[styles.metaText, { color: selectedMood ? (foreground || '#111111') : (muted || '#666666') }]}>
+              <Text style={[styles.metaText, { color: selectedMood ? foreground : muted }]}>
                 {selectedMood ? MOODS.find(m => m.id === selectedMood)?.label || '心情' : '心情'}
               </Text>
             </TouchableOpacity>
@@ -821,18 +821,18 @@ ${content}
 
           {/* 标题输入 */}
           <TextInput
-            style={[styles.titleInput, { color: foreground || '#111111' }]}
+            style={[styles.titleInput, { color: foreground }]}
             placeholder="标题"
-            placeholderTextColor={muted || '#666666'}
+            placeholderTextColor={muted}
             value={title || ''}
             onChangeText={setTitle}
           />
 
           {/* 内容输入 */}
           <TextInput
-            style={[styles.contentInput, { color: foreground || '#111111' }]}
+            style={[styles.contentInput, { color: foreground }]}
             placeholder="开始写下你的想法..."
-            placeholderTextColor={muted || '#666666'}
+            placeholderTextColor={muted}
             value={content || ''}
             onChangeText={setContent}
             multiline
@@ -866,14 +866,14 @@ ${content}
           {tags.length > 0 && (
             <View style={styles.tagSection}>
               {tags.map((tag) => (
-                <View key={tag} style={[styles.tagBadge, { backgroundColor: `${accent || '#4F46E5'}15` }]}>
-                  <Text style={[styles.tagText, { color: accent || '#4F46E5' }]}>#{tag}</Text>
+                <View key={tag} style={[styles.tagBadge, { backgroundColor: `${accent}15` }]}>
+                  <Text style={[styles.tagText, { color: accent }]}>#{tag}</Text>
                   <TouchableOpacity
                     style={styles.removeTagButton}
                     onPress={() => handleRemoveTag(tag)}
                     activeOpacity={0.7}
                   >
-                    <FontAwesome6 name="xmark" size={12} color={accent || '#4F46E5'} />
+                    <FontAwesome6 name="xmark" size={12} color={accent} />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -883,8 +883,8 @@ ${content}
           {/* 位置信息 */}
           {location && typeof location.latitude === 'number' && typeof location.longitude === 'number' && (
             <View style={styles.locationSection}>
-              <FontAwesome6 name="location-dot" size={14} color={muted || '#666666'} />
-              <Text style={[styles.locationText, { color: muted || '#666666' }]}>
+              <FontAwesome6 name="location-dot" size={14} color={muted} />
+              <Text style={[styles.locationText, { color: muted }]}>
                 {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
               </Text>
             </View>
@@ -892,34 +892,34 @@ ${content}
 
           {/* AI建议显示（嵌入式，参考WPS） */}
           {(aiSuggestionLoading || aiSuggestion) && (
-            <View style={[styles.aiSuggestionBox, { backgroundColor: `${accent || '#4F46E5'}05`, borderColor: `${accent || '#4F46E5'}20`, borderWidth: 1 }]}>
+            <View style={[styles.aiSuggestionBox, { backgroundColor: `${accent}05`, borderColor: `${accent}20`, borderWidth: 1 }]}>
               <View style={styles.aiSuggestionHeader}>
-                <FontAwesome6 name="robot" size={16} color={accent || '#4F46E5'} />
-                <Text style={[styles.aiSuggestionTitle, { color: accent || '#4F46E5' }]}>
+                <FontAwesome6 name="robot" size={16} color={accent} />
+                <Text style={[styles.aiSuggestionTitle, { color: accent }]}>
                   {aiActionType === 'continue' && 'AI续写建议'}
                   {aiActionType === 'inspiration' && '写作灵感'}
                   {aiActionType === 'polish' && '润色建议'}
                   {aiActionType === 'analyze' && '情绪分析'}
                 </Text>
                 <TouchableOpacity onPress={() => setAiSuggestion('')} activeOpacity={0.6}>
-                  <FontAwesome6 name="xmark" size={16} color={muted || '#666666'} />
+                  <FontAwesome6 name="xmark" size={16} color={muted} />
                 </TouchableOpacity>
               </View>
 
               {aiSuggestionLoading && (
                 <View style={styles.aiSuggestionLoading}>
-                  <ActivityIndicator size="small" color={accent || '#4F46E5'} />
-                  <Text style={[styles.aiSuggestionLoadingText, { color: muted || '#666666' }]}>AI正在思考...</Text>
+                  <ActivityIndicator size="small" color={accent} />
+                  <Text style={[styles.aiSuggestionLoadingText, { color: muted }]}>AI正在思考...</Text>
                 </View>
               )}
 
               {!aiSuggestionLoading && aiSuggestion && (
                 <>
-                  <Text style={[styles.aiSuggestionText, { color: foreground || '#111111' }]}>{aiSuggestion || ''}</Text>
+                  <Text style={[styles.aiSuggestionText, { color: foreground }]}>{aiSuggestion || ''}</Text>
 
                   {(aiActionType === 'continue' || aiActionType === 'polish') && (
                     <TouchableOpacity
-                      style={[styles.aiSuggestionApplyBtn, { backgroundColor: accent || '#4F46E5' }]}
+                      style={[styles.aiSuggestionApplyBtn, { backgroundColor: accent }]}
                       onPress={handleApplySuggestion}
                       activeOpacity={0.7}
                     >
@@ -938,7 +938,7 @@ ${content}
         </ScrollView>
 
         {/* 底部工具栏 */}
-        <View style={[styles.toolbar, { backgroundColor: surface || '#F5F5F5', borderTopColor: border || '#E5E5E5', paddingTop: insets.bottom }]}>
+        <View style={[styles.toolbar, { backgroundColor: surface, borderTopColor: border, paddingTop: insets.bottom }]}>
           <TouchableOpacity
             style={styles.toolbarButton}
             onPress={handleGetLocation}
@@ -947,7 +947,7 @@ ${content}
             <FontAwesome6
               name={location ? 'location-dot' : 'location'}
               size={20}
-              color={location ? (accent || '#4F46E5') : (muted || '#666666')}
+              color={location ? accent : muted}
             />
           </TouchableOpacity>
 
@@ -956,15 +956,15 @@ ${content}
             onPress={handlePickImage}
             activeOpacity={0.7}
           >
-            <FontAwesome6 name="image" size={20} color={accent || '#4F46E5'} />
+            <FontAwesome6 name="image" size={20} color={accent} />
             {images.length > 0 && (
-              <View style={[styles.badge, { backgroundColor: accent || '#4F46E5' }]}>
+              <View style={[styles.badge, { backgroundColor: accent }]}>
                 <Text style={styles.badgeText}>{images.length}</Text>
               </View>
             )}
           </TouchableOpacity>
 
-          <View style={[styles.toolbarDivider, { backgroundColor: border || '#E5E5E5' }]} />
+          <View style={[styles.toolbarDivider, { backgroundColor: border }]} />
 
           <TouchableOpacity
             style={styles.toolbarButton}
@@ -972,7 +972,7 @@ ${content}
             disabled={aiSuggestionLoading}
             activeOpacity={0.7}
           >
-            <FontAwesome6 name="pen-fancy" size={20} color={accent || '#4F46E5'} />
+            <FontAwesome6 name="pen-fancy" size={20} color={accent} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -981,7 +981,7 @@ ${content}
             disabled={aiSuggestionLoading}
             activeOpacity={0.7}
           >
-            <FontAwesome6 name="lightbulb" size={20} color={accent || '#4F46E5'} />
+            <FontAwesome6 name="lightbulb" size={20} color={accent} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -990,7 +990,7 @@ ${content}
             disabled={aiSuggestionLoading}
             activeOpacity={0.7}
           >
-            <FontAwesome6 name="wand-magic-sparkles" size={20} color={accent || '#4F46E5'} />
+            <FontAwesome6 name="wand-magic-sparkles" size={20} color={accent} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -999,7 +999,7 @@ ${content}
             disabled={aiSuggestionLoading}
             activeOpacity={0.7}
           >
-            <FontAwesome6 name="heart-pulse" size={20} color={accent || '#4F46E5'} />
+            <FontAwesome6 name="heart-pulse" size={20} color={accent} />
           </TouchableOpacity>
         </View>
       </View>
@@ -1007,11 +1007,11 @@ ${content}
       {/* 模板选择弹窗 */}
       <Modal visible={showTemplateModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: surface || '#F5F5F5' }]}>
+          <View style={[styles.modalContent, { backgroundColor: surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: foreground || '#111111' }]}>选择模板</Text>
+              <Text style={[styles.modalTitle, { color: foreground }]}>选择模板</Text>
               <TouchableOpacity onPress={() => setShowTemplateModal(false)}>
-                <FontAwesome6 name="xmark" size={24} color={foreground || '#111111'} />
+                <FontAwesome6 name="xmark" size={24} color={foreground} />
               </TouchableOpacity>
             </View>
             <ScrollView>
@@ -1021,16 +1021,16 @@ ${content}
                   style={[
                     styles.templateItem,
                     {
-                      backgroundColor: selectedTemplate === template.id ? `${accent || '#4F46E5'}10` : 'transparent',
-                      borderColor: selectedTemplate === template.id ? (accent || '#4F46E5') : (border || '#E5E5E5'),
+                      backgroundColor: selectedTemplate === template.id ? `${accent}10` : 'transparent',
+                      borderColor: selectedTemplate === template.id ? accent : border,
                       borderWidth: 1,
                     },
                   ]}
                   onPress={() => handleSelectTemplate(template)}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.templateItemTitle, { color: foreground || '#111111' }]}>{template.title}</Text>
-                  <Text style={[styles.templateItemPrompt, { color: muted || '#666666' }]}>{template.prompt}</Text>
+                  <Text style={[styles.templateItemTitle, { color: foreground }]}>{template.title}</Text>
+                  <Text style={[styles.templateItemPrompt, { color: muted }]}>{template.prompt}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -1045,12 +1045,12 @@ ${content}
           activeOpacity={1}
           onPress={() => setShowWeatherModal(false)}
         >
-          <View style={[styles.pickerModal, { backgroundColor: surface || '#F5F5F5' }]}>
+          <View style={[styles.pickerModal, { backgroundColor: surface }]}>
             <View style={styles.pickerHeader}>
               <TouchableOpacity onPress={() => setShowWeatherModal(false)}>
-                <Text style={[styles.pickerCancel, { color: muted || '#666666' }]}>取消</Text>
+                <Text style={[styles.pickerCancel, { color: muted }]}>取消</Text>
               </TouchableOpacity>
-              <Text style={[styles.pickerTitle, { color: foreground || '#111111' }]}>选择天气</Text>
+              <Text style={[styles.pickerTitle, { color: foreground }]}>选择天气</Text>
               <View style={{ width: 40 }} />
             </View>
             <View style={styles.weatherGrid}>
@@ -1060,16 +1060,16 @@ ${content}
                   style={[
                     styles.weatherItem,
                     {
-                      backgroundColor: selectedWeather === weather.id ? `${accent || '#4F46E5'}15` : 'transparent',
-                      borderColor: selectedWeather === weather.id ? accent || '#4F46E5' : border || '#E5E5E5',
+                      backgroundColor: selectedWeather === weather.id ? `${accent}15` : 'transparent',
+                      borderColor: selectedWeather === weather.id ? accent : border,
                       borderWidth: selectedWeather === weather.id ? 1 : 0,
                     },
                   ]}
                   onPress={() => handleSelectWeather(weather.id)}
                   activeOpacity={0.7}
                 >
-                  <FontAwesome6 name={weather.icon as any} size={32} color={accent || '#4F46E5'} />
-                  <Text style={[styles.weatherLabel, { color: foreground || '#111111' }]}>{weather.label}</Text>
+                  <FontAwesome6 name={weather.icon as any} size={32} color={accent} />
+                  <Text style={[styles.weatherLabel, { color: foreground }]}>{weather.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -1084,12 +1084,12 @@ ${content}
           activeOpacity={1}
           onPress={() => setShowMoodModal(false)}
         >
-          <View style={[styles.pickerModal, { backgroundColor: surface || '#F5F5F5' }]}>
+          <View style={[styles.pickerModal, { backgroundColor: surface }]}>
             <View style={styles.pickerHeader}>
               <TouchableOpacity onPress={() => setShowMoodModal(false)}>
-                <Text style={[styles.pickerCancel, { color: muted || '#666666' }]}>取消</Text>
+                <Text style={[styles.pickerCancel, { color: muted }]}>取消</Text>
               </TouchableOpacity>
-              <Text style={[styles.pickerTitle, { color: foreground || '#111111' }]}>选择心情</Text>
+              <Text style={[styles.pickerTitle, { color: foreground }]}>选择心情</Text>
               <View style={{ width: 40 }} />
             </View>
             <View style={styles.moodGrid}>
@@ -1100,7 +1100,7 @@ ${content}
                     styles.moodItem,
                     {
                       backgroundColor: selectedMood === mood.id ? mood.color : 'transparent',
-                      borderColor: selectedMood === mood.id ? mood.color : border || '#E5E5E5',
+                      borderColor: selectedMood === mood.id ? mood.color : border,
                       borderWidth: selectedMood === mood.id ? 2 : 0,
                     },
                   ]}
@@ -1139,24 +1139,24 @@ ${content}
           activeOpacity={1}
           onPress={() => setShowBackConfirmDialog(false)}
         >
-          <View style={[styles.confirmDialog, { backgroundColor: surface || '#F5F5F5' }]}>
-            <FontAwesome6 name="triangle-exclamation" size={40} color={accent || '#4F46E5'} />
-            <Text style={[styles.confirmDialogTitle, { color: foreground || '#111111' }]}>确认离开</Text>
-            <Text style={[styles.confirmDialogText, { color: muted || '#666666' }]}>
+          <View style={[styles.confirmDialog, { backgroundColor: surface }]}>
+            <FontAwesome6 name="triangle-exclamation" size={40} color={accent} />
+            <Text style={[styles.confirmDialogTitle, { color: foreground }]}>确认离开</Text>
+            <Text style={[styles.confirmDialogText, { color: muted }]}>
               您有未保存的内容，确定要离开吗？
             </Text>
             <View style={styles.confirmDialogButtons}>
               <TouchableOpacity
-                style={[styles.confirmDialogButton, { backgroundColor: `${background || '#F5F5F5'}80` }]}
+                style={[styles.confirmDialogButton, { backgroundColor: `${background}80` }]}
                 onPress={() => {
                   setShowBackConfirmDialog(false);
                 }}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.confirmDialogButtonText, { color: foreground || '#111111' }]}>取消</Text>
+                <Text style={[styles.confirmDialogButtonText, { color: foreground }]}>取消</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.confirmDialogButton, { backgroundColor: accent || '#4F46E5' }]}
+                style={[styles.confirmDialogButton, { backgroundColor: accent }]}
                 onPress={() => {
                   setShowBackConfirmDialog(false);
                   router.back();
@@ -1178,14 +1178,14 @@ ${content}
             activeOpacity={1}
             onPress={() => setShowDatePicker(false)}
           >
-            <View style={[styles.pickerModal, { backgroundColor: surface || '#F5F5F5' }]}>
+            <View style={[styles.pickerModal, { backgroundColor: surface }]}>
               <View style={styles.pickerHeader}>
                 <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                  <Text style={[styles.pickerCancel, { color: muted || '#666666' }]}>取消</Text>
+                  <Text style={[styles.pickerCancel, { color: muted }]}>取消</Text>
                 </TouchableOpacity>
-                <Text style={[styles.pickerTitle, { color: foreground || '#111111' }]}>选择日期</Text>
+                <Text style={[styles.pickerTitle, { color: foreground }]}>选择日期</Text>
                 <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                  <Text style={[styles.pickerConfirm, { color: accent || '#4F46E5' }]}>确认</Text>
+                  <Text style={[styles.pickerConfirm, { color: accent }]}>确认</Text>
                 </TouchableOpacity>
               </View>
               <input
@@ -1202,7 +1202,7 @@ ${content}
                   padding: 16,
                   fontSize: 16,
                   borderWidth: 1,
-                  borderColor: border || '#E5E5E5',
+                  borderColor: border,
                   borderRadius: 8,
                 }}
               />
@@ -1229,14 +1229,14 @@ ${content}
             activeOpacity={1}
             onPress={() => setShowTimePicker(false)}
           >
-            <View style={[styles.pickerModal, { backgroundColor: surface || '#F5F5F5' }]}>
+            <View style={[styles.pickerModal, { backgroundColor: surface }]}>
               <View style={styles.pickerHeader}>
                 <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                  <Text style={[styles.pickerCancel, { color: muted || '#666666' }]}>取消</Text>
+                  <Text style={[styles.pickerCancel, { color: muted }]}>取消</Text>
                 </TouchableOpacity>
-                <Text style={[styles.pickerTitle, { color: foreground || '#111111' }]}>选择时间</Text>
+                <Text style={[styles.pickerTitle, { color: foreground }]}>选择时间</Text>
                 <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                  <Text style={[styles.pickerConfirm, { color: accent || '#4F46E5' }]}>确认</Text>
+                  <Text style={[styles.pickerConfirm, { color: accent }]}>确认</Text>
                 </TouchableOpacity>
               </View>
               <input
@@ -1254,7 +1254,7 @@ ${content}
                   padding: 16,
                   fontSize: 16,
                   borderWidth: 1,
-                  borderColor: border || '#E5E5E5',
+                  borderColor: border,
                   borderRadius: 8,
                 }}
               />
@@ -1280,6 +1280,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  // 顶部导航栏
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1316,10 +1317,12 @@ const styles = StyleSheet.create({
   headerTagText: {
     fontSize: 14,
   },
+  // 滚动视图
   scrollView: {
     flex: 1,
     paddingHorizontal: 24,
   },
+  // 元信息区域
   metaSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1343,12 +1346,14 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: 14,
   },
+  // 标题输入
   titleInput: {
     fontSize: 28,
     fontWeight: '700',
     paddingVertical: 8,
     marginBottom: 8,
   },
+  // 内容输入
   contentInput: {
     fontSize: 18,
     lineHeight: 28,
@@ -1356,6 +1361,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     textAlignVertical: 'top',
   },
+  // 图片区域
   imageSection: {
     marginVertical: 16,
   },
@@ -1379,6 +1385,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  // 标签区域
   tagSection: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1399,6 +1406,7 @@ const styles = StyleSheet.create({
   removeTagButton: {
     padding: 2,
   },
+  // 位置信息
   locationSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1408,6 +1416,7 @@ const styles = StyleSheet.create({
   locationText: {
     fontSize: 13,
   },
+  // AI建议框
   aiSuggestionBox: {
     marginTop: 16,
     padding: 16,
@@ -1453,6 +1462,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginLeft: 8,
   },
+  // 底部工具栏
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1490,6 +1500,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
+  // 加载中
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -1499,6 +1510,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 12,
   },
+  // 弹窗通用
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
@@ -1520,6 +1532,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
+  // 选择器弹窗
   pickerModal: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
@@ -1544,6 +1557,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  // 模板项
   templateItem: {
     padding: 16,
     borderRadius: 12,
@@ -1557,6 +1571,7 @@ const styles = StyleSheet.create({
   templateItemPrompt: {
     fontSize: 14,
   },
+  // 天气网格
   weatherGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1573,6 +1588,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 8,
   },
+  // 心情网格
   moodGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1589,6 +1605,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 6,
   },
+  // 确认对话框
   confirmDialog: {
     padding: 32,
     borderRadius: 20,
