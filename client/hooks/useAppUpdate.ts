@@ -17,7 +17,6 @@ interface UpdateInfo {
 const STORAGE_KEYS = {
   LAST_UPDATE_CHECK: 'last_update_check_time',
   SKIP_UPDATE_UNTIL: 'skip_update_until',
-  VIEWED_UPDATE_VERSIONS: 'viewed_update_versions', // 存储已查看的更新版本号
 };
 
 export function useAppUpdate() {
@@ -174,10 +173,10 @@ export function useAppUpdate() {
         message,
         [
           {
-            text: '我知道了',
+            text: '下次继续',
             style: 'cancel',
             onPress: () => {
-              markUpdateAsViewed(updateInfo.latest_version);
+              skipUpdate();
             },
           },
           {
@@ -196,44 +195,18 @@ export function useAppUpdate() {
     }
   };
 
-  const markUpdateAsViewed = async (version: string) => {
-    try {
-      const viewedVersions = await AsyncStorage.getItem(STORAGE_KEYS.VIEWED_UPDATE_VERSIONS);
-      const versions = viewedVersions ? JSON.parse(viewedVersions) : [];
-
-      if (!versions.includes(version)) {
-        versions.push(version);
-        await AsyncStorage.setItem(STORAGE_KEYS.VIEWED_UPDATE_VERSIONS, JSON.stringify(versions));
-        console.log(`[Update] 已标记版本 ${version} 为已查看`);
-      }
-    } catch (error) {
-      console.error('[Update] 标记更新失败:', error);
-    }
-  };
-
-  const isUpdateViewed = async (version: string): Promise<boolean> => {
-    try {
-      const viewedVersions = await AsyncStorage.getItem(STORAGE_KEYS.VIEWED_UPDATE_VERSIONS);
-      const versions = viewedVersions ? JSON.parse(viewedVersions) : [];
-      return versions.includes(version);
-    } catch {
+  const checkAndShowUpdate = async () => {
+    // 检查是否在跳过时间段内
+    const skipUntil = await AsyncStorage.getItem(STORAGE_KEYS.SKIP_UPDATE_UNTIL);
+    if (skipUntil && Date.now() < parseInt(skipUntil, 10)) {
+      console.log('[Update] 用户选择下次继续，跳过更新检查');
       return false;
     }
-  };
 
-  const checkAndShowUpdate = async () => {
     const info = await checkForUpdate();
     if (info && info.has_update) {
-      // 检查该版本是否已查看
-      const viewed = await isUpdateViewed(info.latest_version);
-
-      if (!viewed) {
-        showUpdateDialog();
-        return true;
-      } else {
-        console.log(`[Update] 版本 ${info.latest_version} 已查看，不再显示`);
-        return false;
-      }
+      showUpdateDialog();
+      return true;
     }
     return false;
   };
