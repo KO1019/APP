@@ -47,6 +47,57 @@ HTML_TEMPLATE = """
             padding: 20px;
         }
 
+        /* 登录页面样式 */
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+        }
+
+        .login-container h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #667eea;
+        }
+
+        .login-form input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .login-form button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .login-form button:hover {
+            opacity: 0.9;
+        }
+
+        .login-error {
+            color: red;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        /* 主界面样式 */
+        .main-content {
+            display: none;
+        }
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
@@ -61,6 +112,23 @@ HTML_TEMPLATE = """
             color: white;
             padding: 30px;
             text-align: center;
+            position: relative;
+        }
+
+        .logout-btn {
+            position: absolute;
+            right: 30px;
+            top: 30px;
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.5);
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
         }
 
         .header h1 {
@@ -464,10 +532,117 @@ HTML_TEMPLATE = """
                 padding: 8px 4px;
             }
         }
+
+        /* 登录界面样式 */
+        .login-container {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .login-card {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-header h1 {
+            color: #495057;
+            margin-bottom: 10px;
+        }
+
+        .login-header p {
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .login-body {
+            margin-bottom: 20px;
+        }
+
+        .login-footer {
+            text-align: center;
+            color: #6c757d;
+            font-size: 12px;
+        }
+
+        .login-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .login-overlay.active {
+            display: flex;
+        }
+
+        .main-content {
+            display: none;
+        }
+
+        .main-content.active {
+            display: block;
+        }
+
+        .login-error {
+            color: #dc3545;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f8d7da;
+            border-radius: 6px;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
+    <!-- 登录界面 -->
+    <div id="login-screen" class="login-container">
+        <h1>管理后台登录</h1>
+        <div id="login-error" class="login-error"></div>
+        <form id="login-form" class="login-form">
+            <input type="text" id="username" name="username" placeholder="用户名" required>
+            <input type="password" id="password" name="password" placeholder="密码" required>
+            <button type="submit">登录</button>
+        </form>
+    </div>
+
+    <!-- 主界面 -->
+    <div id="main-screen" class="main-content">
+        <div class="container">
         <div class="header">
             <h1>📦 版本管理系统</h1>
             <p>管理APP版本、推送更新、查看更新统计</p>
@@ -483,6 +658,7 @@ HTML_TEMPLATE = """
             <button onclick="showSection('create')" id="nav-create">➕ 创建版本</button>
             <button onclick="showSection('list')" id="nav-list">📋 版本列表</button>
             <button onclick="showSection('active')" id="nav-active">✅ 激活的版本</button>
+            <button onclick="logout()" style="background-color: #dc3545; color: white; margin-left: auto;">🚪 登出</button>
         </div>
 
         <div class="content">
@@ -841,7 +1017,77 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
-        const API_BASE = '/api/v1';
+        const API_BASE = '{{ API_BASE }}';
+        let authToken = localStorage.getItem('adminToken');
+
+        // 登录
+        async function login(username, password) {
+            try {
+                const response = await fetch(`${API_BASE}/login`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username, password})
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    authToken = data.access_token;
+                    localStorage.setItem('adminToken', authToken);
+                    document.getElementById('login-screen').style.display = 'none';
+                    document.getElementById('main-screen').style.display = 'block';
+                    loadDashboard();
+                    return true;
+                } else {
+                    document.getElementById('login-error').textContent = data.detail || '登录失败';
+                    return false;
+                }
+            } catch (error) {
+                document.getElementById('login-error').textContent = '网络错误，请检查连接';
+                return false;
+            }
+        }
+
+        // 登出
+        function logout() {
+            authToken = null;
+            localStorage.removeItem('adminToken');
+            document.getElementById('login-screen').style.display = 'flex';
+            document.getElementById('main-screen').style.display = 'none';
+        }
+
+        // 检查登录状态
+        function checkLogin() {
+            if (!authToken) {
+                document.getElementById('login-screen').style.display = 'flex';
+                document.getElementById('main-screen').style.display = 'none';
+                return false;
+            }
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('main-screen').style.display = 'block';
+            return true;
+        }
+
+        // 登录表单提交
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            await login(username, password);
+        });
+
+        // 修改 fetchWithAuth 函数
+        async function fetchWithAuth(url, options = {}) {
+            if (authToken) {
+                options.headers = options.headers || {};
+                options.headers['Authorization'] = `Bearer ${authToken}`;
+            }
+            const response = await fetch(url, options);
+            if (response.status === 401) {
+                logout();
+                throw new Error('未授权，请重新登录');
+            }
+            return response;
+        }
+
 
         // 显示区块
         function showSection(sectionId) {
@@ -866,7 +1112,7 @@ HTML_TEMPLATE = """
         async function loadDashboard() {
             const content = document.getElementById('dashboard-content');
             try {
-                const response = await fetch(`${API_BASE}/admin/versions/active`);
+                const response = await fetchWithAuth(`${API_BASE}/admin/versions/active`);
                 const data = await response.json();
 
                 let html = '<div class="card"><h3>📱 Android</h3>';
@@ -917,7 +1163,7 @@ HTML_TEMPLATE = """
             };
 
             try {
-                const response = await fetch(`${API_BASE}/admin/versions`, {
+                const response = await fetchWithAuth(`${API_BASE}/admin/versions`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
@@ -945,7 +1191,7 @@ HTML_TEMPLATE = """
 
             try {
                 const url = `${API_BASE}/admin/versions${platform ? '?platform=' + platform : ''}`;
-                const response = await fetch(url);
+                const response = await fetchWithAuth(url);
                 const data = await response.json();
 
                 if (!data.versions || data.versions.length === 0) {
@@ -987,7 +1233,7 @@ HTML_TEMPLATE = """
             const content = document.getElementById('active-content');
 
             try {
-                const response = await fetch(`${API_BASE}/admin/versions/active`);
+                const response = await fetchWithAuth(`${API_BASE}/admin/versions/active`);
                 const data = await response.json();
 
                 if (!data.versions || data.versions.length === 0) {
@@ -1016,7 +1262,7 @@ HTML_TEMPLATE = """
         // 显示版本详情
         async function showVersionDetail(versionId) {
             try {
-                const response = await fetch(`${API_BASE}/admin/versions/${versionId}`);
+                const response = await fetchWithAuth(`${API_BASE}/admin/versions/${versionId}`);
                 const data = await response.json();
 
                 let html = '<div class="version-detail">';
@@ -1053,7 +1299,7 @@ HTML_TEMPLATE = """
             if (!pendingActivation) return;
 
             try {
-                const response = await fetch(`${API_BASE}/admin/versions/${pendingActivation}/activate`, {
+                const response = await fetchWithAuth(`${API_BASE}/admin/versions/${pendingActivation}/activate`, {
                     method: 'POST'
                 });
 
@@ -1086,7 +1332,7 @@ HTML_TEMPLATE = """
             if (!pendingDelete) return;
 
             try {
-                const response = await fetch(`${API_BASE}/admin/versions/${pendingDelete}`, {
+                const response = await fetchWithAuth(`${API_BASE}/admin/versions/${pendingDelete}`, {
                     method: 'DELETE'
                 });
 
@@ -1113,7 +1359,10 @@ HTML_TEMPLATE = """
 
         // 初始化
         window.onload = function() {
-            loadDashboard();
+            // 检查登录状态
+            if (checkLogin()) {
+                loadDashboard();
+            }
         };
 
         // ========== 用户管理相关函数 ==========
@@ -1123,7 +1372,7 @@ HTML_TEMPLATE = """
             const content = document.getElementById('users-content');
 
             try {
-                const response = await fetch(`${API_BASE}/admin/users?skip=0&limit=50`);
+                const response = await fetchWithAuth(`${API_BASE}/admin/users?skip=0&limit=50`);
                 const data = await response.json();
 
                 if (!data.users || data.users.length === 0) {
@@ -1172,7 +1421,7 @@ HTML_TEMPLATE = """
             searchTimeout = setTimeout(async () => {
                 const content = document.getElementById('users-content');
                 try {
-                    const response = await fetch(`${API_BASE}/admin/users?skip=0&limit=50`);
+                    const response = await fetchWithAuth(`${API_BASE}/admin/users?skip=0&limit=50`);
                     const data = await response.json();
                     const filteredUsers = data.users.filter(u =>
                         u.username.toLowerCase().includes(searchTerm) ||
@@ -1217,7 +1466,7 @@ HTML_TEMPLATE = """
         // 编辑用户
         async function editUser(userId) {
             try {
-                const response = await fetch(`${API_BASE}/admin/users/${userId}`);
+                const response = await fetchWithAuth(`${API_BASE}/admin/users/${userId}`);
                 const data = await response.json();
                 const user = data.user;
 
@@ -1247,7 +1496,7 @@ HTML_TEMPLATE = """
             };
 
             try {
-                const response = await fetch(`${API_BASE}/admin/users/${userId}`, {
+                const response = await fetchWithAuth(`${API_BASE}/admin/users/${userId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
@@ -1307,7 +1556,7 @@ HTML_TEMPLATE = """
             }
 
             try {
-                const response = await fetch(`${API_BASE}/admin/users/${userId}/password`, {
+                const response = await fetchWithAuth(`${API_BASE}/admin/users/${userId}/password`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ new_password: newPassword })
@@ -1330,7 +1579,7 @@ HTML_TEMPLATE = """
         // 查看用户日记
         async function viewUserDiaries(userId, username) {
             try {
-                const response = await fetch(`${API_BASE}/admin/users/${userId}/diaries?skip=0&limit=20`);
+                const response = await fetchWithAuth(`${API_BASE}/admin/users/${userId}/diaries?skip=0&limit=20`);
                 const data = await response.json();
 
                 let html = `<h2 style="margin-bottom: 20px; color: #495057;">${username} 的日记</h2>`;
@@ -1369,7 +1618,7 @@ HTML_TEMPLATE = """
             if (!pendingDeleteUser) return;
 
             try {
-                const response = await fetch(`${API_BASE}/admin/users/${pendingDeleteUser}`, {
+                const response = await fetchWithAuth(`${API_BASE}/admin/users/${pendingDeleteUser}`, {
                     method: 'DELETE'
                 });
 
@@ -1394,7 +1643,7 @@ HTML_TEMPLATE = """
             const content = document.getElementById('stats-content');
 
             try {
-                const response = await fetch(`${API_BASE}/admin/stats`);
+                const response = await fetchWithAuth(`${API_BASE}/admin/stats`);
                 const data = await response.json();
 
                 const stats = data.stats;
@@ -1439,7 +1688,7 @@ HTML_TEMPLATE = """
             const content = document.getElementById('models-content');
 
             try {
-                const response = await fetch(`${API_BASE}/admin/models`);
+                const response = await fetchWithAuth(`${API_BASE}/admin/models`);
                 const data = await response.json();
 
                 if (!data.models || data.models.length === 0) {
@@ -1484,7 +1733,7 @@ HTML_TEMPLATE = """
         // 启用模型
         async function enableModel(modelName) {
             try {
-                const response = await fetch(`${API_BASE}/admin/models/${modelName}/enable`, {
+                const response = await fetchWithAuth(`${API_BASE}/admin/models/${modelName}/enable`, {
                     method: 'PUT'
                 });
 
@@ -1503,7 +1752,7 @@ HTML_TEMPLATE = """
             if (!confirm(`确定要禁用模型 ${modelName} 吗？`)) return;
 
             try {
-                const response = await fetch(`${API_BASE}/admin/models/${modelName}/disable`, {
+                const response = await fetchWithAuth(`${API_BASE}/admin/models/${modelName}/disable`, {
                     method: 'PUT'
                 });
 
@@ -1520,7 +1769,7 @@ HTML_TEMPLATE = """
         // 重置模型失败计数
         async function resetModelFailure(modelName) {
             try {
-                const response = await fetch(`${API_BASE}/admin/models/${modelName}/reset-failure`, {
+                const response = await fetchWithAuth(`${API_BASE}/admin/models/${modelName}/reset-failure`, {
                     method: 'PUT'
                 });
 
@@ -1537,7 +1786,7 @@ HTML_TEMPLATE = """
         // 编辑模型配置
         async function editModelConfig(modelName) {
             try {
-                const response = await fetch(`${API_BASE}/admin/models`);
+                const response = await fetchWithAuth(`${API_BASE}/admin/models`);
                 const data = await response.json();
                 const model = data.models.find(m => m.name === modelName);
 
@@ -1580,7 +1829,7 @@ HTML_TEMPLATE = """
             };
 
             try {
-                const response = await fetch(`${API_BASE}/admin/models/${modelName}/config`, {
+                const response = await fetchWithAuth(`${API_BASE}/admin/models/${modelName}/config`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
@@ -1608,7 +1857,7 @@ HTML_TEMPLATE = """
             const content = document.getElementById('welcome-content');
 
             try {
-                const response = await fetch(`${API_BASE}/admin/welcome`);
+                const response = await fetchWithAuth(`${API_BASE}/admin/welcome`);
                 const data = await response.json();
 
                 if (!data.welcome_contents || data.welcome_contents.length === 0) {
@@ -1658,7 +1907,7 @@ HTML_TEMPLATE = """
         // 编辑欢迎内容
         async function editWelcomeContent(welcomeId) {
             try {
-                const response = await fetch(`${API_BASE}/admin/welcome`);
+                const response = await fetchWithAuth(`${API_BASE}/admin/welcome`);
                 const data = await response.json();
                 const welcome = data.welcome_contents.find(w => w.id === welcomeId);
 
@@ -1704,7 +1953,7 @@ HTML_TEMPLATE = """
                     method = 'POST';
                 }
 
-                const response = await fetch(url, {
+                const response = await fetchWithAuth(url, {
                     method: method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
@@ -1746,7 +1995,7 @@ HTML_TEMPLATE = """
             const content = document.getElementById('announcements-content');
 
             try {
-                const response = await fetch(`${API_BASE}/admin/announcements`);
+                const response = await fetchWithAuth(`${API_BASE}/admin/announcements`);
                 const data = await response.json();
 
                 if (!data.announcements || data.announcements.length === 0) {
@@ -1805,7 +2054,7 @@ HTML_TEMPLATE = """
         // 编辑公告
         async function editAnnouncement(announcementId) {
             try {
-                const response = await fetch(`${API_BASE}/admin/announcements`);
+                const response = await fetchWithAuth(`${API_BASE}/admin/announcements`);
                 const data = await response.json();
                 const announcement = data.announcements.find(a => a.id === announcementId);
 
@@ -1859,7 +2108,7 @@ HTML_TEMPLATE = """
                     method = 'POST';
                 }
 
-                const response = await fetch(url, {
+                const response = await fetchWithAuth(url, {
                     method: method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
@@ -1886,12 +2135,19 @@ HTML_TEMPLATE = """
         }
 
         // 删除公告
-        function deleteAnnouncement(announcementId) {
+        async function deleteAnnouncement(announcementId) {
             if (!confirm('确定要删除这个公告吗？')) return;
 
-            fetch(`${API_BASE}/admin/announcements/${announcementId}`, { method: 'DELETE' })
-                .then(response => response.ok ? loadAnnouncements() : alert('删除失败'))
-                .catch(error => alert('删除失败: ' + error.message));
+            try {
+                const response = await fetchWithAuth(`${API_BASE}/admin/announcements/${announcementId}`, { method: 'DELETE' });
+                if (response.ok) {
+                    loadAnnouncements();
+                } else {
+                    alert('删除失败');
+                }
+            } catch (error) {
+                alert('删除失败: ' + error.message);
+            }
         }
     </script>
 </body>
@@ -1900,9 +2156,28 @@ HTML_TEMPLATE = """
 
 
 @app.get("/version-manager", response_class=HTMLResponse)
-async def version_manager():
+async def version_manager(request: Request):
     """版本管理Web界面"""
-    return HTML_TEMPLATE
+    # 从 URL 参数获取 API 地址，默认使用配置的地址
+    api_url = request.query_params.get('api_url')
+
+    # 如果没有指定，尝试从请求头推断
+    if not api_url:
+        host = request.headers.get('host', 'localhost:9092')
+        # 如果是访问 9092 端口，自动转换为 9091
+        if ':9092' in host:
+            api_url = host.replace(':9092', ':9091')
+        else:
+            # 提取主机名，添加 9091 端口
+            hostname = host.split(':')[0]
+            api_url = f"{hostname}:9091"
+
+    # 添加协议（如果没有）
+    if not api_url.startswith('http://') and not api_url.startswith('https://'):
+        api_url = f'http://{api_url}'
+
+    api_base = f"{api_url}/api/v1"
+    return HTML_TEMPLATE.replace('{{ API_BASE }}', api_base)
 
 
 if __name__ == "__main__":
