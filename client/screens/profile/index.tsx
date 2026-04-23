@@ -353,7 +353,33 @@ export default function ProfileScreen() {
         router.push('/about');
       },
     },
-  ], [hasPassword, canUseBiometric, biometricEnabled, isOfflineMode, syncing, router, syncToCloud, fetchHealthTips, deleteAllData, exportAllData, updating, checkAndShowUpdate]);
+    {
+      icon: 'right-from-bracket',
+      title: '退出登录',
+      subtitle: '退出当前账户',
+      action: () => {
+        Alert.alert(
+          '退出登录',
+          '确定要退出登录吗？',
+          [
+            { text: '取消', style: 'cancel' },
+            {
+              text: '确定退出',
+              style: 'destructive',
+              onPress: async () => {
+                try {
+                  await logout();
+                  Toast.show({ type: 'success', text1: '已退出登录' });
+                } catch (error) {
+                  Toast.show({ type: 'error', text1: '退出登录失败' });
+                }
+              },
+            },
+          ]
+        );
+      },
+    },
+  ], [hasPassword, canUseBiometric, biometricEnabled, isOfflineMode, syncing, router, syncToCloud, fetchHealthTips, deleteAllData, exportAllData, updating, checkAndShowUpdate, logout]);
 
   const renderMenuItem = (item: MenuItem, index: number) => (
     <TouchableOpacity
