@@ -1,5 +1,12 @@
 import { ExpoConfig, ConfigContext } from 'expo/config';
-import { APP_CONFIG } from './config';
+
+// 直接定义配置（避免在Node.js环境下加载复杂模块）
+const APP_CONFIG = {
+  name: process.env.EXPO_PUBLIC_APP_NAME || 'AI情绪日记',
+  version: process.env.EXPO_PUBLIC_APP_VERSION || '1.0.0',
+  bundleId: process.env.EXPO_PUBLIC_APP_BUNDLE_ID || 'com.emotiondiary.app',
+  scheme: process.env.EXPO_PUBLIC_APP_SCHEME || 'emotiondiary',
+} as const;
 
 const projectName = process.env.COZE_PROJECT_NAME || process.env.EXPO_PUBLIC_COZE_PROJECT_NAME || APP_CONFIG.name;
 const projectId = process.env.COZE_PROJECT_ID || process.env.EXPO_PUBLIC_COZE_PROJECT_ID;

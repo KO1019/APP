@@ -3,8 +3,8 @@
  * 集中管理所有配置项，便于部署时修改
  */
 
-// 环境判断
-const isDevelopment = __DEV__;
+// 环境判断（兼容 Node.js 和浏览器环境）
+const isDevelopment = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
 const isWeb = typeof window !== 'undefined';
 
 // 检测是否在真正的本地开发环境
