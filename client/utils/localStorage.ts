@@ -268,3 +268,57 @@ export async function clearAllLocalData(): Promise<void> {
     throw error;
   }
 }
+
+/**
+ * 同步本地未上传的日记到云端
+ * @param token 用户认证token
+ * @param apiUrlBuilder 构建API URL的函数
+ * @returns 成功上传的数量
+ */
+export async function syncLocalDiariesToCloud(
+  token: string,
+  apiUrlBuilder: (endpoint: string) => string
+): Promise<{ success: number; failed: number }> {
+  try {
+    const unuploadedDiaries = await getUnuploadedDiaries();
+
+    if (unuploadedDiaries.length === 0) {
+      return { success: 0, failed: 0 };
+    }
+
+    let successCount = 0;
+    let failedCount = 0;
+
+    for (const diary of unuploadedDiaries) {
+      try {
+        // 准备日记数据，过滤掉id字段（因为云端会生成新的id）
+        const { id, is_uploaded, ...diaryData } = diary;
+
+        const response = await fetch(apiUrlBuilder('/api/v1/diaries'), {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(diaryData),
+        });
+
+        if (response.ok) {
+          // 标记为已上传
+          await markDiaryAsUploaded(id);
+          successCount++;
+        } else {
+          failedCount++;
+        }
+      } catch (error) {
+        console.error(`Failed to sync diary ${diary.id}:`, error);
+        failedCount++;
+      }
+    }
+
+    return { success: successCount, failed: failedCount };
+  } catch (error) {
+    console.error('Error syncing local diaries:', error);
+    return { success: 0, failed: 0 };
+  }
+}

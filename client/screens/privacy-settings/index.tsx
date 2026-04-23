@@ -7,6 +7,7 @@ import { useCSSVariable } from 'uniwind';
 import Toast from 'react-native-toast-message';
 import { buildApiUrl } from '@/utils';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
+import { syncLocalDiariesToCloud } from '@/utils/localStorage';
 
 interface PrivacySettings {
   cloud_sync_enabled: boolean;
@@ -23,6 +24,7 @@ export default function PrivacySettingsScreen() {
     data_encryption_enabled: true,
     anonymous_analytics: false,
   });
+  const [previousCloudSync, setPreviousCloudSync] = useState<boolean>(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -55,6 +57,7 @@ export default function PrivacySettingsScreen() {
 
       const data = await response.json();
       setSettings(data.settings);
+      setPreviousCloudSync(data.settings.cloud_sync_enabled); // 记录之前的云同步状态
     } catch (error) {
       console.error('Error fetching privacy settings:', error);
       Toast.show({ type: 'error', text1: '获取隐私设置失败' });
@@ -85,7 +88,28 @@ export default function PrivacySettingsScreen() {
         throw new Error('保存隐私设置失败');
       }
 
-      Toast.show({ type: 'success', text1: '隐私设置已保存' });
+      // 检查云同步是否从false变为true
+      if (!previousCloudSync && settings.cloud_sync_enabled) {
+        // 触发本地日记同步
+        Toast.show({ type: 'info', text1: '正在同步本地日记到云端...' });
+        const result = await syncLocalDiariesToCloud(token, buildApiUrl);
+        if (result.success > 0) {
+          Toast.show({
+            type: 'success',
+            text1: `已同步 ${result.success} 篇日记到云端`,
+            text2: result.failed > 0 ? `${result.failed} 篇同步失败` : undefined
+          });
+        } else if (result.failed > 0) {
+          Toast.show({ type: 'error', text1: '同步失败', text2: `${result.failed} 篇日记同步失败` });
+        } else {
+          Toast.show({ type: 'info', text1: '没有需要同步的日记' });
+        }
+      } else {
+        Toast.show({ type: 'success', text1: '隐私设置已保存' });
+      }
+
+      // 更新之前的云同步状态
+      setPreviousCloudSync(settings.cloud_sync_enabled);
     } catch (error) {
       console.error('Error saving privacy settings:', error);
       Toast.show({ type: 'error', text1: '保存隐私设置失败' });
