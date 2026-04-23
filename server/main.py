@@ -73,6 +73,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ========== 挂载版本管理后台 ==========
+import version_manager_web
+app.mount("/version-manager", version_manager_web.app)
+
 # JWT认证
 security = HTTPBearer()
 

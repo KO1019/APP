@@ -8,8 +8,9 @@
 
 ### 部署文档
 - 🔧 [详细部署指南](DEPLOY.md) - 完整的部署步骤
-- ✅ [部署完成总结](DEPLOYMENT_COMPLETE.md) - 部署后的验证和说明
-- 📝 [变更日志](CHANGELOG.md) - 本次更新的所有变更
+- ✅ [部署完成总结 v2](DEPLOYMENT_COMPLETE_V2.md) - 部署后的验证和说明（使用version_manager_web.py）
+- 📝 [变更日志 v2](CHANGELOG_V2.md) - 本次更新的所有变更（v2版本）
+- ✅ [部署完成总结](DEPLOYMENT_COMPLETE.md) - 部署后的验证和说明（v1版本，已弃用）
 - 🧹 [清理总结](CLEANUP_SUMMARY.md) - 代码清理详情
 
 ### 项目文档
@@ -76,7 +77,7 @@ cd /workspace/projects/server
 | 后端API | http://localhost:9091 | 后端API服务 |
 | 健康检查 | http://localhost:9091/api/v1/health | 服务健康检查 |
 | 下载页面 | http://localhost/download.html | App下载页面 |
-| 管理后台 | http://localhost/admin.html | 管理后台（admin/admin123） |
+| 版本管理后台 | http://localhost/version-manager | 版本管理后台（admin/admin123） |
 
 ## 📊 文档统计
 

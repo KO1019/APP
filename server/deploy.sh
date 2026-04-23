@@ -244,7 +244,7 @@ log_info "=========================================="
 log_info "✓ 后端服务: http://localhost:9091"
 log_info "✓ 健康检查: http://localhost:9091/api/v1/health"
 log_info "✓ 下载页面: http://localhost/download.html"
-log_info "✓ 管理页面: http://localhost/admin.html"
+log_info "✓ 管理页面: http://localhost/version-manager"
 
 if [ "$NGINX_INSTALLED" = true ]; then
     log_info "✓ Nginx: 已配置反向代理"
