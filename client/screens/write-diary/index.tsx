@@ -13,6 +13,7 @@ import {
   Modal,
   ActivityIndicator,
   Image,
+  SafeAreaView,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
@@ -94,7 +95,8 @@ export default function WriteDiaryScreen() {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showWeatherModal, setShowWeatherModal] = useState(false);
-  const [showMoodIntensityModal, setShowMoodIntensityModal] = useState(false);
+  const [showMoodModal, setShowMoodModal] = useState(false);
+  const [showToolbar, setShowToolbar] = useState(false); // 底部工具栏显示状态
 
   // 编辑模式：是否正在编辑现有日记
   const [isEditMode, setIsEditMode] = useState(false);
@@ -452,22 +454,26 @@ ${content}
     setTags(tags.filter((t) => t !== tag));
   };
 
-  // 打开天气选择弹窗
-  const handleOpenWeatherModal = () => {
-    console.log('[WriteDiary] Open weather modal');
+  // 打开天气选择
+  const handleOpenWeather = () => {
     setShowWeatherModal(true);
   };
 
-  // 打开情绪强度弹窗
-  const handleOpenMoodIntensityModal = () => {
-    console.log('[WriteDiary] Open mood intensity modal');
-    setShowMoodIntensityModal(true);
+  // 打开心情选择
+  const handleOpenMood = () => {
+    setShowMoodModal(true);
   };
 
-  // 选择情绪
+  // 选择天气
+  const handleSelectWeather = (weatherId: string) => {
+    setSelectedWeather(weatherId);
+    setShowWeatherModal(false);
+  };
+
+  // 选择心情
   const handleSelectMood = (moodId: string) => {
-    console.log('[WriteDiary] Mood selected:', moodId);
     setSelectedMood(moodId);
+    setShowMoodModal(false);
   };
 
   // 提交日记
@@ -615,23 +621,7 @@ ${content}
     return (
       <Screen safeAreaEdges={['left', 'right', 'top']}>
         <View style={[styles.container, { backgroundColor: background }]}>
-          <View style={[styles.header, { paddingTop: insets.top + 12, zIndex: 100 }]}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => {
-                console.log('[WriteDiary] Back button clicked (loading mode)');
-                router.back();
-              }}
-              activeOpacity={0.6}
-            >
-              <FontAwesome6 name="arrow-left" size={24} color={foreground} />
-            </TouchableOpacity>
-            <Text style={[styles.title, { color: foreground }]}>
-              {isEditMode ? '编辑日记' : '写日记'}
-            </Text>
-            <View style={{ width: 40 }} />
-          </View>
-          <View style={styles.loadingContainer}>
+          <View style={[styles.loadingContainer]}>
             <ActivityIndicator size="large" color={accent} />
             <Text style={[styles.loadingText, { color: muted }]}>加载中...</Text>
           </View>
@@ -640,342 +630,331 @@ ${content}
     );
   }
 
+  // 格式化日期显示
+  const formatDate = () => {
+    if (isEditMode && diary && diary.created_at) {
+      const date = new Date(diary.created_at);
+      return date.toLocaleDateString('zh-CN', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        weekday: 'long'
+      });
+    }
+    return new Date().toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      weekday: 'long'
+    });
+  };
+
   return (
     <Screen safeAreaEdges={['left', 'right', 'bottom']}>
       <View style={[styles.container, { backgroundColor: background }]}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-          style={styles.keyboardContainer}
-        >
-          <View style={[styles.header, { paddingTop: insets.top + 12, zIndex: 100 }]}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => {
-                console.log('[WriteDiary] Back button clicked, content:', content.trim(), 'images:', images.length);
-                if (content.trim() || images.length > 0) {
-                  console.log('[WriteDiary] Showing confirm dialog');
-                  setShowBackConfirmDialog(true);
-                } else {
-                  console.log('[WriteDiary] Going back directly');
-                  router.back();
-                }
-              }}
-              activeOpacity={0.6}
-            >
-              <FontAwesome6 name="xmark" size={24} color={foreground} />
-            </TouchableOpacity>
-            <Text style={[styles.title, { color: foreground }]}>
-              {isEditMode ? '编辑日记' : '写日记'}
-            </Text>
-            <TouchableOpacity
-              style={[styles.saveButton, submitting && styles.saveButtonDisabled]}
-              onPress={handleSubmit}
-              disabled={submitting}
-              activeOpacity={0.6}
-            >
-              <Text style={[styles.saveButtonText, { color: submitting ? '#999' : accent }]}>
-                {submitting ? '保存中...' : '保存'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={{ flexGrow: 1 }}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            pointerEvents="box-none"
+        {/* 顶部导航栏 */}
+        <View style={[styles.header, { paddingTop: insets.top, borderBottomColor: border }]}>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => {
+              if (content.trim() || images.length > 0) {
+                setShowBackConfirmDialog(true);
+              } else {
+                router.back();
+              }
+            }}
+            activeOpacity={0.6}
           >
-            {/* 模板选择 */}
+            <FontAwesome6 name="xmark" size={24} color={foreground} />
+          </TouchableOpacity>
+
+          <View style={styles.headerCenter}>
             {!isEditMode && (
               <TouchableOpacity
-                style={[styles.templateSelector, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}
+                style={[styles.headerTag, { backgroundColor: surface, borderColor: border }]}
                 onPress={() => setShowTemplateModal(true)}
                 activeOpacity={0.7}
               >
-                <FontAwesome6 name="file-lines" size={20} color={accent} />
-                <Text style={[styles.templateSelectorText, { color: foreground }]}>
+                <Text style={[styles.headerTagText, { color: muted }]}>
                   {selectedTemplate
-                    ? TEMPLATES.find(t => t.id === selectedTemplate)?.title || '选择模板'
-                    : '选择写作模板'}
+                    ? TEMPLATES.find(t => t.id === selectedTemplate)?.title || '模板'
+                    : '选择模板'}
                 </Text>
-                <FontAwesome6 name="chevron-right" size={16} color={muted} />
+                <FontAwesome6 name="chevron-down" size={12} color={muted} />
               </TouchableOpacity>
             )}
+          </View>
 
-            {/* 天气选择 */}
+          <TouchableOpacity
+            style={[styles.headerButton, { backgroundColor: `${accent}15` }]}
+            onPress={handleSubmit}
+            disabled={submitting}
+            activeOpacity={0.6}
+          >
+            {submitting ? (
+              <ActivityIndicator size="small" color={accent} />
+            ) : (
+              <Text style={[styles.headerButtonText, { color: accent }]}>完成</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={{ flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* 日期显示 */}
+          <View style={styles.metaSection}>
+            <Text style={[styles.dateText, { color: muted }]}>
+              {formatDate()}
+            </Text>
+            <Text style={[styles.timeText, { color: muted }]}>
+              {new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          </View>
+
+          {/* 天气和天气显示 */}
+          <View style={styles.metaSection}>
             <TouchableOpacity
-              style={[styles.toolBar, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}
-              onPress={handleOpenWeatherModal}
+              style={styles.metaItem}
+              onPress={handleOpenWeather}
               activeOpacity={0.7}
             >
               <FontAwesome6
                 name={selectedWeather ? (WEATHERS.find(w => w.id === selectedWeather)?.icon as any) : 'cloud-sun'}
-                size={20}
-                color={accent}
+                size={18}
+                color={selectedWeather ? accent : muted}
               />
-              <Text style={[styles.toolBarText, { color: foreground }]}>
-                {selectedWeather ? WEATHERS.find(w => w.id === selectedWeather)?.label : '选择天气'}
+              <Text style={[styles.metaText, { color: selectedWeather ? foreground : muted }]}>
+                {selectedWeather ? WEATHERS.find(w => w.id === selectedWeather)?.label : '天气'}
               </Text>
-              <FontAwesome6 name="chevron-right" size={16} color={muted} />
             </TouchableOpacity>
 
-            {/* 位置和图片工具栏 */}
-            <View style={[styles.toolBar, { backgroundColor: surface, borderColor: border, borderWidth: 1, paddingHorizontal: 12 }]}>
-              <TouchableOpacity
-                style={styles.toolButton}
-                onPress={handleGetLocation}
-                activeOpacity={0.7}
-              >
-                <FontAwesome6
-                  name={location ? 'location-dot' : 'location'}
-                  size={18}
-                  color={location ? accent : muted}
-                />
-              </TouchableOpacity>
-
-              <View style={[styles.toolDivider, { backgroundColor: border }]} />
-
-              <TouchableOpacity
-                style={styles.toolButton}
-                onPress={handlePickImage}
-                activeOpacity={0.7}
-              >
-                <FontAwesome6 name="image" size={18} color={accent} />
-              </TouchableOpacity>
-
-              <View style={[styles.toolDivider, { backgroundColor: border }]} />
-
-              <TouchableOpacity
-                style={styles.toolButton}
-                onPress={handleOpenMoodIntensityModal}
-                activeOpacity={0.7}
-              >
-                <FontAwesome6 name="sliders" size={18} color={selectedMood ? accent : muted} />
-              </TouchableOpacity>
-
-              <Text style={[styles.toolButtonLabel, { color: muted }]}>
-                {images.length > 0 ? `${images.length} 张图片` : ''}
-              </Text>
-            </View>
-
-            {/* 图片预览 */}
-            {images.length > 0 && (
-              <View style={styles.imagePreviewContainer}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {images.map((uri, index) => (
-                    <View key={index} style={styles.imagePreview}>
-                      <Image
-                        source={{ uri }}
-                        style={styles.previewImage}
-                      />
-                      <TouchableOpacity
-                        style={styles.removeImageBtn}
-                        onPress={() => handleRemoveImage(index)}
-                      >
-                        <FontAwesome6 name="xmark" size={14} color="#FFFFFF" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-
-            {/* 标题输入（可选） */}
-            <TextInput
-              style={[styles.titleInput, { color: foreground, borderColor: border }]}
-              placeholder="添加标题（可选）"
-              placeholderTextColor={muted}
-              value={title}
-              onChangeText={setTitle}
-            />
-
-            {/* 内容输入 */}
-            <View>
-              <TextInput
-                style={[styles.contentInput, { color: foreground }]}
-                placeholder="写下你的想法..."
-                placeholderTextColor={muted}
-                value={content}
-                onChangeText={setContent}
-                multiline
-                textAlignVertical="top"
+            <TouchableOpacity
+              style={styles.metaItem}
+              onPress={handleOpenMood}
+              activeOpacity={0.7}
+            >
+              <FontAwesome6
+                name={selectedMood ? (MOODS.find(m => m.id === selectedMood)?.icon as any) : 'face-smile'}
+                size={18}
+                color={selectedMood ? accent : muted}
               />
+              <Text style={[styles.metaText, { color: selectedMood ? foreground : muted }]}>
+                {selectedMood ? MOODS.find(m => m.id === selectedMood)?.label : '心情'}
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-              {/* AI建议显示（嵌入式，参考WPS） */}
-              {(aiSuggestionLoading || aiSuggestion) && (
-                <View style={[styles.aiSuggestionBox, { backgroundColor: `${accent}05`, borderColor: `${accent}20`, borderWidth: 1 }]}>
-                  <View style={styles.aiSuggestionHeader}>
-                    <FontAwesome6 name="robot" size={16} color={accent} />
-                    <Text style={[styles.aiSuggestionTitle, { color: accent }]}>
-                      {aiActionType === 'continue' && 'AI续写建议'}
-                      {aiActionType === 'inspiration' && '写作灵感'}
-                      {aiActionType === 'polish' && '润色建议'}
-                      {aiActionType === 'analyze' && '情绪分析'}
-                    </Text>
-                    <TouchableOpacity onPress={() => setAiSuggestion('')} activeOpacity={0.6}>
-                      <FontAwesome6 name="xmark" size={16} color={muted} />
+          {/* 标题输入 */}
+          <TextInput
+            style={[styles.titleInput, { color: foreground }]}
+            placeholder="标题"
+            placeholderTextColor={muted}
+            value={title}
+            onChangeText={setTitle}
+          />
+
+          {/* 内容输入 */}
+          <TextInput
+            style={[styles.contentInput, { color: foreground }]}
+            placeholder="开始写下你的想法..."
+            placeholderTextColor={muted}
+            value={content}
+            onChangeText={setContent}
+            multiline
+            textAlignVertical="top"
+            autoFocus={!isEditMode}
+          />
+
+          {/* 图片显示 */}
+          {images.length > 0 && (
+            <View style={styles.imageSection}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {images.map((uri, index) => (
+                  <View key={index} style={styles.imagePreview}>
+                    <Image
+                      source={{ uri }}
+                      style={styles.previewImage}
+                    />
+                    <TouchableOpacity
+                      style={styles.removeImageBtn}
+                      onPress={() => handleRemoveImage(index)}
+                    >
+                      <FontAwesome6 name="xmark" size={14} color="#FFFFFF" />
                     </TouchableOpacity>
                   </View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
 
-                  {aiSuggestionLoading && (
-                    <View style={styles.aiSuggestionLoading}>
-                      <ActivityIndicator size="small" color={accent} />
-                      <Text style={[styles.aiSuggestionLoadingText, { color: muted }]}>AI正在思考...</Text>
-                    </View>
-                  )}
+          {/* 标签显示 */}
+          {tags.length > 0 && (
+            <View style={styles.tagSection}>
+              {tags.map((tag) => (
+                <View key={tag} style={[styles.tagBadge, { backgroundColor: `${accent}15` }]}>
+                  <Text style={[styles.tagText, { color: accent }]}>#{tag}</Text>
+                  <TouchableOpacity
+                    style={styles.removeTagButton}
+                    onPress={() => handleRemoveTag(tag)}
+                    activeOpacity={0.7}
+                  >
+                    <FontAwesome6 name="xmark" size={12} color={accent} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
 
-                  {!aiSuggestionLoading && aiSuggestion && (
-                    <>
-                      <Text style={[styles.aiSuggestionText, { color: foreground }]}>{aiSuggestion}</Text>
+          {/* 位置信息 */}
+          {location && location.lat && location.lng && (
+            <View style={styles.locationSection}>
+              <FontAwesome6 name="location-dot" size={14} color={muted} />
+              <Text style={[styles.locationText, { color: muted }]}>
+                {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
+              </Text>
+            </View>
+          )}
 
-                      {(aiActionType === 'continue' || aiActionType === 'polish') && (
-                        <TouchableOpacity
-                          style={[styles.aiSuggestionApplyBtn, { backgroundColor: accent }]}
-                          onPress={handleApplySuggestion}
-                          activeOpacity={0.7}
-                        >
-                          <FontAwesome6 name="check" size={16} color="#FFFFFF" />
-                          <Text style={styles.aiSuggestionApplyBtnText}>
-                            {aiActionType === 'continue' ? '接受续写' : '应用润色'}
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                    </>
-                  )}
+          {/* AI建议显示（嵌入式，参考WPS） */}
+          {(aiSuggestionLoading || aiSuggestion) && (
+            <View style={[styles.aiSuggestionBox, { backgroundColor: `${accent}05`, borderColor: `${accent}20`, borderWidth: 1 }]}>
+              <View style={styles.aiSuggestionHeader}>
+                <FontAwesome6 name="robot" size={16} color={accent} />
+                <Text style={[styles.aiSuggestionTitle, { color: accent }]}>
+                  {aiActionType === 'continue' && 'AI续写建议'}
+                  {aiActionType === 'inspiration' && '写作灵感'}
+                  {aiActionType === 'polish' && '润色建议'}
+                  {aiActionType === 'analyze' && '情绪分析'}
+                </Text>
+                <TouchableOpacity onPress={() => setAiSuggestion('')} activeOpacity={0.6}>
+                  <FontAwesome6 name="xmark" size={16} color={muted} />
+                </TouchableOpacity>
+              </View>
+
+              {aiSuggestionLoading && (
+                <View style={styles.aiSuggestionLoading}>
+                  <ActivityIndicator size="small" color={accent} />
+                  <Text style={[styles.aiSuggestionLoadingText, { color: muted }]}>AI正在思考...</Text>
                 </View>
               )}
 
-              {/* AI工具栏 */}
-              <View style={[styles.aiToolBar, { backgroundColor: `${accent}08` }]}>
-                <TouchableOpacity
-                  style={styles.aiToolButton}
-                  onPress={() => handleAIAction('continue')}
-                  disabled={aiSuggestionLoading}
-                  activeOpacity={0.7}
-                >
-                  <FontAwesome6 name="pen-fancy" size={16} color={accent} />
-                  <Text style={[styles.aiToolButtonText, { color: foreground }]}>续写</Text>
-                </TouchableOpacity>
+              {!aiSuggestionLoading && aiSuggestion && (
+                <>
+                  <Text style={[styles.aiSuggestionText, { color: foreground }]}>{aiSuggestion}</Text>
 
-                <TouchableOpacity
-                  style={styles.aiToolButton}
-                  onPress={() => handleAIAction('inspiration')}
-                  disabled={aiSuggestionLoading}
-                  activeOpacity={0.7}
-                >
-                  <FontAwesome6 name="lightbulb" size={16} color={accent} />
-                  <Text style={[styles.aiToolButtonText, { color: foreground }]}>灵感</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.aiToolButton}
-                  onPress={() => handleAIAction('polish')}
-                  disabled={aiSuggestionLoading}
-                  activeOpacity={0.7}
-                >
-                  <FontAwesome6 name="wand-magic-sparkles" size={16} color={accent} />
-                  <Text style={[styles.aiToolButtonText, { color: foreground }]}>润色</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.aiToolButton}
-                  onPress={() => handleAIAction('analyze')}
-                  disabled={aiSuggestionLoading}
-                  activeOpacity={0.7}
-                >
-                  <FontAwesome6 name="heart-pulse" size={16} color={accent} />
-                  <Text style={[styles.aiToolButtonText, { color: foreground }]}>分析</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* 情绪选择 */}
-            <View style={styles.moodSection}>
-              <Text style={[styles.sectionLabel, { color: muted }]}>当前心情</Text>
-              <View style={styles.moodContainer}>
-                {MOODS.map((mood) => (
-                  <TouchableOpacity
-                    key={mood.id}
-                    style={[
-                      styles.moodButton,
-                      {
-                        backgroundColor: selectedMood === mood.id ? mood.color : surface,
-                        borderColor: selectedMood === mood.id ? mood.color : border,
-                        borderWidth: selectedMood === mood.id ? 2 : 1,
-                      },
-                    ]}
-                    onPress={() => handleSelectMood(mood.id)}
-                    activeOpacity={0.7}
-                  >
-                    <FontAwesome6
-                      name={mood.icon as any}
-                      size={24}
-                      color={selectedMood === mood.id ? '#FFFFFF' : mood.color}
-                    />
-                    <Text
-                      style={[
-                        styles.moodLabel,
-                        { color: selectedMood === mood.id ? '#FFFFFF' : mood.color },
-                      ]}
-                    >
-                      {mood.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* 标签输入 */}
-            <View style={[styles.tagSection, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
-              <Text style={[styles.sectionLabel, { color: muted }]}>添加标签</Text>
-              <View style={styles.tagList}>
-                {tags.map((tag) => (
-                  <View key={tag} style={[styles.tagBadge, { backgroundColor: `${accent}20` }]}>
-                    <Text style={[styles.tagText, { color: accent }]}>{tag}</Text>
+                  {(aiActionType === 'continue' || aiActionType === 'polish') && (
                     <TouchableOpacity
-                      style={styles.removeTagButton}
-                      onPress={() => handleRemoveTag(tag)}
+                      style={[styles.aiSuggestionApplyBtn, { backgroundColor: accent }]}
+                      onPress={handleApplySuggestion}
                       activeOpacity={0.7}
                     >
-                      <FontAwesome6 name="xmark" size={12} color={accent} />
+                      <FontAwesome6 name="check" size={16} color="#FFFFFF" />
+                      <Text style={styles.aiSuggestionApplyBtnText}>
+                        {aiActionType === 'continue' ? '接受续写' : '应用润色'}
+                      </Text>
                     </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-              <View style={styles.tagInputRow}>
-                <TextInput
-                  style={[styles.tagInput, { color: foreground }]}
-                  placeholder="输入标签..."
-                  placeholderTextColor={muted}
-                  value={tagInput}
-                  onChangeText={setTagInput}
-                  onSubmitEditing={handleAddTag}
-                />
-                <TouchableOpacity
-                  style={[styles.addTagBtn, { backgroundColor: accent }]}
-                  onPress={handleAddTag}
-                  activeOpacity={0.7}
-                >
-                  <FontAwesome6 name="plus" size={16} color="#FFFFFF" />
-                </TouchableOpacity>
-              </View>
+                  )}
+                </>
+              )}
             </View>
+          )}
 
-            {/* 位置信息 */}
-            {location && location.lat && location.lng && (
-              <View style={[styles.locationInfo, { backgroundColor: `${accent}10`, borderColor: `${accent}30`, borderWidth: 1 }]}>
-                <FontAwesome6 name="location-dot" size={14} color={accent} />
-                <Text style={[styles.locationText, { color: foreground }]}>
-                  {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
-                </Text>
+          <View style={{ height: 100 }} />
+        </ScrollView>
+
+        {/* 底部工具栏 */}
+        <View style={[styles.toolbar, { backgroundColor: surface, borderTopColor: border, paddingTop: insets.bottom }]}>
+          <TouchableOpacity
+            style={styles.toolbarButton}
+            onPress={handleOpenWeather}
+            activeOpacity={0.7}
+          >
+            <FontAwesome6
+              name={selectedWeather ? (WEATHERS.find(w => w.id === selectedWeather)?.icon as any) : 'cloud-sun'}
+              size={20}
+              color={selectedWeather ? accent : muted}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.toolbarButton}
+            onPress={handleOpenMood}
+            activeOpacity={0.7}
+          >
+            <FontAwesome6
+              name={selectedMood ? (MOODS.find(m => m.id === selectedMood)?.icon as any) : 'face-smile'}
+              size={20}
+              color={selectedMood ? accent : muted}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.toolbarButton}
+            onPress={handleGetLocation}
+            activeOpacity={0.7}
+          >
+            <FontAwesome6
+              name={location ? 'location-dot' : 'location'}
+              size={20}
+              color={location ? accent : muted}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.toolbarButton}
+            onPress={handlePickImage}
+            activeOpacity={0.7}
+          >
+            <FontAwesome6 name="image" size={20} color={accent} />
+            {images.length > 0 && (
+              <View style={[styles.badge, { backgroundColor: accent }]}>
+                <Text style={styles.badgeText}>{images.length}</Text>
               </View>
             )}
+          </TouchableOpacity>
 
-            <View style={{ height: 40 }} />
-          </ScrollView>
-        </KeyboardAvoidingView>
+          <View style={[styles.toolbarDivider, { backgroundColor: border }]} />
+
+          <TouchableOpacity
+            style={styles.toolbarButton}
+            onPress={() => handleAIAction('continue')}
+            disabled={aiSuggestionLoading}
+            activeOpacity={0.7}
+          >
+            <FontAwesome6 name="pen-fancy" size={20} color={accent} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.toolbarButton}
+            onPress={() => handleAIAction('inspiration')}
+            disabled={aiSuggestionLoading}
+            activeOpacity={0.7}
+          >
+            <FontAwesome6 name="lightbulb" size={20} color={accent} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.toolbarButton}
+            onPress={() => handleAIAction('polish')}
+            disabled={aiSuggestionLoading}
+            activeOpacity={0.7}
+          >
+            <FontAwesome6 name="wand-magic-sparkles" size={20} color={accent} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.toolbarButton}
+            onPress={() => handleAIAction('analyze')}
+            disabled={aiSuggestionLoading}
+            activeOpacity={0.7}
+          >
+            <FontAwesome6 name="heart-pulse" size={20} color={accent} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* 模板选择弹窗 */}
@@ -983,7 +962,7 @@ ${content}
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: foreground }]}>选择写作模板</Text>
+              <Text style={[styles.modalTitle, { color: foreground }]}>选择模板</Text>
               <TouchableOpacity onPress={() => setShowTemplateModal(false)}>
                 <FontAwesome6 name="xmark" size={24} color={foreground} />
               </TouchableOpacity>
@@ -1013,14 +992,19 @@ ${content}
       </Modal>
 
       {/* 天气选择弹窗 */}
-      <Modal visible={showWeatherModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: surface }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: foreground }]}>选择天气</Text>
+      <Modal visible={showWeatherModal} transparent animationType="fade">
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowWeatherModal(false)}
+        >
+          <View style={[styles.pickerModal, { backgroundColor: surface }]}>
+            <View style={styles.pickerHeader}>
               <TouchableOpacity onPress={() => setShowWeatherModal(false)}>
-                <FontAwesome6 name="xmark" size={24} color={foreground} />
+                <Text style={[styles.pickerCancel, { color: muted }]}>取消</Text>
               </TouchableOpacity>
+              <Text style={[styles.pickerTitle, { color: foreground }]}>选择天气</Text>
+              <View style={{ width: 40 }} />
             </View>
             <View style={styles.weatherGrid}>
               {WEATHERS.map((weather) => (
@@ -1029,15 +1013,12 @@ ${content}
                   style={[
                     styles.weatherItem,
                     {
-                      backgroundColor: selectedWeather === weather.id ? `${accent}20` : `${background}50`,
+                      backgroundColor: selectedWeather === weather.id ? `${accent}15` : 'transparent',
                       borderColor: selectedWeather === weather.id ? accent : border,
-                      borderWidth: 1,
+                      borderWidth: selectedWeather === weather.id ? 1 : 0,
                     },
                   ]}
-                  onPress={() => {
-                    setSelectedWeather(weather.id);
-                    setShowWeatherModal(false);
-                  }}
+                  onPress={() => handleSelectWeather(weather.id)}
                   activeOpacity={0.7}
                 >
                   <FontAwesome6 name={weather.icon as any} size={32} color={accent} />
@@ -1046,46 +1027,57 @@ ${content}
               ))}
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
 
-      {/* 情绪强度弹窗 */}
-      <Modal visible={showMoodIntensityModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: surface }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: foreground }]}>心情强度</Text>
-              <TouchableOpacity onPress={() => setShowMoodIntensityModal(false)}>
-                <FontAwesome6 name="xmark" size={24} color={foreground} />
+      {/* 心情选择弹窗 */}
+      <Modal visible={showMoodModal} transparent animationType="fade">
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowMoodModal(false)}
+        >
+          <View style={[styles.pickerModal, { backgroundColor: surface }]}>
+            <View style={styles.pickerHeader}>
+              <TouchableOpacity onPress={() => setShowMoodModal(false)}>
+                <Text style={[styles.pickerCancel, { color: muted }]}>取消</Text>
               </TouchableOpacity>
+              <Text style={[styles.pickerTitle, { color: foreground }]}>选择心情</Text>
+              <View style={{ width: 40 }} />
             </View>
-            <View style={styles.intensityContainer}>
-              <Text style={[styles.intensityValue, { color: accent }]}>{moodIntensity}</Text>
-              <Slider
-                style={styles.intensitySlider}
-                minimumValue={0}
-                maximumValue={100}
-                step={1}
-                value={moodIntensity}
-                onValueChange={setMoodIntensity}
-                minimumTrackTintColor={accent}
-                maximumTrackTintColor={border}
-                thumbTintColor={accent}
-              />
-              <View style={styles.intensityLabels}>
-                <Text style={[styles.intensityLabel, { color: muted }]}>微弱</Text>
-                <Text style={[styles.intensityLabel, { color: muted }]}>强烈</Text>
-              </View>
+            <View style={styles.moodGrid}>
+              {MOODS.map((mood) => (
+                <TouchableOpacity
+                  key={mood.id}
+                  style={[
+                    styles.moodItem,
+                    {
+                      backgroundColor: selectedMood === mood.id ? mood.color : 'transparent',
+                      borderColor: selectedMood === mood.id ? mood.color : border,
+                      borderWidth: selectedMood === mood.id ? 2 : 0,
+                    },
+                  ]}
+                  onPress={() => handleSelectMood(mood.id)}
+                  activeOpacity={0.7}
+                >
+                  <FontAwesome6
+                    name={mood.icon as any}
+                    size={32}
+                    color={selectedMood === mood.id ? '#FFFFFF' : mood.color}
+                  />
+                  <Text
+                    style={[
+                      styles.moodLabel,
+                      { color: selectedMood === mood.id ? '#FFFFFF' : foreground },
+                    ]}
+                  >
+                    {mood.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
-            <TouchableOpacity
-              style={[styles.intensityConfirmBtn, { backgroundColor: accent }]}
-              onPress={() => setShowMoodIntensityModal(false)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.intensityConfirmText}>确认</Text>
-            </TouchableOpacity>
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
 
       {/* 返回确认对话框 */}
@@ -1095,7 +1087,11 @@ ${content}
         animationType="fade"
         onRequestClose={() => setShowBackConfirmDialog(false)}
       >
-        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+        <TouchableOpacity
+          style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}
+          activeOpacity={1}
+          onPress={() => setShowBackConfirmDialog(false)}
+        >
           <View style={[styles.confirmDialog, { backgroundColor: surface }]}>
             <FontAwesome6 name="triangle-exclamation" size={40} color={accent} />
             <Text style={[styles.confirmDialogTitle, { color: foreground }]}>确认离开</Text>
@@ -1106,7 +1102,6 @@ ${content}
               <TouchableOpacity
                 style={[styles.confirmDialogButton, { backgroundColor: `${background}80` }]}
                 onPress={() => {
-                  console.log('[WriteDiary] Cancel back');
                   setShowBackConfirmDialog(false);
                 }}
                 activeOpacity={0.7}
@@ -1116,7 +1111,6 @@ ${content}
               <TouchableOpacity
                 style={[styles.confirmDialogButton, { backgroundColor: accent }]}
                 onPress={() => {
-                  console.log('[WriteDiary] Confirm back');
                   setShowBackConfirmDialog(false);
                   router.back();
                 }}
@@ -1126,7 +1120,7 @@ ${content}
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
     </Screen>
   );
@@ -1136,149 +1130,156 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  keyboardContainer: {
-    flex: 1,
-  },
+  // 顶部导航栏
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 12,
-    borderBottomWidth: 1,
-    backgroundColor: 'transparent',
-    elevation: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     zIndex: 100,
   },
-  backButton: {
+  headerButton: {
     width: 40,
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 101,
+    borderRadius: 20,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: '600',
-  },
-  saveButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  saveButtonDisabled: {
-    opacity: 0.5,
-  },
-  saveButtonText: {
+  headerButtonText: {
     fontSize: 16,
     fontWeight: '600',
   },
-  loadingContainer: {
+  headerCenter: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
   },
-  loadingText: {
-    fontSize: 14,
-    marginTop: 12,
+  headerTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 6,
   },
+  headerTagText: {
+    fontSize: 14,
+  },
+  // 滚动视图
   scrollView: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 24,
   },
-  templateSelector: {
+  // 元信息区域
+  metaSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 12,
+    marginVertical: 16,
+    gap: 24,
   },
-  templateSelectorText: {
-    flex: 1,
-    marginLeft: 12,
-    fontSize: 15,
-    fontWeight: '500',
+  dateText: {
+    fontSize: 14,
   },
-  toolBar: {
+  timeText: {
+    fontSize: 14,
+  },
+  metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 12,
+    gap: 6,
   },
-  toolBarText: {
-    flex: 1,
-    marginLeft: 12,
-    fontSize: 15,
+  metaText: {
+    fontSize: 14,
   },
-  toolButton: {
-    padding: 8,
+  // 标题输入
+  titleInput: {
+    fontSize: 28,
+    fontWeight: '700',
+    paddingVertical: 8,
+    marginBottom: 8,
   },
-  toolDivider: {
-    width: 1,
-    height: 20,
+  // 内容输入
+  contentInput: {
+    fontSize: 18,
+    lineHeight: 28,
+    minHeight: 400,
+    paddingVertical: 8,
+    textAlignVertical: 'top',
   },
-  toolButtonLabel: {
-    fontSize: 12,
-    marginLeft: 8,
-  },
-  imagePreviewContainer: {
-    marginBottom: 12,
+  // 图片区域
+  imageSection: {
+    marginVertical: 16,
   },
   imagePreview: {
-    marginRight: 8,
+    marginRight: 12,
     position: 'relative',
   },
   previewImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
+    width: 200,
+    height: 200,
+    borderRadius: 12,
   },
   removeImageBtn: {
     position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    top: 8,
+    right: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10,
   },
-  titleInput: {
-    fontSize: 18,
-    fontWeight: '600',
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 12,
+  // 标签区域
+  tagSection: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginVertical: 12,
   },
-  contentInput: {
-    fontSize: 16,
-    minHeight: 200,
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 8,
+  tagBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
-  // AI建议框（嵌入式，参考WPS）
+  tagText: {
+    fontSize: 14,
+    marginRight: 4,
+  },
+  removeTagButton: {
+    padding: 2,
+  },
+  // 位置信息
+  locationSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginVertical: 8,
+  },
+  locationText: {
+    fontSize: 13,
+  },
+  // AI建议框
   aiSuggestionBox: {
-    marginTop: 8,
-    padding: 12,
+    marginTop: 16,
+    padding: 16,
     borderRadius: 12,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   aiSuggestionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   aiSuggestionTitle: {
     flex: 1,
     fontSize: 14,
     fontWeight: '600',
-    marginLeft: 6,
+    marginLeft: 8,
   },
   aiSuggestionLoading: {
     flexDirection: 'row',
@@ -1290,149 +1291,116 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   aiSuggestionText: {
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 26,
     marginBottom: 12,
   },
   aiSuggestionApplyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
   },
   aiSuggestionApplyBtnText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     color: '#FFFFFF',
-    marginLeft: 6,
-  },
-  // AI工具栏
-  aiToolBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  aiToolButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-  },
-  aiToolButtonText: {
-    fontSize: 13,
-    fontWeight: '500',
-    marginLeft: 6,
-  },
-  moodSection: {
-    marginBottom: 16,
-  },
-  moodContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  sectionLabel: {
-    fontSize: 12,
-    marginBottom: 8,
-  },
-  moodButton: {
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    minWidth: 70,
-  },
-  moodLabel: {
-    fontSize: 12,
-    marginTop: 4,
-    fontWeight: '500',
-  },
-  tagSection: {
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  tagList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 12,
-  },
-  tagBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  tagText: {
-    fontSize: 13,
-    marginRight: 6,
-  },
-  removeTagButton: {
-    padding: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tagInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  tagInput: {
-    flex: 1,
-    fontSize: 14,
-    padding: 10,
-    borderRadius: 8,
-    marginRight: 8,
-  },
-  addTagBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  locationInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  locationText: {
-    fontSize: 13,
     marginLeft: 8,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  // 底部工具栏
+  toolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    gap: 8,
+  },
+  toolbarButton: {
+    width: 44,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 22,
+    position: 'relative',
+  },
+  toolbarDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: 24,
+    marginHorizontal: 4,
+  },
+  badge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  // 加载中
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    marginTop: 12,
+  },
+  // 弹窗通用
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'flex-end',
   },
   modalContent: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '80%',
-    width: '90%',
+    maxHeight: '70%',
     padding: 20,
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
   },
+  // 选择器弹窗
+  pickerModal: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 40,
+    paddingHorizontal: 20,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 16,
+    paddingBottom: 20,
+  },
+  pickerCancel: {
+    fontSize: 16,
+  },
+  pickerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // 模板项
   templateItem: {
     padding: 16,
     borderRadius: 12,
@@ -1440,21 +1408,22 @@ const styles = StyleSheet.create({
   },
   templateItemTitle: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     marginBottom: 4,
   },
   templateItemPrompt: {
     fontSize: 14,
   },
+  // 天气网格
   weatherGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
   weatherItem: {
-    width: (width - 40 - 24) / 3,
+    width: (width - 56) / 3,
     alignItems: 'center',
-    padding: 16,
+    paddingVertical: 20,
     borderRadius: 12,
     marginBottom: 12,
   },
@@ -1462,43 +1431,30 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 8,
   },
-  intensityContainer: {
-    paddingVertical: 20,
-  },
-  intensityValue: {
-    fontSize: 48,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  intensitySlider: {
-    width: '100%',
-    height: 40,
-  },
-  intensityLabels: {
+  // 心情网格
+  moodGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginTop: 8,
   },
-  intensityLabel: {
-    fontSize: 13,
-  },
-  intensityConfirmBtn: {
-    padding: 16,
-    borderRadius: 12,
+  moodItem: {
+    width: (width - 56) / 4,
     alignItems: 'center',
-    marginTop: 16,
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginBottom: 12,
   },
-  intensityConfirmText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
+  moodLabel: {
+    fontSize: 12,
+    marginTop: 6,
   },
+  // 确认对话框
   confirmDialog: {
-    padding: 24,
-    borderRadius: 16,
+    padding: 32,
+    borderRadius: 20,
     alignItems: 'center',
     width: '85%',
+    alignSelf: 'center',
   },
   confirmDialogTitle: {
     fontSize: 18,
@@ -1519,11 +1475,11 @@ const styles = StyleSheet.create({
   confirmDialogButton: {
     flex: 1,
     padding: 14,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
   },
   confirmDialogButtonText: {
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '600',
   },
 });
