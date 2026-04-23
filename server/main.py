@@ -111,13 +111,8 @@ class UserLogin(BaseModel):
 class DiaryCreate(BaseModel):
     content: str
     mood: Optional[str] = None
-    mood_intensity: Optional[int] = None
-    weather: Optional[str] = None
     tags: Optional[List[str]] = None
     title: Optional[str] = None
-    images: Optional[List[str]] = None
-    location: Optional[Dict[str, Any]] = None
-    template_id: Optional[str] = None
 
 
 class ChatMessage(BaseModel):
@@ -673,18 +668,8 @@ async def create_diary(diary: DiaryCreate, user_id: str = Depends(get_user_id)):
         insert_data["title"] = diary.title
     if diary.mood:
         insert_data["mood"] = diary.mood
-    if diary.mood_intensity is not None:
-        insert_data["mood_intensity"] = diary.mood_intensity
-    if diary.weather:
-        insert_data["weather"] = diary.weather
     if diary.tags:
         insert_data["tags"] = diary.tags
-    if diary.images:
-        insert_data["images"] = diary.images
-    if diary.location:
-        insert_data["location"] = diary.location
-    if diary.template_id:
-        insert_data["template_id"] = diary.template_id
 
     result = db_client.table('diaries').insert(insert_data).execute()
 

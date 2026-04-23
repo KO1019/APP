@@ -96,6 +96,7 @@ export default function WriteDiaryScreen() {
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showWeatherModal, setShowWeatherModal] = useState(false);
   const [showMoodModal, setShowMoodModal] = useState(false);
+  const [showToolbar, setShowToolbar] = useState(false); // 底部工具栏显示状态
 
   // 编辑模式：是否正在编辑现有日记
   const [isEditMode, setIsEditMode] = useState(false);
@@ -620,7 +621,7 @@ ${content}
     return (
       <Screen safeAreaEdges={['left', 'right', 'top']}>
         <View style={[styles.container, { backgroundColor: background }]}>
-          <View style={styles.loadingContainer}>
+          <View style={[styles.loadingContainer]}>
             <ActivityIndicator size="large" color={accent} />
             <Text style={[styles.loadingText, { color: muted }]}>加载中...</Text>
           </View>
@@ -704,30 +705,46 @@ ${content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* 日期、天气、心情 - 整合在一起 */}
-          <View style={styles.headerMeta}>
+          {/* 日期显示 */}
+          <View style={styles.metaSection}>
             <Text style={[styles.dateText, { color: muted }]}>
-              {formatDate()} · {new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+              {formatDate()}
             </Text>
+            <Text style={[styles.timeText, { color: muted }]}>
+              {new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          </View>
+
+          {/* 天气和天气显示 */}
+          <View style={styles.metaSection}>
             <TouchableOpacity
+              style={styles.metaItem}
               onPress={handleOpenWeather}
               activeOpacity={0.7}
             >
               <FontAwesome6
                 name={selectedWeather ? (WEATHERS.find(w => w.id === selectedWeather)?.icon as any) : 'cloud-sun'}
-                size={14}
-                color={selectedWeather ? accent : '#C0C0C0'}
+                size={18}
+                color={selectedWeather ? accent : muted}
               />
+              <Text style={[styles.metaText, { color: selectedWeather ? foreground : muted }]}>
+                {selectedWeather ? WEATHERS.find(w => w.id === selectedWeather)?.label : '天气'}
+              </Text>
             </TouchableOpacity>
+
             <TouchableOpacity
+              style={styles.metaItem}
               onPress={handleOpenMood}
               activeOpacity={0.7}
             >
               <FontAwesome6
                 name={selectedMood ? (MOODS.find(m => m.id === selectedMood)?.icon as any) : 'face-smile'}
-                size={14}
-                color={selectedMood ? MOODS.find(m => m.id === selectedMood)?.color : '#C0C0C0'}
+                size={18}
+                color={selectedMood ? accent : muted}
               />
+              <Text style={[styles.metaText, { color: selectedMood ? foreground : muted }]}>
+                {selectedMood ? MOODS.find(m => m.id === selectedMood)?.label : '心情'}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -851,6 +868,30 @@ ${content}
 
         {/* 底部工具栏 */}
         <View style={[styles.toolbar, { backgroundColor: surface, borderTopColor: border, paddingTop: insets.bottom }]}>
+          <TouchableOpacity
+            style={styles.toolbarButton}
+            onPress={handleOpenWeather}
+            activeOpacity={0.7}
+          >
+            <FontAwesome6
+              name={selectedWeather ? (WEATHERS.find(w => w.id === selectedWeather)?.icon as any) : 'cloud-sun'}
+              size={20}
+              color={selectedWeather ? accent : muted}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.toolbarButton}
+            onPress={handleOpenMood}
+            activeOpacity={0.7}
+          >
+            <FontAwesome6
+              name={selectedMood ? (MOODS.find(m => m.id === selectedMood)?.icon as any) : 'face-smile'}
+              size={20}
+              color={selectedMood ? accent : muted}
+            />
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.toolbarButton}
             onPress={handleGetLocation}
@@ -1131,28 +1172,26 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
   },
-  // 元信息区域（整合日期、天气、心情）
-  headerMeta: {
+  // 元信息区域
+  metaSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginVertical: 12,
-    paddingHorizontal: 4,
+    marginVertical: 16,
+    gap: 24,
   },
   dateText: {
-    fontSize: 13,
+    fontSize: 14,
   },
-  metaTag: {
+  timeText: {
+    fontSize: 14,
+  },
+  metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
     gap: 6,
   },
-  metaTagText: {
-    fontSize: 13,
+  metaText: {
+    fontSize: 14,
   },
   // 标题输入
   titleInput: {
