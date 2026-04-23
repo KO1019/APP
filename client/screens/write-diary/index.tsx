@@ -593,8 +593,8 @@ ${content}
         // 先保存到本地
         await saveDiaryLocally(diaryData);
 
-        // 如果是在线模式且有token，上传到云端
-        if (!isOfflineMode && token) {
+        // 只有在用户开启云同步且不是离线模式时，才上传到云端
+        if (!isOfflineMode && token && user?.cloud_sync_enabled) {
           try {
             /**
              * 服务端文件：server/main.py
