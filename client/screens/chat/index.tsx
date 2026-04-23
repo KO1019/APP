@@ -174,6 +174,10 @@ export default function ChatScreen() {
         // 在Web环境下，使用fetch API实现流式响应
         if (Platform.OS === 'web') {
           console.log('[Chat] Using Web fetch API for streaming');
+
+          // 先添加一个空的 AI 消息占位符
+          setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+
           fetch(chatUrl, {
             method: 'POST',
             headers: {
@@ -190,9 +194,6 @@ export default function ChatScreen() {
               throw new Error(`HTTP ${response.status}`);
             }
 
-            // 添加一个空的 AI 消息占位符
-            setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
-
             const reader = response.body?.getReader();
             const decoder = new TextDecoder();
             let aiResponse = '';
@@ -206,6 +207,8 @@ export default function ChatScreen() {
 
               if (done) {
                 console.log('[Chat] Stream finished');
+                setLoading(false);
+                saveChatMessageLocally(conversationId, userMessage, aiResponse, params.relatedDiaryId || null, true);
                 break;
               }
 
@@ -251,6 +254,9 @@ export default function ChatScreen() {
         } else {
           // 在移动端使用 RNSSE
           console.log('[Chat] Using RNSSE for mobile');
+
+          // 先添加一个空的 AI 消息占位符
+          setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
           const sse = new RNSSE(chatUrl, {
             method: 'POST',
@@ -316,9 +322,6 @@ export default function ChatScreen() {
               console.warn('[Chat] Failed to parse message as JSON:', event.data);
             }
           });
-
-          // 添加一个空的 AI 消息占位符
-          setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
         }
       } else {
         // 离线模式或未登录，只保存到本地
