@@ -42,10 +42,9 @@ export const API_CONFIG = {
       if (isWeb && window.location) {
         const hostname = window.location.hostname;
 
-        // 如果在 dev.coze.site 域名下（沙箱环境），使用阿里云后端
-        if (hostname.includes('dev.coze.site')) {
-          return 'http://59.110.39.235:9091';
-        }
+        // 注意：dev.coze.site 使用 HTTPS，后端使用 HTTP
+        // 由于浏览器的混合内容安全策略，HTTPS 页面无法向 HTTP 后端发起请求
+        // 如果需要在 dev.coze.site 环境中测试，请在本地环境运行前端和后端
 
         // 如果在 localhost 上，使用本地后端
         if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '') {
