@@ -1421,6 +1421,138 @@ async def get_models_status():
     }
 
 
+@app.get('/api/v1/admin/models')
+async def get_all_models():
+    """获取所有模型的详细配置（管理员接口）"""
+    models_info = []
+    for model_name, config in model_manager.models.items():
+        models_info.append({
+            "name": model_name,
+            "provider": config.provider.value,
+            "base_url": config.base_url,
+            "max_tokens": config.max_tokens,
+            "temperature": config.temperature,
+            "timeout": config.timeout,
+            "enabled": config.enabled,
+            "priority": config.priority,
+            "supports_stream": config.supports_stream,
+            "cost_factor": config.cost_factor,
+            "cannot_switch": config.cannot_switch,
+            "failure_count": model_manager.failure_count.get(model_name, 0),
+            "is_blacklisted": model_manager.is_model_blacklisted(model_name),
+            "last_failure_time": model_manager.last_failure_time.get(model_name, 0)
+        })
+
+    return {
+        "success": True,
+        "models": models_info
+    }
+
+
+@app.put('/api/v1/admin/models/{model_name}/enable')
+async def enable_model(model_name: str):
+    """启用模型（管理员接口）"""
+    if model_name not in model_manager.models:
+        raise HTTPException(status_code=404, detail="模型不存在")
+
+    model_manager.models[model_name].enabled = True
+    return {
+        "success": True,
+        "message": f"模型 {model_name} 已启用"
+    }
+
+
+@app.put('/api/v1/admin/models/{model_name}/disable')
+async def disable_model(model_name: str):
+    """禁用模型（管理员接口）"""
+    if model_name not in model_manager.models:
+        raise HTTPException(status_code=404, detail="模型不存在")
+
+    model_manager.models[model_name].enabled = False
+    return {
+        "success": True,
+        "message": f"模型 {model_name} 已禁用"
+    }
+
+
+@app.put('/api/v1/admin/models/{model_name}/unblacklist')
+async def unblacklist_model(model_name: str):
+    """从黑名单中移除模型（管理员接口）"""
+    if model_name not in model_manager.models:
+        raise HTTPException(status_code=404, detail="模型不存在")
+
+    # 清空失败计数
+    if model_name in model_manager.failure_count:
+        model_manager.failure_count[model_name] = 0
+
+    # 清空最后失败时间
+    if model_name in model_manager.last_failure_time:
+        model_manager.last_failure_time[model_name] = 0
+
+    return {
+        "success": True,
+        "message": f"模型 {model_name} 已从黑名单中移除"
+    }
+
+
+@app.put('/api/v1/admin/models/{model_name}/reset-failure')
+async def reset_model_failure(model_name: str):
+    """重置模型失败计数（管理员接口）"""
+    if model_name not in model_manager.models:
+        raise HTTPException(status_code=404, detail="模型不存在")
+
+    if model_name in model_manager.failure_count:
+        model_manager.failure_count[model_name] = 0
+
+    if model_name in model_manager.last_failure_time:
+        model_manager.last_failure_time[model_name] = 0
+
+    return {
+        "success": True,
+        "message": f"模型 {model_name} 的失败计数已重置"
+    }
+
+
+@app.put('/api/v1/admin/models/{model_name}/config')
+async def update_model_config(model_name: str, config_update: Dict[str, Any]):
+    """更新模型配置（管理员接口）"""
+    if model_name not in model_manager.models:
+        raise HTTPException(status_code=404, detail="模型不存在")
+
+    model = model_manager.models[model_name]
+
+    # 允许更新的字段
+    allowed_fields = ['temperature', 'max_tokens', 'timeout', 'priority', 'cost_factor']
+    updated_fields = []
+
+    for field in allowed_fields:
+        if field in config_update:
+            setattr(model, field, config_update[field])
+            updated_fields.append(field)
+
+    if not updated_fields:
+        raise HTTPException(status_code=400, detail="没有有效的配置字段")
+
+    return {
+        "success": True,
+        "message": f"模型 {model_name} 配置已更新",
+        "updated_fields": updated_fields
+    }
+
+
+@app.get('/api/v1/admin/models/tasks')
+async def get_task_models():
+    """获取各任务类型对应的模型列表（管理员接口）"""
+    task_models = {}
+    for task_type, model_names in model_manager.task_models.items():
+        task_models[task_type.value] = model_names
+
+    return {
+        "success": True,
+        "task_models": task_models
+    }
+
+
 # ========== 用户管理API ==========
 
 class UserUpdate(BaseModel):

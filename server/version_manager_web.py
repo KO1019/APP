@@ -258,6 +258,15 @@ HTML_TEMPLATE = """
             background: #138496;
         }
 
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+
         .btn-secondary {
             background: #6c757d;
             color: white;
@@ -467,6 +476,7 @@ HTML_TEMPLATE = """
         <div class="nav">
             <button onclick="showSection('dashboard')" class="active" id="nav-dashboard">📊 仪表盘</button>
             <button onclick="showSection('users')" id="nav-users">👥 用户管理</button>
+            <button onclick="showSection('models')" id="nav-models">🤖 模型管理</button>
             <button onclick="showSection('stats')" id="nav-stats">📈 数据统计</button>
             <button onclick="showSection('create')" id="nav-create">➕ 创建版本</button>
             <button onclick="showSection('list')" id="nav-list">📋 版本列表</button>
@@ -488,6 +498,16 @@ HTML_TEMPLATE = """
                     <button onclick="loadUsers()" class="btn btn-secondary btn-small">刷新</button>
                 </div>
                 <div id="users-content">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+
+            <!-- 模型管理 -->
+            <div id="models" class="section">
+                <div class="filter-bar">
+                    <button onclick="loadModels()" class="btn btn-secondary btn-small">刷新</button>
+                </div>
+                <div id="models-content">
                     <div class="loading">加载中...</div>
                 </div>
             </div>
@@ -652,6 +672,50 @@ HTML_TEMPLATE = """
         </div>
     </div>
 
+    <!-- 模型配置编辑模态框 -->
+    <div id="model-config-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <h2>编辑模型配置</h2>
+            <div id="model-config-message"></div>
+            <form id="model-config-form">
+                <input type="hidden" id="config-model-name">
+                <div class="form-group">
+                    <label for="config-model-display">模型名称</label>
+                    <input type="text" id="config-model-display" readonly style="background: #f8f9fa;">
+                </div>
+                <div class="form-group">
+                    <label for="config-temperature">温度 (Temperature)</label>
+                    <input type="number" id="config-temperature" name="temperature" step="0.1" min="0" max="2" value="0.7">
+                    <small>控制输出的随机性，范围 0-2，默认 0.7</small>
+                </div>
+                <div class="form-group">
+                    <label for="config-max-tokens">最大 Token 数 (Max Tokens)</label>
+                    <input type="number" id="config-max-tokens" name="max_tokens" min="1" max="32000" value="4096">
+                    <small>最大生成的 token 数量</small>
+                </div>
+                <div class="form-group">
+                    <label for="config-timeout">超时时间 (Timeout, 秒)</label>
+                    <input type="number" id="config-timeout" name="timeout" min="1" max="300" value="30">
+                    <small>请求超时时间（秒）</small>
+                </div>
+                <div class="form-group">
+                    <label for="config-priority">优先级 (Priority)</label>
+                    <input type="number" id="config-priority" name="priority" min="0" max="10" value="0">
+                    <small>数值越小优先级越高，0 为最高优先级</small>
+                </div>
+                <div class="form-group">
+                    <label for="config-cost-factor">成本因子 (Cost Factor)</label>
+                    <input type="number" id="config-cost-factor" name="cost_factor" step="0.1" min="0.1" value="1.0">
+                    <small>成本因子，用于成本计算</small>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" onclick="closeModelConfigModal()" class="btn btn-secondary">取消</button>
+                    <button type="button" onclick="saveModelConfig()" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         const API_BASE = '/api/v1';
 
@@ -666,6 +730,7 @@ HTML_TEMPLATE = """
             // 加载数据
             if (sectionId === 'dashboard') loadDashboard();
             if (sectionId === 'users') loadUsers();
+            if (sectionId === 'models') loadModels();
             if (sectionId === 'stats') loadStats();
             if (sectionId === 'list') loadVersions();
             if (sectionId === 'active') loadActiveVersions();
@@ -1238,6 +1303,175 @@ HTML_TEMPLATE = """
                 content.innerHTML = html;
             } catch (error) {
                 content.innerHTML = '<div class="error">加载失败: ' + error.message + '</div>';
+            }
+        }
+
+        // ========== 模型管理相关函数 ==========
+
+        // 加载模型列表
+        async function loadModels() {
+            const content = document.getElementById('models-content');
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/models`);
+                const data = await response.json();
+
+                if (!data.models || data.models.length === 0) {
+                    content.innerHTML = '<div class="empty">没有找到模型</div>';
+                    return;
+                }
+
+                let html = '<table class="versions-table"><thead><tr>';
+                html += '<th>模型名称</th><th>提供商</th><th>状态</th><th>失败次数</th><th>黑名单</th><th>优先级</th><th>温度</th><th>操作</th>';
+                html += '</tr></thead><tbody>';
+
+                data.models.forEach(m => {
+                    html += '<tr>';
+                    html += `<td><strong>${m.name}</strong></td>`;
+                    html += `<td>${m.provider}</td>`;
+                    html += `<td>${m.enabled ? '<span class="badge badge-success">启用</span>' : '<span class="badge badge-warning">禁用</span>'}</td>`;
+                    html += `<td>${m.failure_count}</td>`;
+                    html += `<td>${m.is_blacklisted ? '<span class="badge badge-danger">是</span>' : '<span class="badge badge-success">否</span>'}</td>`;
+                    html += `<td>${m.priority}</td>`;
+                    html += `<td>${m.temperature}</td>`;
+                    html += '<td>';
+                    html += `<button onclick="editModelConfig('${m.name}')" class="btn btn-secondary btn-small">配置</button> `;
+                    if (m.enabled) {
+                        html += `<button onclick="disableModel('${m.name}')" class="btn btn-warning btn-small">禁用</button> `;
+                    } else {
+                        html += `<button onclick="enableModel('${m.name}')" class="btn btn-success btn-small">启用</button> `;
+                    }
+                    if (m.is_blacklisted || m.failure_count > 0) {
+                        html += `<button onclick="resetModelFailure('${m.name}')" class="btn btn-info btn-small">重置</button> `;
+                    }
+                    html += '</td>';
+                    html += '</tr>';
+                });
+
+                html += '</tbody></table>';
+                content.innerHTML = html;
+            } catch (error) {
+                content.innerHTML = '<div class="error">加载失败: ' + error.message + '</div>';
+            }
+        }
+
+        // 启用模型
+        async function enableModel(modelName) {
+            try {
+                const response = await fetch(`${API_BASE}/admin/models/${modelName}/enable`, {
+                    method: 'PUT'
+                });
+
+                if (response.ok) {
+                    loadModels();
+                } else {
+                    alert('❌ 启用失败');
+                }
+            } catch (error) {
+                alert('❌ 请求失败: ' + error.message);
+            }
+        }
+
+        // 禁用模型
+        async function disableModel(modelName) {
+            if (!confirm(`确定要禁用模型 ${modelName} 吗？`)) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/models/${modelName}/disable`, {
+                    method: 'PUT'
+                });
+
+                if (response.ok) {
+                    loadModels();
+                } else {
+                    alert('❌ 禁用失败');
+                }
+            } catch (error) {
+                alert('❌ 请求失败: ' + error.message);
+            }
+        }
+
+        // 重置模型失败计数
+        async function resetModelFailure(modelName) {
+            try {
+                const response = await fetch(`${API_BASE}/admin/models/${modelName}/reset-failure`, {
+                    method: 'PUT'
+                });
+
+                if (response.ok) {
+                    loadModels();
+                } else {
+                    alert('❌ 重置失败');
+                }
+            } catch (error) {
+                alert('❌ 请求失败: ' + error.message);
+            }
+        }
+
+        // 编辑模型配置
+        async function editModelConfig(modelName) {
+            try {
+                const response = await fetch(`${API_BASE}/admin/models`);
+                const data = await response.json();
+                const model = data.models.find(m => m.name === modelName);
+
+                if (!model) {
+                    alert('未找到模型配置');
+                    return;
+                }
+
+                document.getElementById('config-model-name').value = model.name;
+                document.getElementById('config-model-display').value = model.name;
+                document.getElementById('config-temperature').value = model.temperature;
+                document.getElementById('config-max-tokens').value = model.max_tokens;
+                document.getElementById('config-timeout').value = model.timeout;
+                document.getElementById('config-priority').value = model.priority;
+                document.getElementById('config-cost-factor').value = model.cost_factor;
+
+                document.getElementById('model-config-modal').classList.add('active');
+            } catch (error) {
+                alert('加载模型配置失败: ' + error.message);
+            }
+        }
+
+        // 关闭模型配置模态框
+        function closeModelConfigModal() {
+            document.getElementById('model-config-modal').classList.remove('active');
+            document.getElementById('model-config-message').innerHTML = '';
+        }
+
+        // 保存模型配置
+        async function saveModelConfig() {
+            const modelName = document.getElementById('config-model-name').value;
+            const message = document.getElementById('model-config-message');
+
+            const data = {
+                temperature: parseFloat(document.getElementById('config-temperature').value),
+                max_tokens: parseInt(document.getElementById('config-max-tokens').value),
+                timeout: parseInt(document.getElementById('config-timeout').value),
+                priority: parseInt(document.getElementById('config-priority').value),
+                cost_factor: parseFloat(document.getElementById('config-cost-factor').value)
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/models/${modelName}/config`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    message.innerHTML = '<div class="success">✅ 模型配置更新成功！</div>';
+                    setTimeout(() => {
+                        closeModelConfigModal();
+                        loadModels();
+                    }, 1500);
+                } else {
+                    const error = await response.json();
+                    message.innerHTML = '<div class="error">❌ 更新失败: ' + (error.detail || '未知错误') + '</div>';
+                }
+            } catch (error) {
+                message.innerHTML = '<div class="error">❌ 请求失败: ' + error.message + '</div>';
             }
         }
     </script>
