@@ -736,7 +736,7 @@ ${content}
               >
                 <Text style={[styles.headerTagText, { color: muted }]}>
                   {selectedTemplate
-                    ? (TEMPLATES.find(t => t.id === selectedTemplate)?.title || '模板')
+                    ? (TEMPLATES.find(t => t.id === selectedTemplate)?.title ?? '模板')
                     : '选择模板'}
                 </Text>
                 <FontAwesome6 name="chevron-down" size={12} color={muted} />
@@ -771,8 +771,8 @@ ${content}
               activeOpacity={0.7}
               style={styles.dateTouchable}
             >
-              <Text style={[styles.dateText, { color: muted }]}>
-                {formatDate()}
+              <Text style={[styles.dateText, { color: muted || '#666666' }]}>
+                {formatDate() || ''}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -780,8 +780,8 @@ ${content}
               activeOpacity={0.7}
               style={styles.dateTouchable}
             >
-              <Text style={[styles.timeText, { color: muted }]}>
-                {formatTime()}
+              <Text style={[styles.timeText, { color: muted || '#666666' }]}>
+                {formatTime() || ''}
               </Text>
             </TouchableOpacity>
           </View>
