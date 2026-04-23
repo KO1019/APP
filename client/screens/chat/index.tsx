@@ -152,7 +152,11 @@ export default function ChatScreen() {
   }, [token]);
 
   const sendMessage = async () => {
-    if (!inputText.trim() || loading) return;
+    console.log('[Chat] sendMessage called, inputText:', inputText, 'loading:', loading);
+    if (!inputText.trim() || loading) {
+      console.log('[Chat] sendMessage early return, inputText empty or loading');
+      return;
+    }
 
     const userMessage = inputText.trim();
     setInputText('');
