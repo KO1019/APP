@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 AI情绪日记 & 心理状态智能陪伴系统 - Python后端服务
-使用FastAPI + WebSocket + 火山引擎RealtimeAPI（官方Python示例）
+使用FastAPI + WebSocket + 多大模型支持（豆包、通义千问、DeepSeek、Kimi、GLM、MiniMax）
 """
 
 import os
@@ -10,9 +10,9 @@ import hashlib
 import asyncio
 import json
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Callable
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,6 +21,20 @@ import uvicorn
 import httpx
 from supabase import create_client, Client
 from dotenv import load_dotenv
+
+# 导入 LLM Client SDK
+from coze_coding_dev_sdk import LLMClient
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+
+# 导入模型配置
+from model_config import (
+    get_model_config,
+    get_available_models,
+    get_models_by_provider,
+    get_recommended_model_for_task,
+    DEFAULT_MODEL,
+    ModelConfig,
+)
 
 # 加载.env文件（使用绝对路径）
 dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
@@ -159,47 +173,94 @@ def verify_password(password: str, hashed: str) -> bool:
 
 # ========== LLM API调用 ==========
 
-async def call_llm_stream(messages: List[Dict[str, str]], on_chunk: callable):
-    """流式调用LLM"""
-    if not ARK_API_KEY:
-        # fallback response
-        fallback = "抱歉，AI功能暂时不可用。请先配置豆包ARK API Key。"
-        for char in fallback:
-            on_chunk(char)
-            await asyncio.sleep(0.03)
-        return
+async def call_llm_stream(
+    messages: List[Dict[str, str]],
+    on_chunk: Callable[[str], None],
+    model_key: Optional[str] = None,
+    task: str = "chat"
+):
+    """
+    使用LLM Client SDK流式调用大模型
 
+    Args:
+        messages: 对话消息列表
+        on_chunk: 回调函数，处理每个文本块
+        model_key: 模型key（如 doubao-lite, qwen-plus等），如果不指定则根据任务选择推荐模型
+        task: 任务类型（chat, diary_analysis, emotion_analysis等）
+    """
     try:
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {ARK_API_KEY}'
-        }
+        # 获取模型配置
+        if not model_key:
+            model_key = get_recommended_model_for_task(task)
 
-        payload = {
-            'model': ARK_CHAT_MODEL,
-            'messages': messages,
-            'temperature': 0.8,
-            'stream': True
-        }
+        config = get_model_config(model_key)
+        if not config:
+            # 如果找不到模型配置，使用默认模型
+            config = get_model_config(DEFAULT_MODEL)
+            if not config:
+                raise Exception(f"模型配置未找到: {model_key}")
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            async with client.stream('POST', f'{ARK_BASE_URL}/chat/completions', headers=headers, json=payload) as response:
-                if response.status_code != 200:
-                    raise Exception(f"ARK API error: {response.status_code}")
+        print(f"[LLM] 使用模型: {config.model_name} ({config.model_id})")
 
-                async for line in response.aiter_lines():
-                    if line.startswith('data: '):
-                        data = line[6:]
-                        if data == '[DONE]':
-                            continue
-                        try:
-                            json_data = json.loads(data)
-                            if json_data.get('choices') and json_data['choices'][0].get('delta', {}).get('content'):
-                                on_chunk(json_data['choices'][0]['delta']['content'])
-                        except:
-                            pass
+        # 创建 LLM Client（不使用 Context）
+        client = LLMClient()
+
+        # 转换消息格式
+        langchain_messages = []
+        for msg in messages:
+            if msg["role"] == "system":
+                langchain_messages.append(SystemMessage(content=msg["content"]))
+            elif msg["role"] == "user":
+                langchain_messages.append(HumanMessage(content=msg["content"]))
+            elif msg["role"] == "assistant":
+                langchain_messages.append(AIMessage(content=msg["content"]))
+
+        # 调用流式API
+        print(f"[LLM] 开始流式调用...")
+        chunk_count = 0
+        for chunk in client.stream(
+            messages=langchain_messages,
+            model=config.model_id,
+            temperature=config.recommended_temperature,
+            max_tokens=config.max_tokens
+        ):
+            chunk_count += 1
+            print(f"[LLM] 收到 chunk {chunk_count}: {type(chunk.content)}, len={len(str(chunk.content)) if chunk.content else 0}")
+            # 处理文本块
+            if chunk.content:
+                # content 可能是 str 或 list
+                if isinstance(chunk.content, str):
+                    text_content = chunk.content
+                elif isinstance(chunk.content, list):
+                    # 处理 list 格式
+                    text_parts = []
+                    for item in chunk.content:
+                        if isinstance(item, str):
+                            text_parts.append(item)
+                        elif isinstance(item, dict):
+                            text_parts.append(item.get("text", ""))
+                    text_content = " ".join(text_parts)
+                else:
+                    text_content = str(chunk.content)
+
+                on_chunk(text_content)
+
     except Exception as e:
-        print(f"Error calling LLM: {e}")
+        print(f"[LLM] 调用失败: {e}")
+        print(f"[LLM] 错误详情: {str(e)}")
+
+        # 尝试使用备用模型
+        if model_key != DEFAULT_MODEL:
+            print(f"[LLM] 尝试使用备用模型: {DEFAULT_MODEL}")
+            try:
+                fallback_config = get_model_config(DEFAULT_MODEL)
+                if fallback_config:
+                    await call_llm_stream(messages, on_chunk, DEFAULT_MODEL, task)
+                    return
+            except Exception as fallback_error:
+                print(f"[LLM] 备用模型也失败了: {fallback_error}")
+
+        # 所有模型都失败，返回错误消息
         fallback = "抱歉，AI服务暂时不可用。请稍后再试。"
         for char in fallback:
             on_chunk(char)
@@ -704,61 +765,99 @@ async def generate_diary_from_chat(data: GenerateDiaryFromChat, user_id: str = D
 
 
 @app.post('/api/v1/chat')
-async def chat_stream(chat: ChatMessage, user_id: str = Depends(get_user_id)):
+async def chat_stream(
+    chat: ChatMessage,
+    model_key: Optional[str] = Query(None, description="模型key，如 doubao-lite, qwen-plus等"),
+    user_id: str = Depends(get_user_id)
+):
     """AI对话（流式响应）"""
+    try:
+        # 验证模型配置
+        if model_key and not get_model_config(model_key):
+            raise HTTPException(status_code=400, detail=f"不支持的模型: {model_key}")
 
-    async def generate():
-        full_response = ""
+        async def generate():
+            full_response = ""
+            queue = asyncio.Queue()
 
-        async def on_chunk(chunk: str):
-            nonlocal full_response
-            full_response += chunk
-            yield f"data: {json.dumps({'content': chunk}, ensure_ascii=False)}\n\n"
+            def on_chunk(chunk: str):
+                nonlocal full_response
+                full_response += chunk
+                # 将 chunk 放入队列
+                asyncio.create_task(queue.put(f"data: {json.dumps({'content': chunk}, ensure_ascii=False)}\n\n"))
 
-        # 构建对话历史
-        messages = []
+            # 构建对话历史
+            messages = []
 
-        if chat.diaryId:
-            # 获取关联的日记
+            if chat.diaryId:
+                # 获取关联的日记
+                if supabase:
+                    diary_result = supabase.table('diaries').select('content').eq('id', chat.diaryId).maybe_single().execute()
+                    if diary_result.data:
+                        messages.append({
+                            "role": "system",
+                            "content": f"你是一位温暖、专业的心理陪伴助手。用户刚刚写了一篇日记，内容如下：\n\n{diary_result.data['content']}\n\n请以共情的方式回应用户，帮助他们理解自己的情绪。"
+                        })
+
+            # 获取最近对话历史
             if supabase:
-                diary_result = supabase.table('diaries').select('content').eq('id', chat.diaryId).maybe_single().execute()
-                if diary_result.data:
-                    messages.append({
-                        "role": "system",
-                        "content": f"你是一位温暖、专业的心理陪伴助手。用户刚刚写了一篇日记，内容如下：\n\n{diary_result.data['content']}\n\n请以共情的方式回应用户，帮助他们理解自己的情绪。"
-                    })
+                conv_result = supabase.table('conversations').select('user_message, ai_message').order('created_at', desc=True).limit(5).execute()
+                if conv_result.data:
+                    for conv in reversed(conv_result.data):
+                        messages.append({"role": "user", "content": conv['user_message']})
+                        messages.append({"role": "assistant", "content": conv['ai_message']})
 
-        # 获取最近对话历史
-        if supabase:
-            conv_result = supabase.table('conversations').select('user_message, ai_message').order('created_at', desc=True).limit(5).execute()
-            if conv_result.data:
-                for conv in reversed(conv_result.data):
-                    messages.append({"role": "user", "content": conv['user_message']})
-                    messages.append({"role": "assistant", "content": conv['ai_message']})
+            if not messages or messages[0]['role'] != 'system':
+                messages.insert(0, {
+                    "role": "system",
+                    "content": "你是一位温暖、专业的心理陪伴助手。请以共情的方式倾听用户的情绪，帮助他们理解和表达自己的感受。"
+                })
 
-        if not messages or messages[0]['role'] != 'system':
-            messages.insert(0, {
-                "role": "system",
-                "content": "你是一位温暖、专业的心理陪伴助手。请以共情的方式倾听用户的情绪，帮助他们理解和表达自己的感受。"
-            })
+            messages.append({"role": "user", "content": chat.message})
 
-        messages.append({"role": "user", "content": chat.message})
+            # 流式调用LLM（支持模型切换）
+            # 在后台任务中调用 LLM
+            llm_task = asyncio.create_task(call_llm_stream(messages, on_chunk, model_key=model_key, task="chat"))
 
-        # 流式调用LLM
-        await call_llm_stream(messages, on_chunk)
+            # 从队列中读取数据并 yield
+            while True:
+                try:
+                    # 等待数据或 LLM 调用完成
+                    data = await asyncio.wait_for(queue.get(), timeout=0.1)
+                    yield data
+                except asyncio.TimeoutError:
+                    # 检查 LLM 调用是否完成
+                    if llm_task.done():
+                        # 如果 LLM 调用完成，退出循环
+                        break
+                except Exception as e:
+                    print(f"[Chat] Error reading from queue: {e}")
+                    break
 
-        yield "data: [DONE]\n\n"
+            # 等待 LLM 调用完成
+            try:
+                await llm_task
+            except Exception as e:
+                print(f"[Chat] LLM task error: {e}")
 
-        # 保存对话记录
-        if supabase:
-            supabase.table('conversations').insert({
-                'user_id': user_id,
-                'user_message': chat.message,
-                'ai_message': full_response,
-                'related_diary_id': chat.diaryId
-            }).execute()
+            yield "data: [DONE]\n\n"
 
-    return StreamingResponse(generate(), media_type="text/event-stream; charset=utf-8")
+            # 保存对话记录
+            if full_response and supabase:
+                supabase.table('conversations').insert({
+                    'user_id': user_id,
+                    'user_message': chat.message,
+                    'ai_message': full_response,
+                    'related_diary_id': chat.diaryId
+                }).execute()
+
+        return StreamingResponse(generate(), media_type="text/event-stream; charset=utf-8")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[Chat] Error: {e}")
+        raise HTTPException(status_code=500, detail=f"对话失败: {str(e)}")
 
 
 @app.get('/api/v1/conversations')
@@ -1035,6 +1134,77 @@ async def close_voice_session(request: dict):
     print(f"[HTTP] Closed session: {session_id}")
 
     return {"status": "closed"}
+
+
+# ========== 大模型管理API ==========
+
+@app.get('/api/v1/models')
+async def get_models():
+    """获取所有可用模型列表"""
+    models = get_available_models()
+    return {
+        "models": models,
+        "default_model": DEFAULT_MODEL,
+        "total": len(models)
+    }
+
+
+@app.get('/api/v1/models/{provider}')
+async def get_models_by_provider_api(provider: str):
+    """根据提供商获取模型列表"""
+    from model_config import ModelProvider
+
+    try:
+        provider_enum = ModelProvider(provider)
+        models = get_models_by_provider(provider_enum)
+        return {
+            "provider": provider,
+            "models": models,
+            "total": len(models)
+        }
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"不支持的提供商: {provider}")
+
+
+@app.get('/api/v1/models/recommended/{task}')
+async def get_recommended_model(task: str):
+    """获取指定任务的推荐模型"""
+    model_key = get_recommended_model_for_task(task)
+    config = get_model_config(model_key)
+
+    if not config:
+        raise HTTPException(status_code=404, detail=f"未找到推荐模型")
+
+    return {
+        "task": task,
+        "model_key": model_key,
+        "model_id": config.model_id,
+        "model_name": config.model_name,
+        "provider": config.provider.value,
+        "description": config.description
+    }
+
+
+@app.get('/api/v1/models/config/{model_key}')
+async def get_model_config_api(model_key: str):
+    """获取模型详细配置"""
+    config = get_model_config(model_key)
+
+    if not config:
+        raise HTTPException(status_code=404, detail=f"模型配置未找到: {model_key}")
+
+    return {
+        "key": model_key,
+        "model_id": config.model_id,
+        "model_name": config.model_name,
+        "provider": config.provider.value,
+        "description": config.description,
+        "max_tokens": config.max_tokens,
+        "supports_streaming": config.supports_streaming,
+        "supports_thinking": config.supports_thinking,
+        "supports_multimodal": config.supports_multimodal,
+        "recommended_temperature": config.recommended_temperature
+    }
 
 
 # ========== WebSocket实时语音对话（使用官方Python示例） ==========
