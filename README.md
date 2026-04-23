@@ -21,6 +21,10 @@ AI情绪日记/
 ├── server/                # 后端（FastAPI + Python）
 │   ├── main.py           # 主应用
 │   ├── requirements.txt  # Python依赖
+│   ├── version_manager.py # CLI版本管理工具
+│   ├── version_manager_web.py # Web可视化版本管理工具
+│   ├── start_web_tool.sh # Web工具启动脚本
+│   ├── VERSION_MANAGEMENT.md # 版本管理系统使用手册
 │   └── .env             # 环境变量
 │
 └── 技术方案_AI情绪日记系统.md  # 技术方案文档
@@ -102,6 +106,37 @@ SUPABASE_KEY=your_supabase_key
 - Docker容器
 - 云服务器（AWS、阿里云、腾讯云等）
 - Serverless函数（Vercel、Railway等）
+
+### 版本管理系统
+
+版本管理系统用于管理和推送APP版本更新，包含以下工具：
+
+**1. Web可视化工具（推荐）**
+
+```bash
+cd server
+./start_web_tool.sh
+# 或
+python3 version_manager_web.py
+```
+
+访问：`http://localhost:9092/version-manager`
+
+**2. CLI工具**
+
+```bash
+cd server
+python3 version_manager.py
+```
+
+**功能说明**：
+- ✅ 创建新版本
+- ✅ 查看版本列表
+- ✅ 激活版本（推送更新）
+- ✅ 删除版本
+- ✅ 编辑版本信息
+
+**详细文档**：[server/VERSION_MANAGEMENT.md](server/VERSION_MANAGEMENT.md)
 
 ## 主要功能
 
@@ -206,8 +241,11 @@ SUPABASE_KEY=your_supabase_key
 
 - [技术方案](技术方案_AI情绪日记系统.md) - 详细的技术方案文档
 - [前端配置说明](client/CONFIG.md) - 前端配置详细说明
+- [前端配置快速参考](client/CONFIG_SUMMARY.md) - 配置快速参考指南
 - [部署指南](client/DEPLOYMENT.md) - 移动端部署指南
+- [部署检查清单](client/DEPLOYMENT_CHECKLIST.md) - 部署前检查清单
 - [.env.example](client/.env.example) - 环境变量模板
+- [版本管理系统手册](server/VERSION_MANAGEMENT.md) - 版本管理系统完整使用手册
 
 ## 贡献
 

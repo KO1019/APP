@@ -1,5 +1,82 @@
 # AI情绪日记 & 心理状态智能陪伴系统 - Python后端
 
+## 📚 目录
+
+- [版本管理系统](#版本管理系统)
+- [环境配置](#环境配置)
+- [API文档](#api文档)
+- [数据表结构](#数据表结构)
+- [故障排查](#故障排查)
+
+---
+
+## 版本管理系统
+
+### 快速开始
+
+#### 1. 初始化数据库
+
+在Supabase SQL编辑器中运行以下SQL：
+
+```sql
+CREATE TABLE IF NOT EXISTS app_versions (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+    version TEXT NOT NULL,
+    build_number INTEGER NOT NULL,
+    platform TEXT NOT NULL CHECK (platform IN ('android', 'ios')),
+    force_update BOOLEAN DEFAULT FALSE,
+    release_notes TEXT NOT NULL,
+    update_url TEXT,
+    is_active BOOLEAN DEFAULT FALSE,
+    release_date TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(version, build_number, platform)
+);
+
+-- 创建索引
+CREATE INDEX IF NOT EXISTS idx_app_versions_platform ON app_versions(platform);
+CREATE INDEX IF NOT EXISTS idx_app_versions_is_active ON app_versions(is_active);
+
+-- 禁用RLS（简化API访问）
+ALTER TABLE app_versions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all access to app_versions"
+    ON app_versions FOR ALL
+    USING (true)
+    WITH CHECK (true);
+```
+
+#### 2. 使用Web可视化工具（推荐）
+
+```bash
+# 启动Web可视化工具
+python3 version_manager_web.py
+```
+
+然后访问：`http://localhost:9092/version-manager`
+
+#### 3. 使用CLI工具
+
+```bash
+# 启动CLI工具
+python3 version_manager.py
+```
+
+### 功能说明
+
+- ✅ 创建新版本
+- ✅ 查看版本列表
+- ✅ 激活版本（推送更新）
+- ✅ 删除版本
+- ✅ 编辑版本信息
+- ✅ 查看激活的版本
+
+### 详细文档
+
+完整的使用手册请查看：[VERSION_MANAGEMENT.md](VERSION_MANAGEMENT.md)
+
+---
+
 ## 环境配置
 
 ### 1. 安装依赖
@@ -134,6 +211,7 @@ GET  /api/v1/auth/me
 ```
 POST   /api/v1/diaries
 GET    /api/v1/diaries
+PUT    /api/v1/diaries/{diary_id}
 DELETE /api/v1/diaries/{diary_id}
 ```
 
@@ -147,6 +225,31 @@ POST /api/v1/chat (SSE流式响应)
 
 ```
 WebSocket: ws://localhost:9091/api/v1/voice/realtime
+```
+
+### 版本管理（管理员）
+
+```
+POST   /api/v1/admin/versions
+GET    /api/v1/admin/versions
+GET    /api/v1/admin/versions/{version_id}
+PUT    /api/v1/admin/versions/{version_id}
+DELETE /api/v1/admin/versions/{version_id}
+POST   /api/v1/admin/versions/{version_id}/activate
+GET    /api/v1/admin/versions/active
+```
+
+### 版本检查（用户）
+
+```
+POST /api/v1/app/check-update
+Content-Type: application/json
+
+{
+  "platform": "android",
+  "current_version": "1.0.0",
+  "build_number": 100
+}
 ```
 
 ## 数据表结构
