@@ -15,6 +15,7 @@ import {
   Image,
   SafeAreaView,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import Slider from '@react-native-community/slider';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -98,6 +99,11 @@ export default function WriteDiaryScreen() {
   const [showMoodModal, setShowMoodModal] = useState(false);
   const [showToolbar, setShowToolbar] = useState(false); // 底部工具栏显示状态
 
+  // 日记时间（可修改）
+  const [diaryDate, setDiaryDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+
   // 编辑模式：是否正在编辑现有日记
   const [isEditMode, setIsEditMode] = useState(false);
   const [loadingDiary, setLoadingDiary] = useState(false);
@@ -166,6 +172,10 @@ export default function WriteDiaryScreen() {
             setImages(localDiary.images || []);
             setLocation(localDiary.location || null);
             setSelectedTemplate(localDiary.template_id || null);
+            // 设置日记时间为创建时间
+            if (localDiary.created_at) {
+              setDiaryDate(new Date(localDiary.created_at));
+            }
           }
         } else {
           // 从云端加载日记
@@ -202,6 +212,10 @@ export default function WriteDiaryScreen() {
           setImages(data.images || []);
           setLocation(data.location || null);
           setSelectedTemplate(data.template_id || null);
+          // 设置日记时间为创建时间
+          if (data.created_at) {
+            setDiaryDate(new Date(data.created_at));
+          }
         }
       } catch (error) {
         console.error('Error loading diary for edit:', error);
@@ -519,7 +533,7 @@ ${content}
         images: images,
         location: location,
         template_id: selectedTemplate,
-        created_at: isEditMode && editId && !editId.startsWith('local_') && diary ? diary.created_at : new Date().toISOString(),
+        created_at: diaryDate.toISOString(),
         updated_at: new Date().toISOString(),
         is_uploaded: false,
       };
@@ -551,6 +565,7 @@ ${content}
               images: diaryData.images,
               location: diaryData.location,
               template_id: diaryData.template_id,
+              created_at: diaryData.created_at,
             }),
           });
 
@@ -652,21 +667,37 @@ ${content}
 
   // 格式化日期显示
   const formatDate = () => {
-    if (isEditMode && diary && diary.created_at) {
-      const date = new Date(diary.created_at);
-      return date.toLocaleDateString('zh-CN', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        weekday: 'long'
-      });
-    }
-    return new Date().toLocaleDateString('zh-CN', {
+    return diaryDate.toLocaleDateString('zh-CN', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       weekday: 'long'
     });
+  };
+
+  // 格式化时间显示
+  const formatTime = () => {
+    return diaryDate.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // 日期变化处理
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    if (selectedDate) {
+      setDiaryDate(selectedDate);
+    }
+  };
+
+  // 时间变化处理
+  const handleTimeChange = (event: any, selectedTime?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowTimePicker(false);
+    }
+    if (selectedTime) {
+      setDiaryDate(selectedTime);
+    }
   };
 
   return (
@@ -727,12 +758,24 @@ ${content}
         >
           {/* 日期显示 */}
           <View style={styles.metaSection}>
-            <Text style={[styles.dateText, { color: muted }]}>
-              {formatDate()}
-            </Text>
-            <Text style={[styles.timeText, { color: muted }]}>
-              {new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
-            </Text>
+            <TouchableOpacity
+              onPress={() => setShowDatePicker(true)}
+              activeOpacity={0.7}
+              style={styles.dateTouchable}
+            >
+              <Text style={[styles.dateText, { color: muted }]}>
+                {formatDate()}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowTimePicker(true)}
+              activeOpacity={0.7}
+              style={styles.dateTouchable}
+            >
+              <Text style={[styles.timeText, { color: muted }]}>
+                {formatTime()}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* 天气和天气显示 */}
@@ -1118,6 +1161,28 @@ ${content}
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* 日期选择器 */}
+      {showDatePicker && (
+        <DateTimePicker
+          value={diaryDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'compact' : 'default'}
+          onChange={handleDateChange}
+          locale="zh-CN"
+        />
+      )}
+
+      {/* 时间选择器 */}
+      {showTimePicker && (
+        <DateTimePicker
+          value={diaryDate}
+          mode="time"
+          display={Platform.OS === 'ios' ? 'compact' : 'default'}
+          onChange={handleTimeChange}
+          locale="zh-CN"
+        />
+      )}
     </Screen>
   );
 }
@@ -1174,6 +1239,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 16,
     gap: 24,
+  },
+  dateTouchable: {
+    paddingVertical: 4,
   },
   dateText: {
     fontSize: 14,

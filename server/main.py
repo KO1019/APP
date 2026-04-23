@@ -118,6 +118,7 @@ class DiaryCreate(BaseModel):
     images: Optional[List[str]] = None
     location: Optional[Dict[str, Any]] = None
     template_id: Optional[str] = None
+    created_at: Optional[str] = None
 
 
 class ChatMessage(BaseModel):
@@ -955,7 +956,7 @@ async def get_conversations(user_id: str = Depends(get_user_id)):
     if not db_client:
         raise HTTPException(status_code=500, detail="Database not configured")
 
-    result = db_client.table('conversations').select('*').eq('user_id', user_id).order('created_at', desc=True).limit(100).execute()
+    result = db_client.table('conversations').select('*', count='exact').eq('user_id', user_id).order('created_at', desc=True).range(0, 99).execute()
 
     return result.data or []
 
