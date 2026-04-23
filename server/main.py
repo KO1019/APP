@@ -19,12 +19,13 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, File, Form, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 import httpx
 from dotenv import load_dotenv
+from pathlib import Path
 
 # 数据库适配器（MySQL）
 from db_adapter import db_client
@@ -223,6 +224,28 @@ async def call_llm_stream(messages: List[Dict[str, str]], on_chunk: callable):
 async def health_check():
     """健康检查"""
     return {"status": "ok"}
+
+
+@app.get('/api/v1/app/download')
+async def get_app_download_info():
+    """获取APP下载链接"""
+    return {
+        "android": {
+            "name": "Android",
+            "url": "https://anjia.work/download/emotion-diary.apk",
+            "version": "1.0.0",
+            "size": "50MB",
+            "min_version": "Android 8.0"
+        },
+        "ios": {
+            "name": "iOS",
+            "url": "https://apps.apple.com/cn/app/emotion-diary/id123456789",
+            "version": "1.0.0",
+            "size": "45MB",
+            "min_version": "iOS 14.0"
+        },
+        "download_page": "https://anjia.work/download"
+    }
 
 
 @app.post('/api/v1/auth/register')
@@ -2399,6 +2422,16 @@ async def upload_avatar(
         "message": "头像上传成功",
         "avatar": result
     }
+
+
+# ========== APP下载页面 ==========
+
+@app.get("/download", response_class=HTMLResponse)
+async def app_download_page():
+    """APP下载页面"""
+    html_file = Path(__file__).parent / "download.html"
+    with open(html_file, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
 
 # ========== 主程序 ==========

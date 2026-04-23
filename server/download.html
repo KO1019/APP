@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI情绪日记 - APP下载</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .logo {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 30px;
+            margin: 0 auto 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            color: white;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 32px;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 18px;
+            margin-bottom: 40px;
+        }
+
+        .download-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .download-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px 30px;
+            border-radius: 15px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .download-btn.android {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+        }
+
+        .download-btn.ios {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: white;
+        }
+
+        .btn-icon {
+            font-size: 36px;
+            margin-right: 15px;
+        }
+
+        .btn-text {
+            flex: 1;
+            text-align: left;
+        }
+
+        .btn-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .btn-info {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .features {
+            text-align: left;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+
+        .features h3 {
+            color: #333;
+            font-size: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            color: #555;
+        }
+
+        .feature-icon {
+            font-size: 20px;
+            margin-right: 10px;
+        }
+
+        .footer {
+            color: #999;
+            font-size: 14px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .version-info {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: #856404;
+        }
+
+        .version-info strong {
+            font-weight: 600;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+
+            .subtitle {
+                font-size: 16px;
+            }
+
+            .download-btn {
+                padding: 15px 20px;
+            }
+
+            .btn-icon {
+                font-size: 28px;
+            }
+
+            .btn-title {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">📝</div>
+        <h1>AI情绪日记</h1>
+        <p class="subtitle">用AI陪伴你的情绪成长之路</p>
+
+        <div class="version-info">
+            <strong>当前版本：</strong> v1.0.0<br>
+            <strong>更新日期：</strong> 2026年4月23日
+        </div>
+
+        <div class="download-buttons">
+            <a href="/download/emotion-diary.apk" class="download-btn android">
+                <span class="btn-icon">🤖</span>
+                <div class="btn-text">
+                    <div class="btn-title">Android 下载</div>
+                    <div class="btn-info">支持 Android 8.0+ | 文件大小: 50MB</div>
+                </div>
+            </a>
+
+            <a href="https://apps.apple.com/cn/app/emotion-diary/id123456789" class="download-btn ios">
+                <span class="btn-icon">🍎</span>
+                <div class="btn-text">
+                    <div class="btn-title">iOS 下载</div>
+                    <div class="btn-info">支持 iOS 14.0+ | 文件大小: 45MB</div>
+                </div>
+            </a>
+        </div>
+
+        <div class="features">
+            <h3>✨ 核心功能</h3>
+            <div class="feature-item">
+                <span class="feature-icon">🎯</span>
+                <span>智能情绪记录与分析</span>
+            </div>
+            <div class="feature-item">
+                <span class="feature-icon">💬</span>
+                <span>AI 陪伴对话与情绪疏导</span>
+            </div>
+            <div class="feature-item">
+                <span class="feature-icon">📊</span>
+                <span>情绪趋势可视化报告</span>
+            </div>
+            <div class="feature-item">
+                <span class="feature-icon">🔒</span>
+                <span>隐私保护与数据加密</span>
+            </div>
+            <div class="feature-item">
+                <span class="feature-icon">🌙</span>
+                <span>夜间模式与个性化设置</span>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>如有问题，请联系客服支持</p>
+            <p>© 2026 AI情绪日记. All rights reserved.</p>
+        </div>
+    </div>
+
+    <script>
+        // 检测设备类型并显示相应提示
+        function detectDevice() {
+            const userAgent = navigator.userAgent.toLowerCase();
+            const isAndroid = /android/.test(userAgent);
+            const isIOS = /iphone|ipad|ipod/.test(userAgent);
+
+            if (isAndroid) {
+                console.log('检测到 Android 设备');
+                // 可以在这里添加 Android 特定的逻辑
+            } else if (isIOS) {
+                console.log('检测到 iOS 设备');
+                // 可以在这里添加 iOS 特定的逻辑
+            }
+        }
+
+        detectDevice();
+    </script>
+</body>
+</html>

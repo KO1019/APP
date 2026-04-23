@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # Python后端服务
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: emotion-diary-backend
+    ports:
+      - "9091:9091"
+    environment:
+      - DATABASE_URL=mysql://root:EmotionDiary@2024@db:3306/emotion_diary
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET=your-secret-key-change-in-production
+      - ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+      - ARK_API_KEY=${ARK_API_KEY}
+      - ARK_CHAT_MODEL=ep-20250212215003-7j9f8
+      - VOLCENGINE_SPEECH_APP_ID=${VOLCENGINE_SPEECH_APP_ID}
+      - VOLCENGINE_SPEECH_SECRET_KEY=${VOLCENGINE_SPEECH_SECRET_KEY}
+      - VOLCENGINE_ACCESS_TOKEN=${VOLCENGINE_ACCESS_TOKEN}
+      - OSS_ACCESS_KEY_ID=${OSS_ACCESS_KEY_ID}
+      - OSS_ACCESS_KEY_SECRET=${OSS_ACCESS_KEY_SECRET}
+      - OSS_BUCKET=${OSS_BUCKET}
+      - OSS_ENDPOINT=${OSS_ENDPOINT}
+    volumes:
+      - ./server:/app
+      - /tmp:/tmp
+    depends_on:
+      - db
+      - redis
+    networks:
+      - emotion-diary-network
+    restart: unless-stopped
+
+  # Nginx反向代理（SSL）
+  nginx:
+    image: nginx:alpine
+    container_name: emotion-diary-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./server/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./server/ssl:/ssl:ro
+      - ./client/web-build:/app/client/web-build:ro
+    depends_on:
+      - backend
+    networks:
+      - emotion-diary-network
+    restart: unless-stopped
+
+  # MySQL数据库
+  db:
+    image: mysql:8.0
+    container_name: emotion-diary-db
+    environment:
+      - MYSQL_ROOT_PASSWORD=EmotionDiary@2024
+      - MYSQL_DATABASE=emotion_diary
+      - MYSQL_USER=emotion_diary
+      - MYSQL_PASSWORD=EmotionDiary@2024
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./server/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "3306:3306"
+    networks:
+      - emotion-diary-network
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+
+  # Redis缓存
+  redis:
+    image: redis:7-alpine
+    container_name: emotion-diary-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - emotion-diary-network
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  emotion-diary-network:
+    driver: bridge
