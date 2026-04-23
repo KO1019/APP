@@ -157,46 +157,24 @@ OSS_PUBLIC_READ=true
 
 ### 3.6 测试运行
 
-**方式 1：启动所有服务（推荐）**
+启动所有服务：
 ```bash
-./start_all.sh
+./start.sh
 ```
 
 这将同时启动：
 - 后端 API 服务（端口 9091）
 - 管理后台（端口 9092）
 
-**方式 2：单独启动后端服务**
+停止所有服务：
 ```bash
-python main.py
+./stop.sh
 ```
 
-如果看到类似以下输出，说明启动成功：
-```
-🚀 Starting Python backend server...
-📦 Port: 9091
-🔗 ARK API Key: ✅ Configured
-🗄️  MySQL: ✅ Configured
-```
-
-**方式 3：单独启动管理后台**
+重启所有服务：
 ```bash
-python version_manager_web.py
+./restart.sh
 ```
-
-访问管理后台：http://localhost:9092/version-manager
-
-**停止服务：**
-```bash
-# 停止所有服务
-./stop_all.sh
-
-# 或单独停止
-./stop.sh          # 停止后端服务
-pkill -f version_manager_web.py  # 停止管理后台
-```
-
-按 `Ctrl+C` 停止服务（单独启动模式）。
 
 ## 4. 使用 Systemd 管理服务
 
@@ -216,8 +194,7 @@ After=network.target mysql.service redis.service
 Type=simple
 User=www-data
 WorkingDirectory=/var/www/ai-diary-backend
-Environment="PATH=/var/www/ai-diary-backend/venv/bin"
-ExecStart=/var/www/ai-diary-backend/venv/bin/python main.py
+ExecStart=/usr/bin/python3 main.py
 Restart=always
 RestartSec=10
 
@@ -249,8 +226,7 @@ After=network.target ai-diary-backend.service
 Type=simple
 User=www-data
 WorkingDirectory=/var/www/ai-diary-backend
-Environment="PATH=/var/www/ai-diary-backend/venv/bin"
-ExecStart=/var/www/ai-diary-backend/venv/bin/python version_manager_web.py
+ExecStart=/usr/bin/python3 version_manager_web.py
 Restart=always
 RestartSec=10
 
@@ -473,10 +449,9 @@ sudo journalctl -u ai-diary-backend -n 50
 
 ```bash
 cd /var/www/ai-diary-backend
-git pull  # 或上传新文件
-source venv/bin/activate
-pip install -r requirements.txt --upgrade
+# 上传新文件
 sudo systemctl restart ai-diary-backend
+sudo systemctl restart ai-diary-admin
 ```
 
 ## 13. 文件清单
@@ -493,18 +468,15 @@ sudo systemctl restart ai-diary-backend
 ├── realtime_dialog_client.py        # 实时对话客户端
 ├── protocol.py                      # 协议定义
 ├── config.py                        # 配置文件
-├── version_manager_web.py           # 管理后台（新增）
+├── version_manager_web.py           # 管理后台
 ├── .env                             # 环境变量
 ├── .env.example                     # 环境变量模板
 ├── requirements.txt                 # Python 依赖
-├── start.sh                         # 启动后端脚本
-├── stop.sh                          # 停止后端脚本
-├── restart.sh                       # 重启后端脚本
-├── start_all.sh                     # 启动所有服务脚本（新增）
-├── stop_all.sh                      # 停止所有服务脚本（新增）
-├── restart_all.sh                   # 重启所有服务脚本（新增）
-├── venv/                            # 虚拟环境
-└── logs/                            # 日志目录（新增）
+├── create_mysql_tables.sql          # 数据库表结构
+├── start.sh                         # 启动脚本
+├── stop.sh                          # 停止脚本
+├── restart.sh                       # 重启脚本
+└── logs/                            # 日志目录
 ```
 
 ## 14. 性能优化建议

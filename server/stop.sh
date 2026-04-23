@@ -1,5 +1,5 @@
 #!/bin/bash
-# 阿里云后端服务停止脚本
+# 停止后端服务和管理后台
 
 set -e
 
@@ -26,47 +26,61 @@ print_error() {
 main() {
     echo ""
     echo "======================================"
-    echo "  AI 情绪日记后端服务停止脚本"
+    echo "  停止所有服务"
     echo "======================================"
     echo ""
 
     # 切换到脚本所在目录
     cd "$(dirname "$0")"
 
-    # 检查 PID 文件
-    if [ ! -f "server.pid" ]; then
-        print_warn "未找到 PID 文件，尝试查找进程..."
-        PID=$(pgrep -f "python main.py" || true)
-    else
-        PID=$(cat server.pid)
-    fi
-
-    # 如果没有找到进程
-    if [ -z "$PID" ]; then
-        print_info "服务未运行"
-        exit 0
-    fi
-
-    # 停止服务
-    print_info "正在停止服务 (PID: $PID)..."
-    kill $PID
-
-    # 等待进程结束
-    for i in {1..10}; do
-        if ! ps -p $PID > /dev/null 2>&1; then
-            print_info "服务已停止 ✓"
-            rm -f server.pid
-            exit 0
+    # 停止后端服务
+    if [ -f "logs/backend.pid" ]; then
+        BACKEND_PID=$(cat logs/backend.pid)
+        if ps -p $BACKEND_PID > /dev/null 2>&1; then
+            print_info "停止后端服务 (PID: $BACKEND_PID)..."
+            kill $BACKEND_PID
+            for i in {1..10}; do
+                if ! ps -p $BACKEND_PID > /dev/null 2>&1; then
+                    print_info "后端服务已停止 ✓"
+                    break
+                fi
+                echo -n "."
+                sleep 1
+            done
+            if ps -p $BACKEND_PID > /dev/null 2>&1; then
+                kill -9 $BACKEND_PID
+            fi
         fi
-        echo -n "."
-        sleep 1
-    done
+        rm -f logs/backend.pid
+    fi
 
-    # 如果进程仍未结束，强制终止
-    print_warn "服务未响应，强制终止..."
-    kill -9 $PID
-    rm -f server.pid
-    print_info "服务已强制停止 ✓"
+    # 停止管理后台
+    if [ -f "logs/admin.pid" ]; then
+        ADMIN_PID=$(cat logs/admin.pid)
+        if ps -p $ADMIN_PID > /dev/null 2>&1; then
+            print_info "停止管理后台 (PID: $ADMIN_PID)..."
+            kill $ADMIN_PID
+            for i in {1..10}; do
+                if ! ps -p $ADMIN_PID > /dev/null 2>&1; then
+                    print_info "管理后台已停止 ✓"
+                    break
+                fi
+                echo -n "."
+                sleep 1
+            done
+            if ps -p $ADMIN_PID > /dev/null 2>&1; then
+                kill -9 $ADMIN_PID
+            fi
+        fi
+        rm -f logs/admin.pid
+    fi
+
+    # 清理残留进程
+    pkill -9 -f "python main.py" 2>/dev/null || true
+    pkill -9 -f "version_manager_web.py" 2>/dev/null || true
+
+    echo ""
+    print_info "所有服务已停止！"
     echo ""
 }
 
