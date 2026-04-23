@@ -316,6 +316,7 @@ export default function WriteDiaryScreen() {
 
   // 选择图片
   const handlePickImage = async () => {
+    console.log('[WriteDiary] Pick image clicked');
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
@@ -333,19 +334,22 @@ export default function WriteDiaryScreen() {
       if (!result.canceled && result.assets) {
         const newImages = result.assets.map(asset => asset.uri);
         setImages([...images, ...newImages].slice(0, 9)); // 最多9张
+        console.log('[WriteDiary] Images added:', newImages.length);
       }
     } catch (error) {
-      console.error('Error picking image:', error);
+      console.error('[WriteDiary] Error picking image:', error);
     }
   };
 
   // 删除图片
   const handleRemoveImage = (index: number) => {
+    console.log('[WriteDiary] Remove image at index:', index);
     setImages(images.filter((_, i) => i !== index));
   };
 
   // 获取位置
   const handleGetLocation = async () => {
+    console.log('[WriteDiary] Get location clicked');
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -358,13 +362,15 @@ export default function WriteDiaryScreen() {
         lat: locationData.coords.latitude,
         lng: locationData.coords.longitude,
       });
+      console.log('[WriteDiary] Location obtained:', locationData.coords);
     } catch (error) {
-      console.error('Error getting location:', error);
+      console.error('[WriteDiary] Error getting location:', error);
     }
   };
 
   // 添加标签
   const handleAddTag = () => {
+    console.log('[WriteDiary] Add tag:', tagInput);
     if (tagInput.trim() && !tags.includes(tagInput.trim())) {
       setTags([...tags, tagInput.trim()]);
       setTagInput('');
@@ -373,11 +379,32 @@ export default function WriteDiaryScreen() {
 
   // 删除标签
   const handleRemoveTag = (tag: string) => {
+    console.log('[WriteDiary] Remove tag:', tag);
     setTags(tags.filter((t) => t !== tag));
+  };
+
+  // 打开天气选择弹窗
+  const handleOpenWeatherModal = () => {
+    console.log('[WriteDiary] Open weather modal');
+    setShowWeatherModal(true);
+  };
+
+  // 打开情绪强度弹窗
+  const handleOpenMoodIntensityModal = () => {
+    console.log('[WriteDiary] Open mood intensity modal');
+    setShowMoodIntensityModal(true);
+  };
+
+  // 选择情绪
+  const handleSelectMood = (moodId: string) => {
+    console.log('[WriteDiary] Mood selected:', moodId);
+    setSelectedMood(moodId);
   };
 
   // 提交日记
   const handleSubmit = async () => {
+    console.log('[WriteDiary] Submit clicked, isEditMode:', isEditMode, 'editId:', editId);
+
     if (!content.trim()) {
       Alert.alert('提示', '请输入日记内容');
       return;
@@ -636,7 +663,7 @@ export default function WriteDiaryScreen() {
             {/* 天气选择 */}
             <TouchableOpacity
               style={[styles.toolBar, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}
-              onPress={() => setShowWeatherModal(true)}
+              onPress={handleOpenWeatherModal}
               activeOpacity={0.7}
             >
               <FontAwesome6
@@ -678,7 +705,7 @@ export default function WriteDiaryScreen() {
 
               <TouchableOpacity
                 style={styles.toolButton}
-                onPress={() => setShowMoodIntensityModal(true)}
+                onPress={handleOpenMoodIntensityModal}
                 activeOpacity={0.7}
               >
                 <FontAwesome6 name="sliders" size={18} color={selectedMood ? accent : muted} />
@@ -734,7 +761,7 @@ export default function WriteDiaryScreen() {
             {/* 情绪选择 */}
             <View style={styles.moodSection}>
               <Text style={[styles.sectionLabel, { color: muted }]}>当前心情</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.moodContainer}>
                 {MOODS.map((mood) => (
                   <TouchableOpacity
                     key={mood.id}
@@ -746,7 +773,7 @@ export default function WriteDiaryScreen() {
                         borderWidth: selectedMood === mood.id ? 2 : 1,
                       },
                     ]}
-                    onPress={() => setSelectedMood(mood.id)}
+                    onPress={() => handleSelectMood(mood.id)}
                     activeOpacity={0.7}
                   >
                     <FontAwesome6
@@ -764,7 +791,7 @@ export default function WriteDiaryScreen() {
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </View>
             </View>
 
             {/* 标签输入 */}
@@ -774,7 +801,11 @@ export default function WriteDiaryScreen() {
                 {tags.map((tag) => (
                   <View key={tag} style={[styles.tagBadge, { backgroundColor: `${accent}20` }]}>
                     <Text style={[styles.tagText, { color: accent }]}>{tag}</Text>
-                    <TouchableOpacity onPress={() => handleRemoveTag(tag)}>
+                    <TouchableOpacity
+                      style={styles.removeTagButton}
+                      onPress={() => handleRemoveTag(tag)}
+                      activeOpacity={0.7}
+                    >
                       <FontAwesome6 name="xmark" size={12} color={accent} />
                     </TouchableOpacity>
                   </View>
@@ -1115,6 +1146,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 10,
   },
   titleInput: {
     fontSize: 18,
@@ -1134,6 +1166,11 @@ const styles = StyleSheet.create({
   moodSection: {
     marginBottom: 16,
   },
+  moodContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   sectionLabel: {
     fontSize: 12,
     marginBottom: 8,
@@ -1143,7 +1180,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
-    marginRight: 8,
     minWidth: 70,
   },
   moodLabel: {
@@ -1173,6 +1209,11 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: 13,
     marginRight: 6,
+  },
+  removeTagButton: {
+    padding: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   tagInputRow: {
     flexDirection: 'row',
