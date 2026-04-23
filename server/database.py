@@ -1,5 +1,5 @@
 """
-MySQL 数据库连接模块
+MySQL 数据库连接模块（使用连接池优化性能）
 """
 
 import pymysql
@@ -22,16 +22,33 @@ MYSQL_CONFIG = {
     'autocommit': True
 }
 
+# 连接池配置
+class MySQLPool:
+    def __init__(self, max_connections=10):
+        self.max_connections = max_connections
+        self.pool = []
 
-def get_connection():
-    """获取数据库连接"""
-    return pymysql.connect(**MYSQL_CONFIG)
+    def get_connection(self):
+        """从连接池获取连接"""
+        if self.pool:
+            return self.pool.pop()
+        else:
+            return pymysql.connect(**MYSQL_CONFIG)
 
+    def release_connection(self, conn):
+        """释放连接回连接池"""
+        if len(self.pool) < self.max_connections:
+            self.pool.append(conn)
+        else:
+            conn.close()
+
+# 全局连接池
+_pool = MySQLPool(max_connections=10)
 
 @contextmanager
 def get_db_cursor():
     """获取数据库游标（上下文管理器）"""
-    conn = get_connection()
+    conn = _pool.get_connection()
     cursor = conn.cursor(DictCursor)
     try:
         yield cursor
@@ -41,7 +58,7 @@ def get_db_cursor():
         raise e
     finally:
         cursor.close()
-        conn.close()
+        _pool.release_connection(conn)
 
 
 def execute_query(query: str, params: tuple = None, fetch_one: bool = False):
