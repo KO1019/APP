@@ -464,10 +464,10 @@ export default function DiariesScreen() {
               <View style={styles.filterSection}>
                 <Text style={[styles.filterLabel, { color: foreground }]}>关键字搜索</Text>
                 <View style={styles.searchBoxWrapper}>
-                  <View style={[styles.searchBox, { borderColor: border }]}>
+                  <View style={styles.searchBox}>
                     <FontAwesome6 name="search" size={16} color={muted} />
                     <TextInput
-                      style={[styles.searchInput, { color: foreground }]}
+                      style={styles.searchInput}
                       placeholder="搜索标题、内容或标签"
                       placeholderTextColor={muted}
                       value={keyword}
@@ -888,6 +888,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1.5,
+    borderColor: 'rgba(253, 186, 116, 0.8)',
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     gap: 10,
   },
@@ -895,25 +896,30 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     padding: 0,
+    color: '#78350F',
   },
   clearButton: {
     padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   // 情绪按钮样式
   moodButtons: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    justifyContent: 'flex-start',
   },
   moodButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1.5,
     borderColor: 'rgba(0,0,0,0.08)',
     gap: 6,
+    minWidth: 80,
   },
   moodDot: {
     width: 8,

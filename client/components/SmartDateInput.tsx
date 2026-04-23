@@ -13,6 +13,7 @@ import {
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import dayjs from 'dayjs';
 import { FontAwesome6 } from '@expo/vector-icons';
+import { WebView } from 'react-native-webview';
 
 // 暖橙色主题配色
 const THEME = {
@@ -69,7 +70,7 @@ export const SmartDateInput = ({
   iconSize = 18
 }: SmartDateInputProps) => {
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
-  const webInputRef = useRef<any>(null);
+  const webInputRef = useRef<HTMLInputElement>(null);
 
   // 默认展示格式
   const format = displayFormat || (mode === 'time' ? 'HH:mm' : 'YYYY-MM-DD');
@@ -128,19 +129,11 @@ export const SmartDateInput = ({
   };
 
   // Web 端的原生日期输入处理
-  const handleWebInputChange = (e: any) => {
-    const text = e.target.value;
+  const handleWebInputChange = (text: string) => {
     if (text && text.match(/^\d{4}-\d{2}-\d{2}$/)) {
       onChange(text);
     }
   };
-
-  // 在 Web 端设置 input 的 type 属性
-  useEffect(() => {
-    if (Platform.OS === 'web' && webInputRef.current) {
-      webInputRef.current.type = mode === 'time' ? 'time' : 'date';
-    }
-  }, [mode]);
 
   // 根据 mode 选择图标
   const iconName = mode === 'time' ? 'clock' : 'calendar';
@@ -151,36 +144,21 @@ export const SmartDateInput = ({
       {label && <Text style={[styles.label, { color: THEME.foreground }, labelStyle]}>{label}</Text>}
 
       {Platform.OS === 'web' ? (
-        // Web 端：使用原生 HTML 日期输入框
-        <View style={[
-          styles.inputBox,
-          { backgroundColor: THEME.surface, borderColor: error ? '#EF4444' : THEME.border },
-          error ? styles.inputBoxError : null,
-          inputStyle
-        ]}>
+        // Web 端：使用可编辑的 TextInput
+        <View style={[styles.inputBox, { backgroundColor: THEME.surface }, inputStyle]}>
           <TextInput
-            ref={webInputRef as any}
-            style={[
-              styles.webInput,
-              { color: value ? THEME.foreground : THEME.muted },
-              textStyle,
-              !value && styles.placeholder,
-              !value && placeholderTextStyle
-            ]}
+            style={[styles.webInput, { color: value ? THEME.foreground : THEME.muted }]}
             placeholder={placeholder}
             placeholderTextColor={THEME.muted}
             value={displayString || ''}
-            onChange={handleWebInputChange as any}
-            // 禁用自动填充
-            autoComplete="off"
-            autoCorrect={false}
-            spellCheck={false}
+            onChangeText={handleWebInputChange}
+            maxLength={10}
           />
           <FontAwesome6
             name={iconName}
             size={iconSize}
             color={iconColor || (value ? THEME.accent : THEME.muted)}
-            style={styles.icon}
+            style={{ marginLeft: 12 }}
           />
         </View>
       ) : (
@@ -189,7 +167,7 @@ export const SmartDateInput = ({
           <TouchableOpacity
             style={[
               styles.inputBox,
-              { backgroundColor: THEME.surface, borderColor: error ? '#EF4444' : THEME.border },
+              { backgroundColor: THEME.surface },
               error ? styles.inputBoxError : null,
               inputStyle
             ]}
@@ -219,7 +197,7 @@ export const SmartDateInput = ({
 
           {error && <Text style={[styles.errorText, { color: '#EF4444' }, errorTextStyle]}>{error}</Text>}
 
-          {/*
+          {/* 
              DateTimePickerModal 是 React Native Modal。
              它会覆盖在所有 View 之上。
           */}
@@ -263,7 +241,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    borderWidth: 0, // 移除默认边框
+    borderWidth: 1.5,
+    borderColor: 'rgba(253, 186, 116, 0.8)', // 暖橙色边框
     // 增加轻微阴影提升层次感 (iOS)
     shadowColor: '#EA580C',
     shadowOffset: { width: 0, height: 2 },
