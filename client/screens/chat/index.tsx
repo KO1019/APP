@@ -112,10 +112,12 @@ export default function ChatScreen() {
           const localConversation = await getLocalChatMessage(params.conversationId);
           if (localConversation) {
             console.log('[Chat] Local conversation found:', localConversation);
-            setMessages([
-              { role: 'user', content: localConversation.userMessage },
-              { role: 'assistant', content: localConversation.aiMessage },
-            ]);
+            const newMessages = [
+              { role: 'user', content: localConversation.user_message || localConversation.userMessage },
+              { role: 'assistant', content: localConversation.ai_message || localConversation.aiMessage },
+            ];
+            console.log('[Chat] Setting local messages:', newMessages);
+            setMessages(newMessages);
             setCurrentConversationId(params.conversationId);
           } else {
             console.warn('[Chat] Local conversation not found:', params.conversationId);
