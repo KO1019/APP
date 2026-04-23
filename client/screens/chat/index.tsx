@@ -319,7 +319,8 @@ export default function ChatScreen() {
 
           // 添加一个空的 AI 消息占位符
           setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
-        } else {
+        }
+      } else {
         // 离线模式或未登录，只保存到本地
         if (isOfflineMode) {
           setMessages(prev => [...prev, { role: 'assistant', content: '抱歉，当前为离线模式，无法连接AI。' }]);
