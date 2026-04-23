@@ -1170,108 +1170,108 @@ ${content}
         </TouchableOpacity>
       </Modal>
 
-  // 日期选择器
-  {Platform.OS === 'web' && showDatePicker && (
-    <Modal visible={showDatePicker} transparent animationType="fade">
-      <TouchableOpacity
-        style={styles.modalOverlay}
-        activeOpacity={1}
-        onPress={() => setShowDatePicker(false)}
-      >
-        <View style={[styles.pickerModal, { backgroundColor: surface }]}>
-          <View style={styles.pickerHeader}>
-            <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-              <Text style={[styles.pickerCancel, { color: muted }]}>取消</Text>
-            </TouchableOpacity>
-            <Text style={[styles.pickerTitle, { color: foreground }]}>选择日期</Text>
-            <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-              <Text style={[styles.pickerConfirm, { color: accent }]}>确认</Text>
-            </TouchableOpacity>
-          </View>
-          <input
-            type="date"
-            value={diaryDate.toISOString().split('T')[0]}
-            onChange={(e) => {
-              if (e.target.value) {
-                const newDate = new Date(e.target.value);
-                newDate.setHours(diaryDate.getHours(), diaryDate.getMinutes());
-                setDiaryDate(newDate);
-              }
-            }}
-            style={{
-              padding: 16,
-              fontSize: 16,
-              borderWidth: 1,
-              borderColor: border,
-              borderRadius: 8,
-            }}
-          />
-        </View>
-      </TouchableOpacity>
-    </Modal>
-  )}
+      {/* 日期选择器 */}
+      {Platform.OS === 'web' && showDatePicker && (
+        <Modal visible={showDatePicker} transparent animationType="fade">
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowDatePicker(false)}
+          >
+            <View style={[styles.pickerModal, { backgroundColor: surface }]}>
+              <View style={styles.pickerHeader}>
+                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                  <Text style={[styles.pickerCancel, { color: muted }]}>取消</Text>
+                </TouchableOpacity>
+                <Text style={[styles.pickerTitle, { color: foreground }]}>选择日期</Text>
+                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                  <Text style={[styles.pickerConfirm, { color: accent }]}>确认</Text>
+                </TouchableOpacity>
+              </View>
+              <input
+                type="date"
+                value={diaryDate.toISOString().split('T')[0]}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    const newDate = new Date(e.target.value);
+                    newDate.setHours(diaryDate.getHours(), diaryDate.getMinutes());
+                    setDiaryDate(newDate);
+                  }
+                }}
+                style={{
+                  padding: 16,
+                  fontSize: 16,
+                  borderWidth: 1,
+                  borderColor: border,
+                  borderRadius: 8,
+                }}
+              />
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
 
-  {Platform.OS !== 'web' && showDatePicker && (
-    <DateTimePicker
-      value={diaryDate}
-      mode="date"
-      display={Platform.OS === 'ios' ? 'compact' : 'default'}
-      onChange={handleDateChange}
-      locale="zh-CN"
-    />
-  )}
+      {Platform.OS !== 'web' && showDatePicker && (
+        <DateTimePicker
+          value={diaryDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'compact' : 'default'}
+          onChange={handleDateChange}
+          locale="zh-CN"
+        />
+      )}
 
-  {/* 时间选择器 */}
-  {Platform.OS === 'web' && showTimePicker && (
-    <Modal visible={showTimePicker} transparent animationType="fade">
-      <TouchableOpacity
-        style={styles.modalOverlay}
-        activeOpacity={1}
-        onPress={() => setShowTimePicker(false)}
-      >
-        <View style={[styles.pickerModal, { backgroundColor: surface }]}>
-          <View style={styles.pickerHeader}>
-            <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-              <Text style={[styles.pickerCancel, { color: muted }]}>取消</Text>
-            </TouchableOpacity>
-            <Text style={[styles.pickerTitle, { color: foreground }]}>选择时间</Text>
-            <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-              <Text style={[styles.pickerConfirm, { color: accent }]}>确认</Text>
-            </TouchableOpacity>
-          </View>
-          <input
-            type="time"
-            value={`${diaryDate.getHours().toString().padStart(2, '0')}:${diaryDate.getMinutes().toString().padStart(2, '0')}`}
-            onChange={(e) => {
-              if (e.target.value) {
-                const [hours, minutes] = e.target.value.split(':').map(Number);
-                const newDate = new Date(diaryDate);
-                newDate.setHours(hours, minutes);
-                setDiaryDate(newDate);
-              }
-            }}
-            style={{
-              padding: 16,
-              fontSize: 16,
-              borderWidth: 1,
-              borderColor: border,
-              borderRadius: 8,
-            }}
-          />
-        </View>
-      </TouchableOpacity>
-    </Modal>
-  )}
+      {/* 时间选择器 */}
+      {Platform.OS === 'web' && showTimePicker && (
+        <Modal visible={showTimePicker} transparent animationType="fade">
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowTimePicker(false)}
+          >
+            <View style={[styles.pickerModal, { backgroundColor: surface }]}>
+              <View style={styles.pickerHeader}>
+                <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                  <Text style={[styles.pickerCancel, { color: muted }]}>取消</Text>
+                </TouchableOpacity>
+                <Text style={[styles.pickerTitle, { color: foreground }]}>选择时间</Text>
+                <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                  <Text style={[styles.pickerConfirm, { color: accent }]}>确认</Text>
+                </TouchableOpacity>
+              </View>
+              <input
+                type="time"
+                value={`${diaryDate.getHours().toString().padStart(2, '0')}:${diaryDate.getMinutes().toString().padStart(2, '0')}`}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    const [hours, minutes] = e.target.value.split(':').map(Number);
+                    const newDate = new Date(diaryDate);
+                    newDate.setHours(hours, minutes);
+                    setDiaryDate(newDate);
+                  }
+                }}
+                style={{
+                  padding: 16,
+                  fontSize: 16,
+                  borderWidth: 1,
+                  borderColor: border,
+                  borderRadius: 8,
+                }}
+              />
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
 
-  {Platform.OS !== 'web' && showTimePicker && (
-    <DateTimePicker
-      value={diaryDate}
-      mode="time"
-      display={Platform.OS === 'ios' ? 'compact' : 'default'}
-      onChange={handleTimeChange}
-      locale="zh-CN"
-    />
-  )}
+      {Platform.OS !== 'web' && showTimePicker && (
+        <DateTimePicker
+          value={diaryDate}
+          mode="time"
+          display={Platform.OS === 'ios' ? 'compact' : 'default'}
+          onChange={handleTimeChange}
+          locale="zh-CN"
+        />
+      )}
     </Screen>
   );
 }
