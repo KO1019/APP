@@ -535,7 +535,7 @@ HTML_TEMPLATE = """
 
         /* 登录界面样式 */
         .login-container {
-            display: none;
+            display: flex;
             position: fixed;
             top: 0;
             left: 0;
@@ -1032,8 +1032,10 @@ HTML_TEMPLATE = """
                 if (response.ok) {
                     authToken = data.access_token;
                     localStorage.setItem('adminToken', authToken);
-                    document.getElementById('login-screen').style.display = 'none';
-                    document.getElementById('main-screen').style.display = 'block';
+                    const loginScreen = document.getElementById('login-screen');
+                    const mainScreen = document.getElementById('main-screen');
+                    if (loginScreen) loginScreen.style.display = 'none';
+                    if (mainScreen) mainScreen.style.display = 'block';
                     loadDashboard();
                     return true;
                 } else {
@@ -1050,19 +1052,24 @@ HTML_TEMPLATE = """
         function logout() {
             authToken = null;
             localStorage.removeItem('adminToken');
-            document.getElementById('login-screen').style.display = 'flex';
-            document.getElementById('main-screen').style.display = 'none';
+            const loginScreen = document.getElementById('login-screen');
+            const mainScreen = document.getElementById('main-screen');
+            if (loginScreen) loginScreen.style.display = 'flex';
+            if (mainScreen) mainScreen.style.display = 'none';
         }
 
         // 检查登录状态
         function checkLogin() {
+            const loginScreen = document.getElementById('login-screen');
+            const mainScreen = document.getElementById('main-screen');
+            
             if (!authToken) {
-                document.getElementById('login-screen').style.display = 'flex';
-                document.getElementById('main-screen').style.display = 'none';
+                if (loginScreen) loginScreen.style.display = 'flex';
+                if (mainScreen) mainScreen.style.display = 'none';
                 return false;
             }
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('main-screen').style.display = 'block';
+            if (loginScreen) loginScreen.style.display = 'none';
+            if (mainScreen) mainScreen.style.display = 'block';
             return true;
         }
 
