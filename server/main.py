@@ -228,24 +228,94 @@ async def health_check():
 
 @app.get('/api/v1/app/download')
 async def get_app_download_info():
-    """获取APP下载链接"""
-    return {
-        "android": {
+    """获取APP下载链接（从数据库读取管理员推送的版本）"""
+    try:
+        if not db_client:
+            # 如果数据库未配置，返回默认数据
+            return {
+                "android": {
+                    "name": "Android",
+                    "url": "https://anjia.work/download/emotion-diary.apk",
+                    "version": "1.0.0",
+                    "size": "50MB",
+                    "min_version": "Android 8.0"
+                },
+                "ios": {
+                    "name": "iOS",
+                    "url": "https://apps.apple.com/cn/app/emotion-diary/id123456789",
+                    "version": "1.0.0",
+                    "size": "45MB",
+                    "min_version": "iOS 14.0"
+                },
+                "download_page": "https://anjia.work/download"
+            }
+
+        # 从数据库获取激活的版本
+        result = db_client.table('versions').select('*').eq('is_active', True).execute()
+
+        android_info = {
             "name": "Android",
             "url": "https://anjia.work/download/emotion-diary.apk",
             "version": "1.0.0",
             "size": "50MB",
             "min_version": "Android 8.0"
-        },
-        "ios": {
+        }
+
+        ios_info = {
             "name": "iOS",
             "url": "https://apps.apple.com/cn/app/emotion-diary/id123456789",
             "version": "1.0.0",
             "size": "45MB",
             "min_version": "iOS 14.0"
-        },
-        "download_page": "https://anjia.work/download"
-    }
+        }
+
+        # 如果数据库中有激活的版本，使用数据库中的数据
+        if result.data:
+            for version in result.data:
+                if version.get('platform') == 'android' and version.get('file_url'):
+                    android_info["url"] = version['file_url']
+                    android_info["version"] = version.get('version_name', '1.0.0')
+                    android_info["build_number"] = version.get('build_number', '1')
+                    android_info["version_code"] = version.get('version_code', '1')
+                    android_info["release_notes"] = version.get('release_notes', '')
+                    if version.get('file_size'):
+                        size_mb = version['file_size'] / (1024 * 1024)
+                        android_info["size"] = f"{size_mb:.1f}MB"
+                elif version.get('platform') == 'ios' and version.get('file_url'):
+                    ios_info["url"] = version['file_url']
+                    ios_info["version"] = version.get('version_name', '1.0.0')
+                    ios_info["build_number"] = version.get('build_number', '1')
+                    ios_info["version_code"] = version.get('version_code', '1')
+                    ios_info["release_notes"] = version.get('release_notes', '')
+                    if version.get('file_size'):
+                        size_mb = version['file_size'] / (1024 * 1024)
+                        ios_info["size"] = f"{size_mb:.1f}MB"
+
+        return {
+            "android": android_info,
+            "ios": ios_info,
+            "download_page": "https://anjia.work/download"
+        }
+    except Exception as e:
+        # 出错时返回默认数据
+        print(f"Error fetching download info: {e}")
+        return {
+            "android": {
+                "name": "Android",
+                "url": "https://anjia.work/download/emotion-diary.apk",
+                "version": "1.0.0",
+                "size": "50MB",
+                "min_version": "Android 8.0"
+            },
+            "ios": {
+                "name": "iOS",
+                "url": "https://apps.apple.com/cn/app/emotion-diary/id123456789",
+                "version": "1.0.0",
+                "size": "45MB",
+                "min_version": "iOS 14.0"
+            },
+            "download_page": "https://anjia.work/download"
+        }
 
 
 @app.post('/api/v1/auth/register')
@@ -1383,21 +1453,27 @@ async def handle_client_message(websocket: WebSocket, client: RealtimeDialogClie
 
 class CreateVersion(BaseModel):
     """创建版本"""
-    version: str
-    build_number: int
+    version_name: str  # 版本号，如 "2.0.0"
+    version_code: int  # 版本代码，如 2
+    build_number: int  # 构建号，如 200
     platform: str  # android 或 ios
-    force_update: bool = False
-    release_notes: str
-    update_url: Optional[str] = None
+    release_notes: str  # 更新说明
+    file_url: str  # 下载链接
+    file_size: Optional[int] = None  # 文件大小（字节）
+    checksum: Optional[str] = None  # 文件校验和
+    min_sdk_version: Optional[int] = None  # 最低SDK版本（Android）
 
 
 class UpdateVersion(BaseModel):
     """更新版本"""
-    version: Optional[str] = None
+    version_name: Optional[str] = None
+    version_code: Optional[int] = None
     build_number: Optional[int] = None
-    force_update: Optional[bool] = None
     release_notes: Optional[str] = None
-    update_url: Optional[str] = None
+    file_url: Optional[str] = None
+    file_size: Optional[int] = None
+    checksum: Optional[str] = None
+    min_sdk_version: Optional[int] = None
 
 
 # 管理员认证相关
@@ -1462,19 +1538,25 @@ async def create_version(version_data: CreateVersion, request: Request):
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
     # 检查版本号是否已存在
-    existing = db_client.table('versions').select('*').eq('platform', version_data.platform).eq('version', version_data.version).execute()
+    existing = db_client.table('versions').select('*').eq('platform', version_data.platform).eq('version_code', version_data.version_code).execute()
 
     if existing.data:
-        raise HTTPException(status_code=400, detail="该平台的此版本号已存在")
+        raise HTTPException(status_code=400, detail="该平台的此版本代码已存在")
 
     # 创建版本
+    version_id = f"v{version_data.version_name.replace('.', '_')}-{version_data.platform}"
+
     result = db_client.table('versions').insert({
-        "version": version_data.version,
+        "id": version_id,
+        "version_name": version_data.version_name,
+        "version_code": version_data.version_code,
         "build_number": version_data.build_number,
         "platform": version_data.platform,
-        "force_update": version_data.force_update,
         "release_notes": version_data.release_notes,
-        "update_url": version_data.update_url,
+        "file_url": version_data.file_url,
+        "file_size": version_data.file_size,
+        "checksum": version_data.checksum,
+        "min_sdk_version": version_data.min_sdk_version,
         "is_active": False,  # 新版本默认不激活
     }).execute()
 

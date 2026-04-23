@@ -192,27 +192,32 @@
         <h1>AI情绪日记</h1>
         <p class="subtitle">用AI陪伴你的情绪成长之路</p>
 
-        <div class="version-info">
-            <strong>当前版本：</strong> v1.0.0<br>
-            <strong>更新日期：</strong> 2026年4月23日
-        </div>
-
         <div class="download-buttons">
-            <a href="/download/emotion-diary.apk" class="download-btn android">
+            <a href="#" id="android-download" class="download-btn android">
                 <span class="btn-icon">🤖</span>
                 <div class="btn-text">
                     <div class="btn-title">Android 下载</div>
-                    <div class="btn-info">支持 Android 8.0+ | 文件大小: 50MB</div>
+                    <div class="btn-info" id="android-info">加载中...</div>
                 </div>
             </a>
 
-            <a href="https://apps.apple.com/cn/app/emotion-diary/id123456789" class="download-btn ios">
+            <a href="#" id="ios-download" class="download-btn ios">
                 <span class="btn-icon">🍎</span>
                 <div class="btn-text">
                     <div class="btn-title">iOS 下载</div>
-                    <div class="btn-info">支持 iOS 14.0+ | 文件大小: 45MB</div>
+                    <div class="btn-info" id="ios-info">加载中...</div>
                 </div>
             </a>
+        </div>
+
+        <div class="version-info">
+            <strong>当前版本：</strong> <span id="current-version">加载中...</span><br>
+            <strong>更新日期：</strong> <span id="update-date">加载中...</span>
+        </div>
+
+        <div id="release-notes" class="version-info" style="display: none;">
+            <strong>更新内容：</strong>
+            <div id="release-notes-content"></div>
         </div>
 
         <div class="features">
@@ -261,7 +266,94 @@
             }
         }
 
-        detectDevice();
+        // 从后端API获取下载信息
+        async function fetchDownloadInfo() {
+            try {
+                const response = await fetch('/api/v1/app/download');
+                if (!response.ok) {
+                    throw new Error('获取下载信息失败');
+                }
+
+                const data = await response.json();
+
+                // 更新Android下载链接
+                const androidDownload = document.getElementById('android-download');
+                const androidInfo = document.getElementById('android-info');
+                if (androidDownload && data.android) {
+                    androidDownload.href = data.android.url;
+                    androidInfo.textContent = `支持 Android 8.0+ | 版本: ${data.android.version}`;
+                }
+
+                // 更新iOS下载链接
+                const iosDownload = document.getElementById('ios-download');
+                const iosInfo = document.getElementById('ios-info');
+                if (iosDownload && data.ios) {
+                    iosDownload.href = data.ios.url;
+                    iosInfo.textContent = `支持 iOS 14.0+ | 版本: ${data.ios.version}`;
+                }
+
+                // 更新版本信息
+                const currentVersion = document.getElementById('current-version');
+                const updateDate = document.getElementById('update-date');
+                if (currentVersion) {
+                    const version = data.android?.version || data.ios?.version || '1.0.0';
+                    currentVersion.textContent = `v${version}`;
+                }
+                if (updateDate) {
+                    const now = new Date();
+                    updateDate.textContent = now.toLocaleDateString('zh-CN');
+                }
+
+                // 显示更新内容（如果有）
+                const releaseNotesDiv = document.getElementById('release-notes');
+                const releaseNotesContent = document.getElementById('release-notes-content');
+                if (releaseNotesDiv && releaseNotesContent) {
+                    const androidNotes = data.android?.release_notes;
+                    const iosNotes = data.ios?.release_notes;
+                    const notes = androidNotes || iosNotes;
+
+                    if (notes) {
+                        releaseNotesContent.innerHTML = notes.replace(/\n/g, '<br>');
+                        releaseNotesDiv.style.display = 'block';
+                    }
+                }
+
+                console.log('下载信息加载成功:', data);
+
+            } catch (error) {
+                console.error('加载下载信息失败:', error);
+
+                // 加载失败时显示默认信息
+                const androidInfo = document.getElementById('android-info');
+                const iosInfo = document.getElementById('ios-info');
+
+                if (androidInfo) {
+                    androidInfo.textContent = '支持 Android 8.0+ | 版本: 1.0.0';
+                }
+                if (iosInfo) {
+                    iosInfo.textContent = '支持 iOS 14.0+ | 版本: 1.0.0';
+                }
+
+                const currentVersion = document.getElementById('current-version');
+                const updateDate = document.getElementById('update-date');
+                if (currentVersion) {
+                    currentVersion.textContent = 'v1.0.0';
+                }
+                if (updateDate) {
+                    const now = new Date();
+                    updateDate.textContent = now.toLocaleDateString('zh-CN');
+                }
+
+                // 显示错误提示
+                alert('加载下载信息失败，请刷新页面重试');
+            }
+        }
+
+        // 页面加载时获取下载信息
+        document.addEventListener('DOMContentLoaded', function() {
+            detectDevice();
+            fetchDownloadInfo();
+        });
     </script>
 </body>
 </html>
