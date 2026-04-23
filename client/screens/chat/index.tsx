@@ -190,11 +190,14 @@ export default function ChatScreen() {
               diaryId: params.relatedDiaryId || null,
             }),
           }).then(async (response) => {
+            console.log('[Chat] Response received, status:', response.status, 'ok:', response.ok);
+
             if (!response.ok) {
               throw new Error(`HTTP ${response.status}`);
             }
 
             const reader = response.body?.getReader();
+            console.log('[Chat] Reader created:', !!reader);
             const decoder = new TextDecoder();
             let aiResponse = '';
 
@@ -203,7 +206,9 @@ export default function ChatScreen() {
             }
 
             while (true) {
+              console.log('[Chat] Waiting for chunk...');
               const { done, value } = await reader.read();
+              console.log('[Chat] Chunk read, done:', done, 'value length:', value?.length);
 
               if (done) {
                 console.log('[Chat] Stream finished');
