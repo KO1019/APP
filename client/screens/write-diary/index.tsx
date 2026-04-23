@@ -622,7 +622,8 @@ ${content}
             });
 
             if (!response.ok) {
-              throw new Error('Failed to upload diary to cloud');
+              const errorData = await response.json().catch(() => ({}));
+              throw new Error(errorData.message || errorData.error || `Failed to upload diary to cloud (HTTP ${response.status})`);
             }
 
             const data = await response.json();
@@ -635,7 +636,7 @@ ${content}
             ]);
           } catch (error) {
             console.error('Error uploading diary to cloud:', error);
-            Alert.alert('部分成功', '日记已保存到本地，但上传云端失败', [
+            Alert.alert('上传失败', error instanceof Error ? error.message : '日记已保存到本地，但上传云端失败', [
               { text: '确定', onPress: () => router.back() },
             ]);
           }
@@ -651,7 +652,9 @@ ${content}
       }
     } catch (error) {
       console.error('Error saving diary:', error);
-      Alert.alert('错误', '保存失败，请重试');
+      Alert.alert('错误', error instanceof Error ? error.message : '保存失败，请重试', [
+        { text: '确定', onPress: () => {} },
+      ]);
     } finally {
       setSubmitting(false);
     }

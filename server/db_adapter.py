@@ -114,13 +114,21 @@ class Table:
         if hasattr(self, '_insert_data'):
             # INSERT 查询
             import json
+            import uuid
 
-            columns = ', '.join(self._insert_data.keys())
-            placeholders = ', '.join(['%s'] * len(self._insert_data))
+            # 过滤掉id字段，让系统生成新的UUID
+            insert_data = {k: v for k, v in self._insert_data.items() if k != 'id'}
+
+            # 如果过滤后没有id字段，自动生成UUID
+            if 'id' not in insert_data:
+                insert_data['id'] = str(uuid.uuid4())
+
+            columns = ', '.join(insert_data.keys())
+            placeholders = ', '.join(['%s'] * len(insert_data))
 
             # 转换值为SQL参数（处理JSON字段）
             values = []
-            for value in self._insert_data.values():
+            for value in insert_data.values():
                 if isinstance(value, (list, dict)):
                     # JSON 字段需要转换为 JSON 字符串
                     values.append(json.dumps(value, ensure_ascii=False))
@@ -133,7 +141,7 @@ class Table:
             execute_insert(insert_query, values)
 
             # 返回插入的数据
-            return type('Result', (), {'data': [self._insert_data]})()
+            return type('Result', (), {'data': [insert_data]})()
         elif hasattr(self, '_delete'):
             # DELETE 查询
             delete_query = query.replace(f"SELECT {select_columns} FROM", "DELETE FROM")
@@ -144,19 +152,22 @@ class Table:
             # UPDATE 查询
             import json
 
+            # 过滤掉id字段，不允许修改主键
+            update_data = {k: v for k, v in self._update_data.items() if k != 'id'}
+
             update_query = query.replace(f"SELECT {select_columns} FROM", "UPDATE")
             update_query = update_query.split(" ORDER BY")[0]  # 更新不需要 ORDER BY
 
             # 转换值为SQL参数（处理JSON字段）
             update_values = []
-            for value in self._update_data.values():
+            for value in update_data.values():
                 if isinstance(value, (list, dict)):
                     # JSON 字段需要转换为 JSON 字符串
                     update_values.append(json.dumps(value, ensure_ascii=False))
                 else:
                     update_values.append(value)
 
-            set_clause = ', '.join([f"{k} = %s" for k in self._update_data.keys()])
+            set_clause = ', '.join([f"{k} = %s" for k in update_data.keys()])
             update_query = update_query.replace(" WHERE", f" SET {set_clause} WHERE")
             update_params = tuple(update_values) + params
             rowcount = execute_update(update_query, update_params)
