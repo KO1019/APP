@@ -49,9 +49,6 @@ export const API_CONFIG = {
     }
   })(),
 
-  // 是否允许不安全的连接（仅用于开发环境）
-  allowInsecureConnections: true,
-
   // API超时时间（毫秒）
   timeout: parseInt(process.env.EXPO_PUBLIC_API_TIMEOUT || '30000', 10),
 } as const;
