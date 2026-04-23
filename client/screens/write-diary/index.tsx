@@ -305,7 +305,11 @@ ${content}
       const authToken = await AsyncStorage.getItem('authToken');
       if (!authToken) {
         console.log('[WriteDiary] No auth token found');
-        Alert.alert('错误', '请先登录');
+        Alert.alert(
+          '提示',
+          'AI功能需要登录后使用。\n\n您可以：\n1. 先保存日记到本地\n2. 登录后再使用AI功能进行润色和分析',
+          [{ text: '确定' }]
+        );
         return;
       }
 

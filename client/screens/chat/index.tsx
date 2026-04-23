@@ -166,16 +166,12 @@ export default function ChatScreen() {
     setCurrentConversationId(conversationId);
 
     try {
-      // 如果是在线模式，发送到云端
-      if (!isOfflineMode && user?.cloud_sync_enabled) {
+      // AI功能只需要检查：用户已登录且不是离线模式
+      if (!isOfflineMode && token) {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         };
-
-        // 添加 token（如果存在）
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
 
         const sse = new RNSSE(buildApiUrl('/api/v1/chat'), {
           method: 'POST',
@@ -239,9 +235,13 @@ export default function ChatScreen() {
 
         // SSE 实例创建后自动连接，无需手动调用 connect()
       } else {
-        // 离线模式或未开启云端同步，只保存到本地
-        setMessages(prev => [...prev, { role: 'assistant', content: '抱歉，当前为离线模式，无法连接AI，请先开启云端同步。' }]);
-        saveChatMessageLocally(conversationId, userMessage, '抱歉，当前为离线模式，无法连接AI，请先开启云端同步。', params.relatedDiaryId || null, false);
+        // 离线模式或未登录，只保存到本地
+        if (isOfflineMode) {
+          setMessages(prev => [...prev, { role: 'assistant', content: '抱歉，当前为离线模式，无法连接AI。' }]);
+        } else {
+          setMessages(prev => [...prev, { role: 'assistant', content: '抱歉，请先登录后再使用AI功能。' }]);
+        }
+        saveChatMessageLocally(conversationId, userMessage, '离线模式，无法使用AI功能', params.relatedDiaryId || null, false);
         setLoading(false);
       }
     } catch (error) {
