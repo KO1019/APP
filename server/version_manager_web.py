@@ -1076,9 +1076,6 @@ HTML_TEMPLATE = """
             </form>
         </div>
     </div>
-            </div>
-        </div>
-    </div>
 
     <script>
         const API_BASE = '{{ API_BASE }}';
