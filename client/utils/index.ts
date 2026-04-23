@@ -11,15 +11,28 @@ const API_BASE = (process.env.EXPO_PUBLIC_API_BASE ?? '').replace(/\/$/, '');
  * @returns 完整的API URL
  */
 export const buildApiUrl = (path: string): string => {
-  const backendUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
+  let url: string;
 
-  // 在Web环境下，如果后端URL是外部域名但我们在本地开发，使用localhost
-  if (Platform.OS === 'web' && backendUrl.includes('dev.coze.site')) {
-    return `http://localhost:9091${path}`;
+  // 在Web环境下，检查是否在 dev.coze.site 域名下
+  if (Platform.OS === 'web') {
+    // 如果在 dev.coze.site 域名下，使用完整的外部URL
+    if (typeof window !== 'undefined' && window.location.hostname.includes('dev.coze.site')) {
+      const backendUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
+      url = `${backendUrl}${path}`;
+      console.log('[buildApiUrl] Web environment (dev.coze.site):', url);
+    } else {
+      // 如果在本地开发，使用 localhost
+      url = `http://localhost:9091${path}`;
+      console.log('[buildApiUrl] Web environment (local):', url);
+    }
+  } else {
+    // 在移动端（Android/iOS）使用环境变量或默认值
+    const backendUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
+    url = `${backendUrl}${path}`;
+    console.log('[buildApiUrl] Mobile environment:', url);
   }
 
-  // 在所有平台下都使用完整URL，避免Web代理问题
-  return `${backendUrl}${path}`;
+  return url;
 };
 
 /**

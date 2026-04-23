@@ -102,12 +102,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (username: string, password: string) => {
     try {
+      const apiUrl = buildApiUrl('/api/v1/auth/login');
+      console.log('[Auth] Attempting login to:', apiUrl);
+
       /**
        * 服务端文件：server/main.py
        * 接口：POST /api/v1/auth/login
        * Body 参数：username: string, password: string
        */
-      const response = await fetch(buildApiUrl('/api/v1/auth/login'), {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -115,9 +118,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ username, password }),
       });
 
+      console.log('[Auth] Response status:', response.status);
+      console.log('[Auth] Response ok:', response.ok);
+
       if (!response.ok) {
         // 先读取响应内容（只读取一次，避免"body stream already read"错误）
         const text = await response.text();
+        console.log('[Auth] Error response:', text);
         let errorMessage = '登录失败';
 
         try {
@@ -132,17 +139,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const data = await response.json();
-      const { user, token: newToken } = data;
+      console.log('[Auth] Login successful, user:', data.user.username);
 
       // 保存到本地存储
-      await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, newToken);
-      await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+      await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, data.token);
+      await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(data.user));
 
       // 更新状态
-      setToken(newToken);
-      setUser(user);
+      setToken(data.token);
+      setUser(data.user);
     } catch (error: any) {
-      console.error('Error logging in:', error);
+      console.error('[Auth] Error logging in:', error);
+      console.error('[Auth] Error details:', {
+        message: error.message,
+        stack: error.stack,
+        cause: error.cause,
+      });
       throw error;
     }
   };

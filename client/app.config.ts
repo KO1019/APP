@@ -32,12 +32,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     "plugins": [
       "expo-updates",
-      process.env.EXPO_PUBLIC_BACKEND_BASE_URL ? [
+      [
         "expo-router",
         {
-          "origin": process.env.EXPO_PUBLIC_BACKEND_BASE_URL
+          "origin": "http://localhost:9091"
         }
-      ] : 'expo-router',
+      ],
       [
         "expo-splash-screen",
         {
