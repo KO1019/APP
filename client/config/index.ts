@@ -40,9 +40,9 @@ export const API_CONFIG = {
 
     // 根据平台自动选择后端地址
     if (isWeb) {
-      // Web 环境（沙盒）：使用本地后端
-      // 注意：需要在沙箱中启动本地后端服务
-      return 'http://localhost:9091';
+      // Web 环境（沙盒）：使用沙箱服务器的内网地址
+      // 注意：在云端环境中，localhost 无法解析到服务器，需要使用实际 IP
+      return 'http://9.129.7.228:9091';
     } else {
       // 移动端（iOS/Android）：使用阿里云后端
       return 'http://59.110.39.235:9091';
