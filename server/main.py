@@ -789,14 +789,10 @@ async def generate_diary_from_chat(data: GenerateDiaryFromChat, user_id: str = D
     if not db_client:
         raise HTTPException(status_code=500, detail="Database not configured")
 
-    try:
-        from coze_coding_dev_sdk import LLMClient
-        from coze_coding_utils.runtime_ctx.context import Context, new_context
-        from langchain_core.messages import SystemMessage, HumanMessage
-        import json
+    import json
 
-        ctx = new_context(method="invoke")
-        client = LLMClient(ctx=ctx)
+    try:
+        from langchain_core.messages import SystemMessage, HumanMessage
 
         # 构建prompt
         system_prompt = """你是一位专业的日记助手。请根据用户和AI的对话记录，生成一篇结构化的日记。
@@ -823,27 +819,25 @@ async def generate_diary_from_chat(data: GenerateDiaryFromChat, user_id: str = D
 - 只返回JSON，不要有其他文字"""
 
         messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=f"以下是对话记录：\n\n{data.conversation}\n\n请根据这段对话生成日记。")
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"以下是对话记录：\n\n{data.conversation}\n\n请根据这段对话生成日记。"}
         ]
 
-        # 调用LLM生成日记
-        response = client.invoke(messages=messages, temperature=0.7, thinking="disabled")
+        # 使用已有的LLM调用方式
+        response_text = ""
+
+        def collect_response(chunk: str):
+            nonlocal response_text
+            response_text += chunk
+
+        await call_llm_stream(messages, collect_response)
+
+        if not response_text:
+            raise HTTPException(status_code=500, detail="AI未返回任何内容")
 
         # 提取响应内容
-        def get_text_content(content):
-            if isinstance(content, str):
-                return content
-            elif isinstance(content, list):
-                if content and isinstance(content[0], str):
-                    return " ".join(content)
-                else:
-                    return " ".join(item.get("text", "") for item in content if isinstance(item, dict) and item.get("type") == "text")
-            return str(content)
+        diary_json_str = response_text.strip()
 
-        diary_json_str = get_text_content(response.content)
-
-        # 解析JSON
         # 尝试从响应中提取JSON部分
         json_start = diary_json_str.find('{')
         json_end = diary_json_str.rfind('}') + 1

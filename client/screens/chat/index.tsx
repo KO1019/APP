@@ -352,17 +352,22 @@ export default function ChatScreen() {
 
   // 保存对话为日记
   const handleSaveConversationAsDiary = async () => {
+    console.log('[Chat] Save as diary clicked, messages length:', messages.length);
+
     if (!token) {
+      console.log('[Chat] No token, showing alert');
       Alert.alert('提示', '请先登录');
       return;
     }
 
     if (messages.length === 0) {
+      console.log('[Chat] No messages, showing alert');
       Alert.alert('提示', '暂无对话记录');
       return;
     }
 
     try {
+      console.log('[Chat] Starting to generate diary...');
       setLoading(true);
 
       // 将对话记录转换为文本
@@ -373,12 +378,17 @@ export default function ChatScreen() {
         })
         .join('\n\n');
 
+      console.log('[Chat] Conversation text prepared, length:', conversationText.length);
+
+      const url = buildApiUrl('/api/v1/diaries/generate-from-chat');
+      console.log('[Chat] Sending request to:', url);
+
       /**
        * 服务端文件：server/main.py
        * 接口：POST /api/v1/diaries/generate-from-chat
        * Body 参数：conversation: string
        */
-      const response = await fetch(buildApiUrl('/api/v1/diaries/generate-from-chat'), {
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -389,12 +399,16 @@ export default function ChatScreen() {
         }),
       });
 
+      console.log('[Chat] Response received, status:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('[Chat] Error response:', errorData);
         throw new Error(errorData.detail || '生成日记失败');
       }
 
       const data = await response.json();
+      console.log('[Chat] Diary generated successfully, id:', data.id);
 
       Alert.alert(
         '成功',
@@ -405,7 +419,7 @@ export default function ChatScreen() {
         ]
       );
     } catch (error) {
-      console.error('Error generating diary:', error);
+      console.error('[Chat] Error generating diary:', error);
       Alert.alert('错误', '生成日记失败，请重试');
     } finally {
       setLoading(false);
