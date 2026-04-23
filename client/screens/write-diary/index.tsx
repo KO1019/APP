@@ -1302,7 +1302,9 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalContent: {
     borderTopLeftRadius: 24,
@@ -1459,11 +1461,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   confirmDialog: {
+    backgroundColor: '#FFFFFF',
     width: width * 0.85,
     padding: 24,
     borderRadius: 20,
     alignItems: 'center',
     gap: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 12,
   },
   confirmDialogTitle: {
     fontSize: 20,

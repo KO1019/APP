@@ -17,7 +17,15 @@ import {
   getLocalDiaries,
   type LocalDiary,
 } from '@/utils/localStorage';
-import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown, ZoomIn } from 'react-native-reanimated';
+
+// 格式化日期为 YYYY-MM-DD
+const formatDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 interface Diary {
   id: string;
@@ -430,66 +438,101 @@ export default function DiariesScreen() {
         onRequestClose={() => setShowFilterModal(false)}
       >
         <Animated.View style={styles.modalOverlay} entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.modalContainer}
+          <Animated.View
+            style={[styles.modalContent, { backgroundColor: '#FFFFFF' }]}
+            entering={ZoomIn.duration(300).springify().damping(20)}
+            exiting={FadeOut.duration(200)}
           >
-            <Animated.View
-              style={[styles.modalContent, { backgroundColor: surface }]}
-              entering={SlideInDown.duration(350).springify().damping(20)}
-              exiting={SlideOutDown.duration(250)}
-            >
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: foreground }]}>时间筛选</Text>
-                <TouchableOpacity onPress={() => setShowFilterModal(false)}>
-                  <FontAwesome6 name="xmark" size={20} color={muted} />
-                </TouchableOpacity>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: foreground }]}>时间筛选</Text>
+              <TouchableOpacity onPress={() => setShowFilterModal(false)}>
+                <FontAwesome6 name="xmark" size={20} color={muted} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <View style={styles.dateInputContainer}>
+                <Text style={[styles.dateLabel, { color: foreground }]}>开始日期</Text>
+                <TextInput
+                  style={[styles.dateInput, { backgroundColor: background, color: foreground, borderColor: border }]}
+                  value={startDate}
+                  onChangeText={setStartDate}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={muted}
+                />
               </View>
 
-              <View style={styles.modalBody}>
-                <View style={styles.dateInputContainer}>
-                  <Text style={[styles.dateLabel, { color: foreground }]}>开始日期</Text>
-                  <TextInput
-                    style={[styles.dateInput, { backgroundColor: background, color: foreground, borderColor: border }]}
-                    value={startDate}
-                    onChangeText={setStartDate}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={muted}
-                  />
+              <View style={styles.dateInputContainer}>
+                <Text style={[styles.dateLabel, { color: foreground }]}>结束日期</Text>
+                <TextInput
+                  style={[styles.dateInput, { backgroundColor: background, color: foreground, borderColor: border }]}
+                  value={endDate}
+                  onChangeText={setEndDate}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={muted}
+                />
+              </View>
+
+              <Text style={[styles.hintText, { color: muted }]}>
+                格式：YYYY-MM-DD（例如：2026-04-01）
+              </Text>
+
+              <View style={styles.quickFilterContainer}>
+                <Text style={[styles.quickFilterTitle, { color: foreground }]}>快捷筛选</Text>
+                <View style={styles.quickFilterButtons}>
+                  <TouchableOpacity
+                    style={[styles.quickFilterButton, { backgroundColor: `${accent}15`, borderColor: accent }]}
+                    onPress={() => {
+                      const today = new Date();
+                      setStartDate(formatDate(today));
+                      setEndDate(formatDate(today));
+                    }}
+                  >
+                    <Text style={[styles.quickFilterButtonText, { color: accent }]}>今天</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.quickFilterButton, { backgroundColor: `${accent}15`, borderColor: accent }]}
+                    onPress={() => {
+                      const end = new Date();
+                      const start = new Date();
+                      start.setDate(start.getDate() - 7);
+                      setStartDate(formatDate(start));
+                      setEndDate(formatDate(end));
+                    }}
+                  >
+                    <Text style={[styles.quickFilterButtonText, { color: accent }]}>近7天</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.quickFilterButton, { backgroundColor: `${accent}15`, borderColor: accent }]}
+                    onPress={() => {
+                      const end = new Date();
+                      const start = new Date();
+                      start.setDate(start.getDate() - 30);
+                      setStartDate(formatDate(start));
+                      setEndDate(formatDate(end));
+                    }}
+                  >
+                    <Text style={[styles.quickFilterButtonText, { color: accent }]}>近30天</Text>
+                  </TouchableOpacity>
                 </View>
-
-                <View style={styles.dateInputContainer}>
-                  <Text style={[styles.dateLabel, { color: foreground }]}>结束日期</Text>
-                  <TextInput
-                    style={[styles.dateInput, { backgroundColor: background, color: foreground, borderColor: border }]}
-                    value={endDate}
-                    onChangeText={setEndDate}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={muted}
-                  />
-                </View>
-
-                <Text style={[styles.hintText, { color: muted }]}>
-                  格式：YYYY-MM-DD（例如：2026-04-01）
-                </Text>
               </View>
+            </View>
 
-              <View style={styles.modalFooter}>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.cancelButton, { borderColor: border }]}
-                  onPress={handleClearFilter}
-                >
-                  <Text style={[styles.cancelButtonText, { color: muted }]}>清除</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.confirmButton, { backgroundColor: accent }]}
-                  onPress={handleApplyFilter}
-                >
-                  <Text style={styles.confirmButtonText}>应用</Text>
-                </TouchableOpacity>
-              </View>
-            </Animated.View>
-          </KeyboardAvoidingView>
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { borderColor: border }]}
+                onPress={handleClearFilter}
+              >
+                <Text style={[styles.cancelButtonText, { color: muted }]}>清除</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmButton, { backgroundColor: accent }]}
+                onPress={handleApplyFilter}
+              >
+                <Text style={styles.confirmButtonText}>应用</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
         </Animated.View>
       </Modal>
 
@@ -657,17 +700,24 @@ const styles = StyleSheet.create({
   // Modal styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
   },
   modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',
   },
   modalContent: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 12,
+    maxHeight: '80%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -734,5 +784,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  // 快捷筛选样式
+  quickFilterContainer: {
+    marginTop: 24,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(234, 88, 12, 0.1)',
+  },
+  quickFilterTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  quickFilterButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  quickFilterButton: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    alignItems: 'center',
+  },
+  quickFilterButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

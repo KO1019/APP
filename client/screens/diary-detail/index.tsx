@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Image, Platform } from 'react-native';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { useFocusEffect } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
@@ -174,54 +174,70 @@ export default function DiaryDetailScreen() {
   };
 
   const handleDelete = () => {
-    Alert.alert(
-      '确认删除',
-      '确定要删除这篇日记吗？此操作不可恢复。',
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '删除',
-          style: 'destructive',
-          onPress: async () => {
-            if (!diary) return;
+    console.log('[DiaryDetail] 删除按钮被点击');
 
-            try {
-              setDeleting(true);
-
-              if (diary.id.startsWith('local_')) {
-                // 删除本地日记
-                await deleteLocalDiary(diary.id);
-              } else if (token) {
-                // 删除云端日记
-                /**
-                 * 服务端文件：server/main.py
-                 * 接口：DELETE /api/v1/diaries/{diary_id}
-                 * Headers: Authorization: Bearer {token}
-                 */
-                const response = await fetch(buildApiUrl(`/api/v1/diaries/${diary.id}`), {
-                  method: 'DELETE',
-                  headers: {
-                    'Authorization': `Bearer ${token}`,
-                  },
-                });
-
-                if (!response.ok) {
-                  throw new Error('删除失败');
-                }
-              }
-
-              Alert.alert('成功', '日记已删除');
-              router.back();
-            } catch (error) {
-              console.error('[DiaryDetail] Error deleting diary:', error);
-              Alert.alert('错误', '删除失败，请重试');
-            } finally {
-              setDeleting(false);
-            }
+    if (Platform.OS === 'web') {
+      // Web端使用 confirm
+      const confirmed = window.confirm('确定要删除这篇日记吗？此操作不可恢复。');
+      if (!confirmed) return;
+      performDelete();
+    } else {
+      // 移动端使用 Alert
+      Alert.alert(
+        '确认删除',
+        '确定要删除这篇日记吗？此操作不可恢复。',
+        [
+          { text: '取消', style: 'cancel' },
+          {
+            text: '删除',
+            style: 'destructive',
+            onPress: performDelete,
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
+  };
+
+  const performDelete = async () => {
+    if (!diary) return;
+
+    try {
+      setDeleting(true);
+
+      if (diary.id.startsWith('local_')) {
+        // 删除本地日记
+        await deleteLocalDiary(diary.id);
+      } else if (token) {
+        // 删除服务器日记
+        const response = await fetch(
+          `${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/diaries/${diary.id}`,
+          {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || '删除失败');
+        }
+      }
+
+      router.back();
+    } catch (error: any) {
+      console.error('[DiaryDetail] Error deleting diary:', error);
+      const errorMsg = error.message || '删除失败，请稍后重试';
+      if (Platform.OS === 'web') {
+        alert('删除失败: ' + errorMsg);
+      } else {
+        Alert.alert('删除失败', errorMsg);
+      }
+    } finally {
+      setDeleting(false);
+    }
   };
 
   if (loading) {
