@@ -105,9 +105,19 @@ export default function WriteDiaryScreen() {
 
   // AI陪伴功能状态
   const [showAIPanel, setShowAIPanel] = useState(false); // AI伴写面板
+  const [showAIButton, setShowAIButton] = useState(false); // AI按钮（智能显示）
   const [aiActionType, setAIActionType] = useState<'continue' | 'inspiration' | 'polish' | 'analyze'>('continue'); // AI操作类型
   const [aiLoading, setAILoading] = useState(false);
   const [aiResult, setAIResult] = useState(''); // AI生成的结果
+
+  // 监听用户输入，智能显示AI按钮
+  useEffect(() => {
+    if (content && content.trim().length > 10) {
+      setShowAIButton(true);
+    } else {
+      setShowAIButton(false);
+    }
+  }, [content]); // HMR更新触发点
 
   const [background, surface, accent, foreground, muted, border] = useCSSVariable([
     '--color-background',
@@ -641,19 +651,17 @@ ${content || '(日记内容为空，请先开始写作)'}
             keyboardShouldPersistTaps="handled"
             pointerEvents="box-none"
           >
-            {/* AI陪伴按钮 */}
-            <TouchableOpacity
-              style={[styles.aiAssistantButton, { backgroundColor: `${accent}15`, borderColor: `${accent}40`, borderWidth: 1 }]}
-              onPress={() => setShowAIPanel(true)}
-              activeOpacity={0.7}
-            >
-              <FontAwesome6 name="robot" size={20} color={accent} />
-              <View style={styles.aiAssistantButtonContent}>
-                <Text style={[styles.aiAssistantButtonText, { color: foreground }]}>AI伴写</Text>
-                <Text style={[styles.aiAssistantButtonSubtext, { color: muted }]}>智能续写·灵感提示·润色优化</Text>
-              </View>
-              <FontAwesome6 name="chevron-right" size={16} color={muted} />
-            </TouchableOpacity>
+            {/* AI伴写浮动按钮 - 智能显示 */}
+            {showAIButton && !showAIPanel && (
+              <TouchableOpacity
+                style={[styles.floatingAIButton, { backgroundColor: accent }]}
+                onPress={() => setShowAIPanel(true)}
+                activeOpacity={0.8}
+              >
+                <FontAwesome6 name="robot" size={20} color="#fff" />
+                <Text style={styles.floatingAIButtonText}>AI来帮忙</Text>
+              </TouchableOpacity>
+            )}
 
             {/* 模板选择 */}
             {!isEditMode && (
@@ -1182,6 +1190,29 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
     paddingHorizontal: 16,
+  },
+  // 浮动AI按钮（智能显示）
+  floatingAIButton: {
+    position: 'absolute',
+    bottom: 120,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 100,
+  },
+  floatingAIButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
+    marginLeft: 8,
   },
   aiAssistantButton: {
     flexDirection: 'row',
