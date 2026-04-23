@@ -178,8 +178,16 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, hashed: str) -> bool:
-    """验证密码（使用 bcrypt）"""
-    return pwd_context.verify(password, hashed)
+    """验证密码（支持 bcrypt 和 SHA256）"""
+    # 如果是 bcrypt 哈希（以 $2b$ 开头）
+    if hashed.startswith('$2b$'):
+        return pwd_context.verify(password, hashed)
+    # 如果是 SHA256 哈希（64位十六进制）
+    elif len(hashed) == 64 and all(c in '0123456789abcdef' for c in hashed.lower()):
+        return hashlib.sha256(password.encode()).hexdigest() == hashed
+    # 其他格式暂时不支持
+    else:
+        return False
 
 
 # ========== LLM API调用 ==========
