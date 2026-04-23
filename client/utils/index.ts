@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
+import { API_CONFIG } from '@/config';
 dayjs.extend(utc);
 
 const API_BASE = (process.env.EXPO_PUBLIC_API_BASE ?? '').replace(/\/$/, '');
@@ -15,20 +16,18 @@ export const buildApiUrl = (path: string): string => {
 
   // 在Web环境下，检查是否在 dev.coze.site 域名下
   if (Platform.OS === 'web') {
-    // 如果在 dev.coze.site 域名下，使用完整的外部URL
+    // 如果在 dev.coze.site 域名下，使用配置的后端 URL
     if (typeof window !== 'undefined' && window.location.hostname.includes('dev.coze.site')) {
-      const backendUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
-      url = `${backendUrl}${path}`;
+      url = `${API_CONFIG.baseUrl}${path}`;
       console.log('[buildApiUrl] Web environment (dev.coze.site):', url);
     } else {
-      // 如果在本地开发，使用 localhost
-      url = `http://localhost:9091${path}`;
+      // 如果在本地开发，使用配置的后端URL
+      url = `${API_CONFIG.baseUrl}${path}`;
       console.log('[buildApiUrl] Web environment (local):', url);
     }
   } else {
-    // 在移动端（Android/iOS）使用环境变量或默认值
-    const backendUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
-    url = `${backendUrl}${path}`;
+    // 在移动端（Android/iOS）使用配置的后端URL
+    url = `${API_CONFIG.baseUrl}${path}`;
     console.log('[buildApiUrl] Mobile environment:', url);
   }
 
