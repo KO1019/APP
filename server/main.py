@@ -2112,18 +2112,35 @@ async def get_active_announcements(user_id: Optional[str] = None):
     if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
-    now = datetime.now().isoformat()
+    now = datetime.now()
 
-    # 获取活跃的公告
+    # 获取所有活跃的公告
     result = db_client.table('announcements').select('*')\
         .eq('is_active', True)\
-        .or_(f'start_time.is.null,start_time.lte.{now}')\
-        .or_(f'end_time.is.null,end_time.gte.{now}')\
         .order('priority', desc=True)\
         .execute()
 
     if not result.data:
         return {"success": True, "announcements": []}
+
+    # 在 Python 代码中过滤时间条件
+    announcements = []
+    for announcement in result.data:
+        # 检查开始时间（如果设置，必须已经到达）
+        start_time = announcement.get('start_time')
+        if start_time and isinstance(start_time, str):
+            start_datetime = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+            if start_datetime > now:
+                continue  # 还没到开始时间
+
+        # 检查结束时间（如果设置，必须还未到达）
+        end_time = announcement.get('end_time')
+        if end_time and isinstance(end_time, str):
+            end_datetime = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+            if end_datetime < now:
+                continue  # 已经过期
+
+        announcements.append(announcement)
 
     # 如果提供了用户 ID，过滤用户已查看的公告
     if user_id:
@@ -2134,9 +2151,7 @@ async def get_active_announcements(user_id: Optional[str] = None):
         viewed_ids = set(item['announcement_id'] for item in viewed_result.data) if viewed_result.data else set()
 
         # 过滤已查看的
-        announcements = [a for a in result.data if a['id'] not in viewed_ids]
-    else:
-        announcements = result.data
+        announcements = [a for a in announcements if a['id'] not in viewed_ids]
 
     return {"success": True, "announcements": announcements}
 
