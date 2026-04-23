@@ -42,55 +42,183 @@ HTML_TEMPLATE = """
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #f8f9fa;
             min-height: 100vh;
-            padding: 20px;
+            margin: 0;
+        }
+
+        /* 主界面容器样式 */
+        .main-screen-wrapper {
+            min-height: 100vh;
+            background: #f8f9fa;
         }
 
         /* 登录页面样式 */
-        .login-container {
-            max-width: 400px;
-            margin: 100px auto;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            padding: 40px;
+        .login-wrapper {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
         }
 
-        .login-container h1 {
+        .login-left {
+            flex: 1;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 60px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-left::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: rotate 30s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .login-left-content {
+            position: relative;
+            z-index: 1;
             text-align: center;
-            margin-bottom: 30px;
-            color: #667eea;
+            color: white;
         }
 
-        .login-form input {
+        .login-logo {
+            width: 120px;
+            height: 120px;
+            background: white;
+            border-radius: 24px;
+            margin: 0 auto 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 64px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .login-left h1 {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .login-left p {
+            font-size: 18px;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+
+        .login-right {
+            flex: 0 0 500px;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 60px 80px;
+            box-shadow: -10px 0 40px rgba(0,0,0,0.1);
+        }
+
+        .login-card {
             width: 100%;
-            padding: 12px;
-            margin-bottom: 15px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
+            max-width: 360px;
+        }
+
+        .login-card h2 {
+            font-size: 32px;
+            color: #2d3748;
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+
+        .login-card .subtitle {
+            color: #718096;
             font-size: 16px;
+            margin-bottom: 40px;
         }
 
-        .login-form button {
+        .form-group {
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #4a5568;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .form-group input {
             width: 100%;
-            padding: 12px;
+            padding: 14px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 15px;
+            transition: all 0.3s;
+            background: #f7fafc;
+            color: #2d3748;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group input::placeholder {
+            color: #a0aec0;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 16px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
         }
 
-        .login-form button:hover {
-            opacity: 0.9;
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
         }
 
         .login-error {
-            color: red;
+            color: #e53e3e;
+            margin-bottom: 20px;
+            padding: 12px 16px;
+            background: #fff5f5;
+            border: 1px solid #fed7d7;
+            border-radius: 8px;
+            font-size: 14px;
             text-align: center;
-            margin-bottom: 15px;
         }
 
         /* 主界面样式 */
@@ -533,83 +661,6 @@ HTML_TEMPLATE = """
             }
         }
 
-        /* 登录界面样式 */
-        .login-container {
-            display: flex;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-        }
-
-        .login-card {
-            background: white;
-            padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            width: 100%;
-            max-width: 400px;
-            animation: fadeIn 0.5s ease-in;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .login-header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .login-header h1 {
-            color: #495057;
-            margin-bottom: 10px;
-        }
-
-        .login-header p {
-            color: #6c757d;
-            font-size: 14px;
-        }
-
-        .login-body {
-            margin-bottom: 20px;
-        }
-
-        .login-footer {
-            text-align: center;
-            color: #6c757d;
-            font-size: 12px;
-        }
-
-        .login-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-        }
-
-        .login-overlay.active {
-            display: flex;
-        }
-
         .main-content {
             display: none;
         }
@@ -617,35 +668,45 @@ HTML_TEMPLATE = """
         .main-content.active {
             display: block;
         }
-
-        .login-error {
-            color: #dc3545;
-            margin-bottom: 15px;
-            padding: 10px;
-            background: #f8d7da;
-            border-radius: 6px;
-            font-size: 14px;
-        }
     </style>
 </head>
 <body>
     <!-- 登录界面 -->
-    <div id="login-screen" class="login-container">
-        <h1>管理后台登录</h1>
-        <div id="login-error" class="login-error"></div>
-        <form id="login-form" class="login-form">
-            <input type="text" id="username" name="username" placeholder="用户名" required>
-            <input type="password" id="password" name="password" placeholder="密码" required>
-            <button type="submit">登录</button>
-        </form>
+    <div id="login-screen" class="login-wrapper">
+        <div class="login-left">
+            <div class="login-left-content">
+                <div class="login-logo">📦</div>
+                <h1>版本管理系统</h1>
+                <p>专业的APP版本管理解决方案<br>轻松管理版本、推送更新、查看统计</p>
+            </div>
+        </div>
+        <div class="login-right">
+            <div class="login-card">
+                <h2>欢迎回来</h2>
+                <p class="subtitle">登录以访问管理后台</p>
+                <div id="login-error" class="login-error" style="display: none;"></div>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="username">用户名</label>
+                        <input type="text" id="username" name="username" placeholder="请输入用户名" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">密码</label>
+                        <input type="password" id="password" name="password" placeholder="请输入密码" required>
+                    </div>
+                    <button type="submit" class="login-btn">登录</button>
+                </form>
+            </div>
+        </div>
     </div>
 
     <!-- 主界面 -->
     <div id="main-screen" class="main-content">
-        <div class="container">
-        <div class="header">
-            <h1>📦 版本管理系统</h1>
-            <p>管理APP版本、推送更新、查看更新统计</p>
+        <div class="main-screen-wrapper">
+            <div class="container">
+            <div class="header">
+                <h1>📦 版本管理系统</h1>
+                <p>管理APP版本、推送更新、查看更新统计</p>
         </div>
 
         <div class="nav">
@@ -1015,6 +1076,9 @@ HTML_TEMPLATE = """
             </form>
         </div>
     </div>
+            </div>
+        </div>
+    </div>
 
     <script>
         const API_BASE = '{{ API_BASE }}';
@@ -1039,11 +1103,19 @@ HTML_TEMPLATE = """
                     loadDashboard();
                     return true;
                 } else {
-                    document.getElementById('login-error').textContent = data.detail || '登录失败';
+                    const errorEl = document.getElementById('login-error');
+                    if (errorEl) {
+                        errorEl.textContent = data.detail || '登录失败';
+                        errorEl.style.display = 'block';
+                    }
                     return false;
                 }
             } catch (error) {
-                document.getElementById('login-error').textContent = '网络错误，请检查连接';
+                const errorEl = document.getElementById('login-error');
+                if (errorEl) {
+                    errorEl.textContent = '网络错误，请检查连接';
+                    errorEl.style.display = 'block';
+                }
                 return false;
             }
         }
@@ -1078,7 +1150,28 @@ HTML_TEMPLATE = """
             e.preventDefault();
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
-            await login(username, password);
+            const submitBtn = e.target.querySelector('button');
+
+            // 显示 loading 状态
+            submitBtn.textContent = '登录中...';
+            submitBtn.disabled = true;
+
+            const success = await login(username, password);
+
+            // 恢复按钮状态
+            submitBtn.textContent = '登录';
+            submitBtn.disabled = false;
+        });
+
+        // 输入时清除错误提示
+        document.getElementById('username').addEventListener('input', function() {
+            const errorEl = document.getElementById('login-error');
+            if (errorEl) errorEl.style.display = 'none';
+        });
+
+        document.getElementById('password').addEventListener('input', function() {
+            const errorEl = document.getElementById('login-error');
+            if (errorEl) errorEl.style.display = 'none';
         });
 
         // 修改 fetchWithAuth 函数
