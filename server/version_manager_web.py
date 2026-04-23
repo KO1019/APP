@@ -13,6 +13,7 @@ from fastapi import FastAPI, Request, HTTPException, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
 import requests
 from dotenv import load_dotenv
 
@@ -20,6 +21,15 @@ load_dotenv()
 
 # FastAPI应用
 app = FastAPI(title="版本管理系统")
+
+# CORS中间件 - 允许管理后台跨域访问后端API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 允许所有来源
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # 配置
 BASE_URL = os.getenv('VERSION_MANAGER_API_URL', 'http://localhost:9091')
@@ -42,7 +52,7 @@ HTML_TEMPLATE = """
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #f8f9fa;
+            background: #FFF7ED; /* 暖橙色背景 */
             min-height: 100vh;
             margin: 0;
         }
@@ -50,116 +60,104 @@ HTML_TEMPLATE = """
         /* 主界面容器样式 */
         .main-screen-wrapper {
             min-height: 100vh;
-            background: #f8f9fa;
+            background: #FFF7ED;
         }
 
-        /* 登录页面样式 */
+        /* 登录页面样式 - 居中布局 */
         .login-wrapper {
             display: flex;
-            width: 100%;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        .login-left {
-            flex: 1;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
             align-items: center;
-            padding: 60px;
+            justify-content: center;
+            width: 100%;
+            min-height: 100vh;
+            padding: 20px;
+            background: #FFF7ED;
             position: relative;
             overflow: hidden;
         }
 
-        .login-left::before {
+        /* 背景装饰 */
+        .login-wrapper::before {
             content: '';
             position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-            animation: rotate 30s linear infinite;
+            top: -20%;
+            right: -20%;
+            width: 60%;
+            height: 60%;
+            background: radial-gradient(circle, rgba(234, 88, 12, 0.08) 0%, transparent 70%);
+            border-radius: 50%;
         }
 
-        @keyframes rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
-        .login-left-content {
-            position: relative;
-            z-index: 1;
-            text-align: center;
-            color: white;
-        }
-
-        .login-logo {
-            width: 120px;
-            height: 120px;
-            background: white;
-            border-radius: 24px;
-            margin: 0 auto 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 64px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-
-        .login-left h1 {
-            font-size: 48px;
-            font-weight: 700;
-            margin-bottom: 20px;
-            text-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
-
-        .login-left p {
-            font-size: 18px;
-            opacity: 0.9;
-            line-height: 1.6;
-        }
-
-        .login-right {
-            flex: 0 0 500px;
-            background: white;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 60px 80px;
-            box-shadow: -10px 0 40px rgba(0,0,0,0.1);
+        .login-wrapper::after {
+            content: '';
+            position: absolute;
+            bottom: -20%;
+            left: -20%;
+            width: 50%;
+            height: 50%;
+            background: radial-gradient(circle, rgba(234, 88, 12, 0.05) 0%, transparent 70%);
+            border-radius: 50%;
         }
 
         .login-card {
             width: 100%;
-            max-width: 360px;
+            max-width: 420px;
+            background: rgba(255, 255, 255, 0.85); /* 半透明白色 */
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 48px;
+            box-shadow:
+                0 2px 8px rgba(234, 88, 12, 0.08),
+                0 1px 4px rgba(234, 88, 12, 0.04),
+                0 0 1px rgba(234, 88, 12, 0.06),
+                0 20px 40px rgba(234, 88, 12, 0.08);
+            position: relative;
+            z-index: 1;
+            border: 1px solid rgba(234, 88, 12, 0.05);
         }
 
-        .login-card h2 {
-            font-size: 32px;
-            color: #2d3748;
-            margin-bottom: 12px;
-            font-weight: 700;
-        }
-
-        .login-card .subtitle {
-            color: #718096;
-            font-size: 16px;
+        .login-header {
+            text-align: center;
             margin-bottom: 40px;
         }
 
+        .login-logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #EA580C 0%, #F97316 100%);
+            border-radius: 20px;
+            margin: 0 auto 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            box-shadow:
+                0 2px 4px rgba(234, 88, 12, 0.04),
+                0 1px 2px rgba(234, 88, 12, 0.06);
+        }
+
+        .login-card h2 {
+            font-size: 28px;
+            color: #422006; /* 暖褐色 */
+            margin-bottom: 8px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .login-card .subtitle {
+            color: #78350F; /* 暖褐色 */
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
         .form-group {
-            margin-bottom: 24px;
-            position: relative;
+            margin-bottom: 20px;
         }
 
         .form-group label {
             display: block;
             margin-bottom: 8px;
-            color: #4a5568;
+            color: #422006; /* 暖褐色 */
             font-size: 14px;
             font-weight: 500;
         }
@@ -167,29 +165,30 @@ HTML_TEMPLATE = """
         .form-group input {
             width: 100%;
             padding: 14px 16px;
-            border: 2px solid #e2e8f0;
+            border: 2px solid rgba(234, 88, 12, 0.1);
             border-radius: 12px;
             font-size: 15px;
             transition: all 0.3s;
-            background: #f7fafc;
-            color: #2d3748;
+            background: #FFF7ED; /* 暖橙色背景 */
+            color: #422006; /* 暖褐色 */
         }
 
         .form-group input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #EA580C;
             background: white;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.1);
         }
 
         .form-group input::placeholder {
-            color: #a0aec0;
+            color: #78350F; /* 暖褐色 */
+            opacity: 0.5;
         }
 
         .login-btn {
             width: 100%;
             padding: 16px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #EA580C 0%, #F97316 100%);
             color: white;
             border: none;
             border-radius: 12px;
@@ -198,24 +197,33 @@ HTML_TEMPLATE = """
             cursor: pointer;
             transition: all 0.3s;
             margin-top: 10px;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            box-shadow:
+                0 2px 4px rgba(234, 88, 12, 0.04),
+                0 1px 2px rgba(234, 88, 12, 0.06);
         }
 
-        .login-btn:hover {
+        .login-btn:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+            box-shadow:
+                0 4px 8px rgba(234, 88, 12, 0.12),
+                0 2px 4px rgba(234, 88, 12, 0.08);
         }
 
-        .login-btn:active {
+        .login-btn:active:not(:disabled) {
             transform: translateY(0);
         }
 
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         .login-error {
-            color: #e53e3e;
+            color: #DC2626;
             margin-bottom: 20px;
             padding: 12px 16px;
-            background: #fff5f5;
-            border: 1px solid #fed7d7;
+            background: rgba(220, 38, 38, 0.1);
+            border: 1px solid rgba(220, 38, 38, 0.2);
             border-radius: 8px;
             font-size: 14px;
             text-align: center;
@@ -229,14 +237,19 @@ HTML_TEMPLATE = """
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            background: rgba(255, 255, 255, 0.85); /* 半透明白色 */
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            box-shadow:
+                0 2px 8px rgba(234, 88, 12, 0.08),
+                0 1px 4px rgba(234, 88, 12, 0.04),
+                0 20px 40px rgba(234, 88, 12, 0.08);
             overflow: hidden;
+            border: 1px solid rgba(234, 88, 12, 0.05);
         }
 
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #EA580C 0%, #F97316 100%);
             color: white;
             padding: 30px;
             text-align: center;
@@ -247,12 +260,14 @@ HTML_TEMPLATE = """
             position: absolute;
             right: 30px;
             top: 30px;
-            padding: 8px 16px;
+            padding: 10px 20px;
             background: rgba(255,255,255,0.2);
             border: 1px solid rgba(255,255,255,0.5);
-            border-radius: 6px;
+            border-radius: 8px;
             color: white;
             cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
         }
 
         .logout-btn:hover {
@@ -262,6 +277,7 @@ HTML_TEMPLATE = """
         .header h1 {
             font-size: 32px;
             margin-bottom: 10px;
+            font-weight: 700;
         }
 
         .header p {
@@ -273,35 +289,36 @@ HTML_TEMPLATE = """
             display: flex;
             gap: 10px;
             padding: 20px 30px;
-            background: #f8f9fa;
-            border-bottom: 1px solid #e9ecef;
+            background: #FFF7ED; /* 暖橙色背景 */
+            border-bottom: 1px solid rgba(234, 88, 12, 0.1);
             flex-wrap: wrap;
         }
 
         .nav button {
             padding: 10px 20px;
-            border: none;
+            border: 2px solid rgba(234, 88, 12, 0.1);
             border-radius: 8px;
             cursor: pointer;
             font-size: 14px;
             font-weight: 500;
             transition: all 0.3s;
             background: white;
-            color: #495057;
-            border: 2px solid #dee2e6;
+            color: #422006; /* 暖褐色 */
         }
 
         .nav button:hover {
-            background: #667eea;
+            background: #EA580C;
             color: white;
-            border-color: #667eea;
+            border-color: #EA580C;
             transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(234, 88, 12, 0.12);
         }
 
         .nav button.active {
-            background: #667eea;
+            background: #EA580C;
             color: white;
-            border-color: #667eea;
+            border-color: #EA580C;
+            box-shadow: 0 2px 4px rgba(234, 88, 12, 0.08);
         }
 
         .content {
@@ -324,37 +341,50 @@ HTML_TEMPLATE = """
         }
 
         .card {
-            background: #f8f9fa;
-            border-radius: 12px;
-            padding: 20px;
-            border: 1px solid #e9ecef;
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid rgba(234, 88, 12, 0.1);
+            box-shadow:
+                0 2px 4px rgba(234, 88, 12, 0.04),
+                0 1px 2px rgba(234, 88, 12, 0.06);
+            transition: all 0.3s;
+        }
+
+        .card:hover {
+            box-shadow:
+                0 4px 8px rgba(234, 88, 12, 0.08),
+                0 2px 4px rgba(234, 88, 12, 0.12);
         }
 
         .card h3 {
-            color: #495057;
+            color: #422006; /* 暖褐色 */
             margin-bottom: 15px;
             font-size: 18px;
             display: flex;
             align-items: center;
             gap: 10px;
+            font-weight: 600;
         }
 
         .card .version-info {
             font-size: 24px;
             font-weight: bold;
-            color: #667eea;
+            color: #EA580C; /* 暖橙色 */
             margin-bottom: 10px;
         }
 
         .card .build-number {
-            color: #6c757d;
+            color: #78350F; /* 暖褐色 */
             font-size: 14px;
             margin-bottom: 10px;
+            opacity: 0.8;
         }
 
         .card .release-date {
-            color: #6c757d;
+            color: #78350F; /* 暖褐色 */
             font-size: 12px;
+            opacity: 0.8;
         }
 
         .form {
@@ -370,7 +400,7 @@ HTML_TEMPLATE = """
             display: block;
             margin-bottom: 8px;
             font-weight: 500;
-            color: #495057;
+            color: #422006; /* 暖褐色 */
         }
 
         .form-group input,
@@ -378,17 +408,21 @@ HTML_TEMPLATE = """
         .form-group textarea {
             width: 100%;
             padding: 12px;
-            border: 2px solid #e9ecef;
+            border: 2px solid rgba(234, 88, 12, 0.1);
             border-radius: 8px;
             font-size: 14px;
-            transition: border-color 0.3s;
+            transition: all 0.3s;
+            background: #FFF7ED; /* 暖橙色背景 */
+            color: #422006; /* 暖褐色 */
         }
 
         .form-group input:focus,
         .form-group select:focus,
         .form-group textarea:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #EA580C;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.1);
         }
 
         .form-group textarea {
@@ -397,10 +431,11 @@ HTML_TEMPLATE = """
         }
 
         .form-group small {
-            color: #6c757d;
+            color: #78350F; /* 暖褐色 */
             font-size: 12px;
             margin-top: 5px;
             display: block;
+            opacity: 0.8;
         }
 
         .btn {
@@ -417,59 +452,58 @@ HTML_TEMPLATE = """
         }
 
         .btn-primary {
-            background: #667eea;
+            background: linear-gradient(135deg, #EA580C 0%, #F97316 100%);
             color: white;
+            box-shadow: 0 2px 4px rgba(234, 88, 12, 0.08);
         }
 
         .btn-primary:hover {
-            background: #5568d3;
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 4px 8px rgba(234, 88, 12, 0.12);
         }
 
         .btn-danger {
-            background: #dc3545;
+            background: #DC2626;
             color: white;
         }
 
         .btn-danger:hover {
-            background: #c82333;
+            background: #B91C1C;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(220, 38, 38, 0.12);
         }
 
         .btn-success {
-            background: #28a745;
+            background: #10B981;
             color: white;
         }
 
         .btn-success:hover {
-            background: #218838;
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(16, 185, 129, 0.12);
         }
 
         .btn-info {
-            background: #17a2b8;
+            background: #3B82F6;
             color: white;
         }
 
         .btn-info:hover {
-            background: #138496;
-        }
-
-        .btn-warning {
-            background: #ffc107;
-            color: #212529;
-        }
-
-        .btn-warning:hover {
-            background: #e0a800;
+            background: #2563EB;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(59, 130, 246, 0.12);
         }
 
         .btn-secondary {
-            background: #6c757d;
+            background: #78350F; /* 暖褐色 */
             color: white;
         }
 
         .btn-secondary:hover {
-            background: #5a6268;
+            background: #92400E;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(120, 53, 15, 0.12);
         }
 
         .btn-small {
@@ -481,45 +515,53 @@ HTML_TEMPLATE = """
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
         }
 
         .versions-table th,
         .versions-table td {
             padding: 12px;
             text-align: left;
-            border-bottom: 1px solid #e9ecef;
+            border-bottom: 1px solid rgba(234, 88, 12, 0.1);
+            color: #422006; /* 暖褐色 */
         }
 
         .versions-table th {
-            background: #f8f9fa;
-            font-weight: 500;
-            color: #495057;
+            background: #FFF7ED; /* 暖橙色背景 */
+            font-weight: 600;
+            color: #422006; /* 暖褐色 */
+            border-bottom: 2px solid rgba(234, 88, 12, 0.15);
         }
 
         .versions-table tr:hover {
-            background: #f8f9fa;
+            background: #FFF7ED; /* 暖橙色背景 */
         }
 
         .badge {
             padding: 4px 8px;
-            border-radius: 4px;
+            border-radius: 6px;
             font-size: 12px;
             font-weight: 500;
         }
 
         .badge-success {
-            background: #d4edda;
-            color: #155724;
+            background: rgba(16, 185, 129, 0.1);
+            color: #10B981;
+            border: 1px solid rgba(16, 185, 129, 0.2);
         }
 
         .badge-warning {
-            background: #fff3cd;
-            color: #856404;
+            background: rgba(245, 158, 11, 0.1);
+            color: #F59E0B;
+            border: 1px solid rgba(245, 158, 11, 0.2);
         }
 
         .badge-danger {
-            background: #f8d7da;
-            color: #721c24;
+            background: rgba(220, 38, 38, 0.1);
+            color: #DC2626;
+            border: 1px solid rgba(220, 38, 38, 0.2);
         }
 
         .badge-info {
@@ -610,20 +652,25 @@ HTML_TEMPLATE = """
         .modal-content {
             background: white;
             padding: 30px;
-            border-radius: 12px;
+            border-radius: 16px;
             max-width: 500px;
             width: 90%;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow:
+                0 4px 16px rgba(234, 88, 12, 0.1),
+                0 -8px 24px rgba(234, 88, 12, 0.04),
+                0 20px 40px rgba(234, 88, 12, 0.08);
         }
 
         .modal h2 {
             margin-bottom: 15px;
-            color: #495057;
+            color: #422006; /* 暖褐色 */
+            font-weight: 600;
         }
 
         .modal p {
-            color: #6c757d;
+            color: #78350F; /* 暖褐色 */
             margin-bottom: 20px;
+            opacity: 0.8;
         }
 
         .modal-actions {
@@ -641,9 +688,17 @@ HTML_TEMPLATE = """
 
         .filter-bar select {
             padding: 8px 12px;
-            border: 2px solid #e9ecef;
-            border-radius: 6px;
+            border: 2px solid rgba(234, 88, 12, 0.1);
+            border-radius: 8px;
             font-size: 14px;
+            background: #FFF7ED; /* 暖橙色背景 */
+            color: #422006; /* 暖褐色 */
+        }
+
+        .filter-bar select:focus {
+            outline: none;
+            border-color: #EA580C;
+            box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.1);
         }
 
         @media (max-width: 768px) {
@@ -659,6 +714,10 @@ HTML_TEMPLATE = """
             .versions-table td {
                 padding: 8px 4px;
             }
+
+            .login-card {
+                padding: 32px;
+            }
         }
 
         .main-content {
@@ -673,30 +732,24 @@ HTML_TEMPLATE = """
 <body>
     <!-- 登录界面 -->
     <div id="login-screen" class="login-wrapper">
-        <div class="login-left">
-            <div class="login-left-content">
+        <div class="login-card">
+            <div class="login-header">
                 <div class="login-logo">📦</div>
-                <h1>版本管理系统</h1>
-                <p>专业的APP版本管理解决方案<br>轻松管理版本、推送更新、查看统计</p>
-            </div>
-        </div>
-        <div class="login-right">
-            <div class="login-card">
                 <h2>欢迎回来</h2>
                 <p class="subtitle">登录以访问管理后台</p>
-                <div id="login-error" class="login-error" style="display: none;"></div>
-                <form id="login-form">
-                    <div class="form-group">
-                        <label for="username">用户名</label>
-                        <input type="text" id="username" name="username" placeholder="请输入用户名" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="password">密码</label>
-                        <input type="password" id="password" name="password" placeholder="请输入密码" required>
-                    </div>
-                    <button type="submit" class="login-btn">登录</button>
-                </form>
             </div>
+            <div id="login-error" class="login-error" style="display: none;"></div>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <input type="text" id="username" name="username" placeholder="请输入用户名" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input type="password" id="password" name="password" placeholder="请输入密码" required>
+                </div>
+                <button type="submit" class="login-btn">登录</button>
+            </form>
         </div>
     </div>
 
@@ -705,6 +758,7 @@ HTML_TEMPLATE = """
         <div class="main-screen-wrapper">
             <div class="container">
             <div class="header">
+                <button onclick="logout()" class="logout-btn">🚪 登出</button>
                 <h1>📦 版本管理系统</h1>
                 <p>管理APP版本、推送更新、查看更新统计</p>
         </div>

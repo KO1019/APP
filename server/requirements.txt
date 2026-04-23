@@ -9,3 +9,4 @@ redis==5.0.0
 oss2==2.18.0
 requests==2.31.0
 python-multipart==0.0.12
+passlib[bcrypt]==1.7.4
