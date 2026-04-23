@@ -567,10 +567,13 @@ export default function WriteDiaryScreen() {
     return (
       <Screen safeAreaEdges={['left', 'right', 'top']}>
         <View style={[styles.container, { backgroundColor: background }]}>
-          <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+          <View style={[styles.header, { paddingTop: insets.top + 12, zIndex: 100 }]}>
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => router.back()}
+              onPress={() => {
+                console.log('[WriteDiary] Back button clicked (loading mode)');
+                router.back();
+              }}
               activeOpacity={0.6}
             >
               <FontAwesome6 name="arrow-left" size={24} color={foreground} />
@@ -594,18 +597,21 @@ export default function WriteDiaryScreen() {
       <View style={[styles.container, { backgroundColor: background }]}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
           style={styles.keyboardContainer}
         >
-          <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+          <View style={[styles.header, { paddingTop: insets.top + 12, zIndex: 100 }]}>
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => {
+                console.log('[WriteDiary] Back button clicked, content:', content.trim(), 'images:', images.length);
                 if (content.trim() || images.length > 0) {
                   Alert.alert('提示', '确定要离开吗？内容将不会保存', [
                     { text: '取消', style: 'cancel' },
                     { text: '确定', onPress: () => router.back() },
                   ]);
                 } else {
+                  console.log('[WriteDiary] Going back');
                   router.back();
                 }
               }}
@@ -628,7 +634,13 @@ export default function WriteDiaryScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={{ flexGrow: 1 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            pointerEvents="box-none"
+          >
             {/* AI陪伴按钮 */}
             <TouchableOpacity
               style={[styles.aiAssistantButton, { backgroundColor: `${accent}15`, borderColor: `${accent}40`, borderWidth: 1 }]}
@@ -1034,12 +1046,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
+    backgroundColor: 'transparent',
+    elevation: 1, // Android 阴影
+    zIndex: 100, // 确保在其他元素上方
   },
   backButton: {
     width: 40,
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 101,
   },
   title: {
     fontSize: 20,
