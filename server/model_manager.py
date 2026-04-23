@@ -133,7 +133,8 @@ class ModelManager:
 
         # ========== 任务类型与模型绑定 ==========
         # 对话聊天：使用快速模型，优先qwen-flash，然后qwen-plus
-        self.task_models[TaskType.CHAT] = ['qwen-flash', 'qwen-plus', 'ark-chat']
+        # 注意：豆包模型不在此列表中，作为最后的fallback使用
+        self.task_models[TaskType.CHAT] = ['qwen-flash', 'qwen-plus']
 
         # 日记生成：需要高质量输出，使用强大模型，固定qwen-plus（高质量）
         self.task_models[TaskType.DIARY_GENERATION] = ['qwen-plus', 'qwen-max']
@@ -256,6 +257,30 @@ class ModelManager:
                 self.record_failure(model.name)
                 continue  # 尝试下一个模型
 
+        # 所有配置的模型都失败了，尝试使用豆包作为最后的fallback
+        if task_type == TaskType.CHAT:
+            for ark_model_name in ['ark-chat', 'ark-max']:
+                if ark_model_name in self.models and self.models[ark_model_name].enabled:
+                    try:
+                        print(f"[ModelManager] 所有模型失败，尝试使用豆包fallback: {ark_model_name}")
+                        ark_model = self.models[ark_model_name]
+
+                        # 检查是否在黑名单中
+                        if self.is_model_blacklisted(ark_model_name):
+                            print(f"[ModelManager] 豆包模型 {ark_model_name} 在黑名单中，跳过")
+                            continue
+
+                        async for chunk in self._call_single_model(ark_model, messages, stream):
+                            if chunk:
+                                self.record_success(ark_model_name)
+                            yield chunk
+
+                        return  # 豆包fallback成功
+                    except Exception as e:
+                        print(f"[ModelManager] 豆包fallback {ark_model_name} 也失败了: {str(e)}")
+                        self.record_failure(ark_model_name)
+                        continue
+
         raise Exception("所有模型都调用失败")
 
     async def _call_single_model(
@@ -293,14 +318,17 @@ class ModelManager:
                     headers=headers,
                     json=payload
                 ) as response:
+                    print(f"[ModelManager] {model.name} 响应状态: {response.status_code}")
                     if response.status_code != 200:
                         error_text = await response.aread()
                         raise Exception(f"API错误 {response.status_code}: {error_text.decode()}")
 
+                    chunk_count = 0
                     async for line in response.aiter_lines():
                         if line.startswith('data: '):
                             data = line[6:]
                             if data == '[DONE]':
+                                print(f"[ModelManager] {model.name} 收到 [DONE]，共 {chunk_count} 个chunk")
                                 break
 
                             try:
@@ -310,9 +338,15 @@ class ModelManager:
                                     delta = chunk['choices'][0].get('delta', {})
                                     content = delta.get('content', '')
                                     if content:
+                                        chunk_count += 1
                                         yield content
-                            except json.JSONDecodeError:
+                            except json.JSONDecodeError as e:
+                                print(f"[ModelManager] {model.name} JSON解析失败: {e}, 数据: {data[:100]}")
                                 continue
+
+                    if chunk_count == 0:
+                        print(f"[ModelManager] {model.name} 没有收到任何内容chunk")
+                        raise Exception(f"模型 {model.name} 返回空响应")
 
             else:
                 # 非流式调用

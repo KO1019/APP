@@ -899,11 +899,12 @@ async def chat_stream(chat: ChatMessage, user_id: str = Depends(get_user_id)):
 
     async def generate():
         full_response = ""
+        response_queue = []
 
-        async def on_chunk(chunk: str):
+        def on_chunk(chunk: str):
             nonlocal full_response
             full_response += chunk
-            yield f"data: {json.dumps({'content': chunk}, ensure_ascii=False)}\n\n"
+            response_queue.append(chunk)
 
         # 构建对话历史
         messages = []
@@ -921,14 +922,20 @@ async def chat_stream(chat: ChatMessage, user_id: str = Depends(get_user_id)):
         # 获取最近对话历史
         if db_client:
             try:
+                import json
                 conv_result = db_client.table('conversations').select('messages').order('created_at', desc=True).range(0, 4).execute()
                 if conv_result.data:
                     for conv in reversed(conv_result.data):
-                        messages_json = conv.get('messages', [])
-                        if isinstance(messages_json, list):
-                            for msg in messages_json:
-                                if msg.get('role') in ['user', 'assistant']:
-                                    messages.append(msg)
+                        messages_str = conv.get('messages')
+                        if messages_str:
+                            try:
+                                messages_json = json.loads(messages_str)
+                                if isinstance(messages_json, list):
+                                    for msg in messages_json:
+                                        if msg.get('role') in ['user', 'assistant']:
+                                            messages.append(msg)
+                            except json.JSONDecodeError:
+                                pass
             except Exception as e:
                 print(f"Error fetching conversation history: {e}")
 
@@ -943,13 +950,17 @@ async def chat_stream(chat: ChatMessage, user_id: str = Depends(get_user_id)):
         # 流式调用LLM
         await call_llm_stream(messages, on_chunk)
 
+        # 发送所有响应数据
+        for chunk in response_queue:
+            yield f"data: {json.dumps({'content': chunk}, ensure_ascii=False)}\n\n"
+
         yield "data: [DONE]\n\n"
 
         # 保存对话记录
         if db_client:
             try:
                 # 获取当前会话或创建新会话
-                session_id = chat.conversationId or f"session_{uuid.uuid4()}"
+                session_id = chat.conversationId or str(uuid.uuid4())
 
                 # 检查会话是否已存在
                 existing_conv = db_client.table('conversations').select('*').eq('id', session_id).execute()
@@ -963,17 +974,19 @@ async def chat_stream(chat: ChatMessage, user_id: str = Depends(get_user_id)):
                     if isinstance(current_messages, list):
                         current_messages.append(user_msg)
                         current_messages.append(ai_msg)
+                        import json
                         db_client.table('conversations').update({
-                            'messages': current_messages,
+                            'messages': json.dumps(current_messages, ensure_ascii=False),
                             'updated_at': datetime.now().isoformat()
                         }).eq('id', session_id).execute()
                 else:
                     # 创建新会话
+                    import json
                     db_client.table('conversations').insert({
                         'id': session_id,
                         'user_id': user_id,
                         'title': chat.message[:50] if len(chat.message) > 50 else chat.message,  # 使用第一条消息作为标题
-                        'messages': [user_msg, ai_msg]
+                        'messages': json.dumps([user_msg, ai_msg], ensure_ascii=False)
                     }).execute()
             except Exception as e:
                 print(f"Error saving conversation: {e}")
