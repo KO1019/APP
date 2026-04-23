@@ -2,20 +2,21 @@ import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions } from 'react-native';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 import { Screen } from '@/components/Screen';
-import { useCSSVariable } from 'uniwind';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
+// 暖橙色主题配色
+const THEME = {
+  background: '#FFF7ED',
+  surface: 'rgba(255, 255, 255, 0.95)',
+  accent: '#EA580C',
+  foreground: '#78350F',
+  muted: '#A16207',
+};
+
 export default function WelcomeScreen() {
   const router = useSafeRouter();
-  const [background, surface, accent, foreground, muted] = useCSSVariable([
-    '--color-background',
-    '--color-surface',
-    '--color-accent',
-    '--color-foreground',
-    '--color-muted',
-  ]) as string[];
 
   useEffect(() => {
     const checkUser = async () => {
@@ -62,20 +63,20 @@ export default function WelcomeScreen() {
     <Screen>
       <ScrollView
         contentContainerStyle={styles.container}
-        style={{ backgroundColor: background }}
+        style={{ backgroundColor: THEME.background }}
       >
         {/* Hero Section */}
         <View style={styles.hero}>
-          <View style={[styles.logoContainer, { backgroundColor: `${accent}15` }]}>
+          <View style={[styles.logoContainer, { backgroundColor: `${THEME.accent}15` }]}>
             <Text style={styles.logoIcon}>🌟</Text>
           </View>
-          <Text style={[styles.title, { color: foreground }]}>
+          <Text style={[styles.title, { color: THEME.foreground }]}>
             欢迎使用
           </Text>
-          <Text style={[styles.subtitle, { color: accent }]}>
+          <Text style={[styles.subtitle, { color: THEME.accent }]}>
             AI 情绪日记
           </Text>
-          <Text style={[styles.description, { color: muted }]}>
+          <Text style={[styles.description, { color: THEME.muted }]}>
             通过智能 AI 助手，记录和了解您的情绪世界
           </Text>
         </View>
@@ -83,14 +84,14 @@ export default function WelcomeScreen() {
         {/* Features Grid */}
         <View style={styles.featuresContainer}>
           {features.map((feature, index) => (
-            <View key={index} style={[styles.featureCard, { backgroundColor: surface }]}>
-              <View style={[styles.featureIcon, { backgroundColor: `${accent}15` }]}>
+            <View key={index} style={[styles.featureCard, { backgroundColor: THEME.surface }]}>
+              <View style={[styles.featureIcon, { backgroundColor: `${THEME.accent}15` }]}>
                 <Text style={styles.featureIconText}>{feature.icon}</Text>
               </View>
-              <Text style={[styles.featureTitle, { color: foreground }]}>
+              <Text style={[styles.featureTitle, { color: THEME.foreground }]}>
                 {feature.title}
               </Text>
-              <Text style={[styles.featureDescription, { color: muted }]}>
+              <Text style={[styles.featureDescription, { color: THEME.muted }]}>
                 {feature.description}
               </Text>
             </View>
@@ -100,7 +101,7 @@ export default function WelcomeScreen() {
         {/* CTA Button */}
         <View style={styles.ctaContainer}>
           <TouchableOpacity
-            style={[styles.ctaButton, { backgroundColor: accent }]}
+            style={[styles.ctaButton, { backgroundColor: THEME.accent }]}
             onPress={handleGetStarted}
             activeOpacity={0.8}
           >

@@ -12,7 +12,16 @@ import {
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import dayjs from 'dayjs';
 import { FontAwesome6 } from '@expo/vector-icons';
-import { useCSSVariable } from 'uniwind';
+
+// 暖橙色主题配色
+const THEME = {
+  background: '#FFF7ED',
+  surface: 'rgba(255, 255, 255, 0.95)',
+  accent: '#EA580C',
+  foreground: '#78350F',
+  muted: '#A16207',
+  border: '#FDBA74',
+};
 
 // --------------------------------------------------------
 // 1. 配置 Dayjs
@@ -59,16 +68,6 @@ export const SmartDateInput = ({
   iconSize = 18
 }: SmartDateInputProps) => {
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
-
-  // 使用主题变量
-  const [background, surface, accent, foreground, muted, border] = useCSSVariable([
-    '--color-background',
-    '--color-surface',
-    '--color-accent',
-    '--color-foreground',
-    '--color-muted',
-    '--color-border',
-  ]) as string[];
 
   // 默认展示格式
   const format = displayFormat || (mode === 'time' ? 'HH:mm' : 'YYYY-MM-DD');
@@ -132,7 +131,7 @@ export const SmartDateInput = ({
   return (
     <View style={[styles.container, containerStyle]}>
       {/* 标题 */}
-      {label && <Text style={[styles.label, { color: foreground }, labelStyle]}>{label}</Text>}
+      {label && <Text style={[styles.label, { color: THEME.foreground }, labelStyle]}>{label}</Text>}
 
       {/* 
          这里用 TouchableOpacity 模拟 Input。
@@ -141,7 +140,7 @@ export const SmartDateInput = ({
       <TouchableOpacity
         style={[
           styles.inputBox,
-          { backgroundColor: surface, borderColor: error ? '#EF4444' : border },
+          { backgroundColor: THEME.surface, borderColor: error ? '#EF4444' : THEME.border },
           error ? styles.inputBoxError : null,
           inputStyle
         ]}
@@ -151,7 +150,7 @@ export const SmartDateInput = ({
         <Text
           style={[
             styles.text,
-            { color: value ? foreground : muted },
+            { color: value ? THEME.foreground : THEME.muted },
             textStyle,
             !value && styles.placeholder,
             !value && placeholderTextStyle
@@ -164,7 +163,7 @@ export const SmartDateInput = ({
         <FontAwesome6
           name={iconName}
           size={iconSize}
-          color={iconColor || (value ? accent : muted)}
+          color={iconColor || (value ? THEME.accent : THEME.muted)}
           style={styles.icon}
         />
       </TouchableOpacity>
@@ -189,7 +188,7 @@ export const SmartDateInput = ({
         locale="zh-CN"
         confirmTextIOS="确定"
         cancelTextIOS="取消"
-        buttonTextColorIOS={accent}
+        buttonTextColorIOS={THEME.accent}
       />
     </View>
   );

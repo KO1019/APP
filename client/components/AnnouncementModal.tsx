@@ -12,9 +12,17 @@ import {
   Platform,
 } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { useCSSVariable } from 'uniwind';
 
 const { width, height } = Dimensions.get('window');
+
+// 暖橙色主题配色
+const THEME = {
+  background: '#FFF7ED',
+  surface: 'rgba(255, 255, 255, 0.95)',
+  accent: '#EA580C',
+  foreground: '#78350F',
+  muted: '#A16207',
+};
 
 interface Announcement {
   id: string;
@@ -38,14 +46,6 @@ export default function AnnouncementModal({
   onClose,
   onConfirm,
 }: AnnouncementModalProps) {
-  const [background, surface, accent, foreground, muted] = useCSSVariable([
-    '--color-background',
-    '--color-surface',
-    '--color-accent',
-    '--color-foreground',
-    '--color-muted',
-  ]) as string[];
-
   const handleConfirm = () => {
     if (onConfirm) {
       onConfirm();
@@ -69,7 +69,7 @@ export default function AnnouncementModal({
         <Animated.View
           entering={FadeIn.duration(300)}
           exiting={FadeOut.duration(200)}
-          style={[styles.container, { backgroundColor: surface, shadowColor: accent }]}
+          style={[styles.container, { backgroundColor: THEME.surface }]}
         >
           {/* 头部图片 */}
           {announcement.image_url ? (
@@ -79,7 +79,7 @@ export default function AnnouncementModal({
               resizeMode="cover"
             />
           ) : (
-            <View style={[styles.headerPlaceholder, { backgroundColor: `${accent}15` }]}>
+            <View style={[styles.headerPlaceholder, { backgroundColor: `${THEME.accent}15` }]}>
               <Text style={styles.placeholderIcon}>📢</Text>
             </View>
           )}
@@ -87,15 +87,15 @@ export default function AnnouncementModal({
           {/* 内容区域 */}
           <ScrollView style={styles.contentContainer}>
             <View style={styles.content}>
-              <Text style={[styles.title, { color: foreground }]}>{announcement.title}</Text>
-              <Text style={[styles.contentText, { color: muted }]}>{announcement.content}</Text>
+              <Text style={[styles.title, { color: THEME.foreground }]}>{announcement.title}</Text>
+              <Text style={[styles.contentText, { color: THEME.muted }]}>{announcement.content}</Text>
             </View>
           </ScrollView>
 
           {/* 按钮 */}
-          <View style={[styles.buttonContainer, { borderTopColor: `${accent}15` }]}>
+          <View style={[styles.buttonContainer, { borderTopColor: `${THEME.accent}15` }]}>
             <TouchableOpacity
-              style={[styles.confirmButton, { backgroundColor: accent, shadowColor: accent }]}
+              style={[styles.confirmButton, { backgroundColor: THEME.accent }]}
               onPress={handleConfirm}
               activeOpacity={0.8}
             >
@@ -107,10 +107,10 @@ export default function AnnouncementModal({
 
           {/* 关闭按钮 */}
           <TouchableOpacity
-            style={[styles.closeButton, { backgroundColor: `${background}90`, shadowColor: accent }]}
+            style={[styles.closeButton, { backgroundColor: `${THEME.background}90` }]}
             onPress={onClose}
           >
-            <Text style={[styles.closeButtonText, { color: muted }]}>✕</Text>
+            <Text style={[styles.closeButtonText, { color: THEME.muted }]}>✕</Text>
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -132,6 +132,7 @@ const styles = StyleSheet.create({
     maxHeight: height * 0.8,
     borderRadius: 24,
     overflow: 'hidden',
+    shadowColor: '#EA580C',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1,
     shadowRadius: 24,
@@ -179,6 +180,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#EA580C',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 12,
@@ -198,6 +200,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#EA580C',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
