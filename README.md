@@ -20,11 +20,13 @@ AI情绪日记/
 │
 ├── server/                # 后端（FastAPI + Python）
 │   ├── main.py           # 主应用
+│   ├── model_manager.py  # 🆕 大语言模型管理系统
 │   ├── requirements.txt  # Python依赖
 │   ├── version_manager.py # CLI版本管理工具
 │   ├── version_manager_web.py # Web可视化版本管理工具
 │   ├── start_web_tool.sh # Web工具启动脚本
 │   ├── VERSION_MANAGEMENT.md # 版本管理系统使用手册
+│   ├── MODEL_MANAGER_GUIDE.md # 🆕 模型管理系统使用指南
 │   └── .env             # 环境变量
 │
 └── 技术方案_AI情绪日记系统.md  # 技术方案文档

@@ -158,52 +158,30 @@ def verify_password(password: str, hashed: str) -> bool:
 
 
 # ========== LLM API调用 ==========
+from model_manager import model_manager, TaskType
 
 async def call_llm_stream(messages: List[Dict[str, str]], on_chunk: callable):
-    """流式调用LLM"""
-    if not ARK_API_KEY:
-        # fallback response
-        fallback = "抱歉，AI功能暂时不可用。请先配置豆包ARK API Key。"
-        for char in fallback:
-            on_chunk(char)
-            await asyncio.sleep(0.03)
-        return
-
+    """流式调用LLM（使用模型管理器，支持自动故障切换）"""
     try:
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {ARK_API_KEY}'
-        }
+        full_text = ""
+        async for chunk in model_manager.call_model(
+            task_type=TaskType.CHAT,
+            messages=messages,
+            stream=True
+        ):
+            full_text += chunk
+            on_chunk(chunk)
 
-        payload = {
-            'model': ARK_CHAT_MODEL,
-            'messages': messages,
-            'temperature': 0.8,
-            'stream': True
-        }
+        return full_text
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            async with client.stream('POST', f'{ARK_BASE_URL}/chat/completions', headers=headers, json=payload) as response:
-                if response.status_code != 200:
-                    raise Exception(f"ARK API error: {response.status_code}")
-
-                async for line in response.aiter_lines():
-                    if line.startswith('data: '):
-                        data = line[6:]
-                        if data == '[DONE]':
-                            continue
-                        try:
-                            json_data = json.loads(data)
-                            if json_data.get('choices') and json_data['choices'][0].get('delta', {}).get('content'):
-                                on_chunk(json_data['choices'][0]['delta']['content'])
-                        except:
-                            pass
     except Exception as e:
-        print(f"Error calling LLM: {e}")
-        fallback = "抱歉，AI服务暂时不可用。请稍后再试。"
+        print(f"[LLM] 调用失败: {str(e)}")
+        # fallback response
+        fallback = "抱歉，AI功能暂时不可用。请稍后重试。"
         for char in fallback:
             on_chunk(char)
             await asyncio.sleep(0.03)
+        return fallback
 
 
 # ========== FastAPI路由 ==========
@@ -1429,6 +1407,18 @@ async def get_active_versions():
     result = admin_supabase.table('app_versions').select('*').eq('is_active', True).execute()
 
     return {"success": True, "versions": result.data}
+
+
+# ========== 模型管理API ==========
+
+@app.get('/api/v1/admin/models/status')
+async def get_models_status():
+    """获取所有模型的状态（管理员接口）"""
+    status = model_manager.get_model_status()
+    return {
+        "success": True,
+        "models": status
+    }
 
 
 # ========== 主程序 ==========

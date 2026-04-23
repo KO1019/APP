@@ -239,6 +239,37 @@ POST   /api/v1/admin/versions/{version_id}/activate
 GET    /api/v1/admin/versions/active
 ```
 
+### 模型管理（管理员）
+
+```
+GET /api/v1/admin/models/status
+```
+
+**响应示例**：
+```json
+{
+  "success": true,
+  "models": {
+    "qwen-max": {
+      "enabled": true,
+      "priority": 1,
+      "is_blacklisted": false,
+      "failure_count": 0,
+      "last_failure": 0
+    },
+    "qwen-plus": {
+      "enabled": true,
+      "priority": 2,
+      "is_blacklisted": false,
+      "failure_count": 0,
+      "last_failure": 0
+    }
+  }
+}
+```
+
+**详细文档**：[MODEL_MANAGER_GUIDE.md](MODEL_MANAGER_GUIDE.md)
+
 ### 版本检查（用户）
 
 ```
