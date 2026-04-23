@@ -1,36 +1,23 @@
 #!/bin/bash
-# 重启所有服务
+
+# AI情绪日记 - 重启服务脚本
 
 set -e
 
-# 颜色定义
-GREEN='\033[0;32m'
-NC='\033[0m' # No Color
+PROJECT_ROOT="/workspace/projects/server"
+cd "$PROJECT_ROOT" || exit 1
 
-print_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
+echo "=== 重启AI情绪日记服务 ==="
 
-# 主函数
-main() {
-    echo ""
-    echo "======================================"
-    echo "  重启所有服务"
-    echo "======================================"
-    echo ""
+# 停止服务
+./stop.sh
 
-    # 切换到脚本所在目录
-    cd "$(dirname "$0")"
+echo ""
+echo "等待服务完全停止..."
+sleep 3
 
-    # 停止服务
-    ./stop.sh
+# 启动服务
+./deploy.sh
 
-    # 等待
-    sleep 1
-
-    # 启动服务
-    ./start.sh
-}
-
-# 运行主函数
-main
+echo ""
+echo "=== 重启完成 ==="
