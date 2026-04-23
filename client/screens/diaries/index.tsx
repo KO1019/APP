@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 import { usePassword } from '@/contexts/PasswordContext';
@@ -63,8 +63,15 @@ export default function DiariesScreen() {
   const { checkAutoUpdate, UpdateModal } = useAppUpdate();
 
   const [diaries, setDiaries] = useState<Diary[]>([]);
+  const [filteredDiaries, setFilteredDiaries] = useState<Diary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // 筛选状态
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState<'start' | 'end' | null>(null);
 
   const [background, surface, accent, foreground, muted, border] = useCSSVariable([
     '--color-background',
@@ -74,6 +81,28 @@ export default function DiariesScreen() {
     '--color-muted',
     '--color-border',
   ]) as string[];
+
+  // 应用筛选
+  useEffect(() => {
+    if (!startDate && !endDate) {
+      setFilteredDiaries(diaries);
+    } else {
+      const filtered = diaries.filter(diary => {
+        const diaryDate = new Date(diary.created_at);
+        const start = startDate ? new Date(startDate) : null;
+        const end = endDate ? new Date(endDate) : null;
+
+        // 设置时间为当天的开始和结束
+        if (start) start.setHours(0, 0, 0, 0);
+        if (end) end.setHours(23, 59, 59, 999);
+
+        if (start && diaryDate < start) return false;
+        if (end && diaryDate > end) return false;
+        return true;
+      });
+      setFilteredDiaries(filtered);
+    }
+  }, [diaries, startDate, endDate]);
 
   const fetchDiaries = useCallback(async () => {
     try {
@@ -95,6 +124,7 @@ export default function DiariesScreen() {
           /**
            * 服务端文件：server/main.py
            * 接口：GET /api/v1/diaries
+           * Query参数：start_date?, end_date?
            */
           const response = await fetch(buildApiUrl('/api/v1/diaries'), {
             headers: {
@@ -238,6 +268,25 @@ export default function DiariesScreen() {
     fetchDiaries();
   };
 
+  const handleClearFilter = () => {
+    setStartDate('');
+    setEndDate('');
+    setShowFilterModal(false);
+  };
+
+  const handleApplyFilter = () => {
+    // 验证日期
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      if (start > end) {
+        Alert.alert('错误', '开始日期不能晚于结束日期');
+        return;
+      }
+    }
+    setShowFilterModal(false);
+  };
+
   const renderDiaryItem = ({ item }: { item: Diary }) => {
     const date = new Date(item.created_at);
     const dateStr = date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
@@ -296,8 +345,12 @@ export default function DiariesScreen() {
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <FontAwesome6 name="book-open" size={64} color={muted} style={styles.emptyIcon} />
-      <Text style={[styles.emptyText, { color: muted }]}>还没有日记</Text>
-      <Text style={[styles.emptySubtext, { color: muted }]}>点击下方按钮开始记录</Text>
+      <Text style={[styles.emptyText, { color: muted }]}>
+        {startDate || endDate ? '没有符合条件的日记' : '还没有日记'}
+      </Text>
+      <Text style={[styles.emptySubtext, { color: muted }]}>
+        {startDate || endDate ? '尝试调整筛选条件' : '点击下方按钮开始记录'}
+      </Text>
     </View>
   );
 
@@ -305,8 +358,23 @@ export default function DiariesScreen() {
     <Screen>
       <View style={[styles.container, { backgroundColor: background }]}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: foreground }]}>我的日记</Text>
-          <Text style={[styles.subtitle, { color: muted }]}>记录每一天的心情</Text>
+          <View style={styles.headerTop}>
+            <Text style={[styles.title, { color: foreground }]}>我的日记</Text>
+            <TouchableOpacity
+              style={[styles.filterButton, { borderColor: border }]}
+              onPress={() => setShowFilterModal(true)}
+            >
+              <FontAwesome6 name="filter" size={16} color={startDate || endDate ? accent : muted} />
+              <Text style={[styles.filterButtonText, { color: startDate || endDate ? accent : muted }]}>
+                {startDate || endDate ? '筛选中' : '筛选'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={[styles.subtitle, { color: muted }]}>
+            {startDate || endDate
+              ? `${startDate ? startDate : '开始'} 至 ${endDate || '结束'} (${filteredDiaries.length}篇)`
+              : '记录每一天的心情'}
+          </Text>
         </View>
 
         {loading ? (
@@ -315,7 +383,7 @@ export default function DiariesScreen() {
           </View>
         ) : (
           <FlatList
-            data={diaries}
+            data={filteredDiaries}
             renderItem={renderDiaryItem}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
@@ -337,6 +405,74 @@ export default function DiariesScreen() {
           <FontAwesome6 name="plus" size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
+
+      {/* 筛选Modal */}
+      <Modal
+        visible={showFilterModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowFilterModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalContainer}
+          >
+            <View style={[styles.modalContent, { backgroundColor: surface }]}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: foreground }]}>时间筛选</Text>
+                <TouchableOpacity onPress={() => setShowFilterModal(false)}>
+                  <FontAwesome6 name="xmark" size={20} color={muted} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.modalBody}>
+                <View style={styles.dateInputContainer}>
+                  <Text style={[styles.dateLabel, { color: foreground }]}>开始日期</Text>
+                  <TextInput
+                    style={[styles.dateInput, { backgroundColor: background, color: foreground, borderColor: border }]}
+                    value={startDate}
+                    onChangeText={setStartDate}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={muted}
+                  />
+                </View>
+
+                <View style={styles.dateInputContainer}>
+                  <Text style={[styles.dateLabel, { color: foreground }]}>结束日期</Text>
+                  <TextInput
+                    style={[styles.dateInput, { backgroundColor: background, color: foreground, borderColor: border }]}
+                    value={endDate}
+                    onChangeText={setEndDate}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={muted}
+                  />
+                </View>
+
+                <Text style={[styles.hintText, { color: muted }]}>
+                  格式：YYYY-MM-DD（例如：2026-04-01）
+                </Text>
+              </View>
+
+              <View style={styles.modalFooter}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton, { borderColor: border }]}
+                  onPress={handleClearFilter}
+                >
+                  <Text style={[styles.cancelButtonText, { color: muted }]}>清除</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.confirmButton, { backgroundColor: accent }]}
+                  onPress={handleApplyFilter}
+                >
+                  <Text style={styles.confirmButtonText}>应用</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
       <UpdateModal />
     </Screen>
   );
@@ -351,6 +487,12 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 16,
   },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   title: {
     fontSize: 32,
     fontWeight: '700',
@@ -358,6 +500,19 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     marginTop: 4,
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 6,
+  },
+  filterButtonText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   loadingContainer: {
     flex: 1,
@@ -467,5 +622,86 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  modalBody: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
+  dateInputContainer: {
+    marginBottom: 20,
+  },
+  dateLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  dateInput: {
+    fontSize: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  hintText: {
+    fontSize: 12,
+    marginTop: -12,
+    marginBottom: 8,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    borderWidth: 1,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  confirmButton: {
+    flex: 2,
+  },
+  confirmButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

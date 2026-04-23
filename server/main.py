@@ -509,12 +509,31 @@ async def create_diary(diary: DiaryCreate, user_id: str = Depends(get_user_id)):
 
 
 @app.get('/api/v1/diaries')
-async def get_diaries(user_id: str = Depends(get_user_id)):
-    """获取日记列表"""
+async def get_diaries(
+    user_id: str = Depends(get_user_id),
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+):
+    """
+    获取日记列表
+
+    Query参数:
+    - start_date: 开始日期（ISO格式，如：2026-04-01）
+    - end_date: 结束日期（ISO格式，如：2026-04-30）
+    """
     if not supabase:
         raise HTTPException(status_code=500, detail="Database not configured")
 
-    result = supabase.table('diaries').select('*').eq('user_id', user_id).order('created_at', desc=True).limit(50).execute()
+    # 构建查询
+    query = supabase.table('diaries').select('*').eq('user_id', user_id)
+
+    # 添加日期筛选
+    if start_date:
+        query = query.gte('created_at', start_date)
+    if end_date:
+        query = query.lte('created_at', end_date)
+
+    result = query.order('created_at', desc=True).limit(50).execute()
 
     return result.data or []
 
