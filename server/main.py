@@ -13,7 +13,7 @@ import httpx
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, File, Form
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,6 +24,9 @@ from dotenv import load_dotenv
 
 # 数据库适配器（MySQL）
 from db_adapter import db_client
+
+# 对象存储（阿里云OSS）
+from oss_storage import oss_storage, check_oss_config
 
 # 加载.env文件（使用绝对路径）
 dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
@@ -107,6 +110,16 @@ class ChangePassword(BaseModel):
     """修改密码"""
     old_password: str
     new_password: str
+
+
+class FileUploadResponse(BaseModel):
+    """文件上传响应"""
+    key: str
+    url: str
+    size: int
+    content_type: str
+    filename: str
+    is_public: bool
 
 
 class PrivacySettings(BaseModel):
@@ -211,6 +224,7 @@ async def register(user: UserRegister):
     # 创建用户
     password_hash = hash_password(user.password)
     new_user = db_client.table('users').insert({
+        'id': str(uuid.uuid4()),  # 显式设置UUID
         'username': user.username,
         'password_hash': password_hash,
         'email': user.email,
@@ -2075,6 +2089,89 @@ async def delete_announcement(announcement_id: str):
     db_client.table('announcements').delete().eq('id', announcement_id).execute()
 
     return {"success": True, "message": "Announcement deleted"}
+
+
+# ========== 文件上传和管理接口 ==========
+
+@app.post('/api/v1/files/upload')
+async def upload_file(
+    file: bytes = File(...),
+    filename: str = Form(...),
+    folder: Optional[str] = Form('uploads'),
+    token: str = Depends(security)
+):
+    """上传文件到OSS"""
+    if not check_oss_config():
+        raise HTTPException(status_code=500, detail="OSS未配置")
+
+    # 检查文件大小（最大10MB）
+    if len(file) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="文件大小不能超过10MB")
+
+    # 上传文件
+    success, result = oss_storage.upload_file(file, filename, folder)
+
+    if not success:
+        raise HTTPException(status_code=500, detail=f"上传失败: {result.get('error')}")
+
+    return {
+        "success": True,
+        "file": result
+    }
+
+
+@app.delete('/api/v1/files/{file_key:path}')
+async def delete_file(file_key: str, token: str = Depends(security)):
+    """删除OSS中的文件"""
+    if not check_oss_config():
+        raise HTTPException(status_code=500, detail="OSS未配置")
+
+    success, result = oss_storage.delete_file(file_key)
+
+    if not success:
+        raise HTTPException(status_code=500, detail=f"删除失败: {result.get('error')}")
+
+    return {
+        "success": True,
+        "message": "删除成功"
+    }
+
+
+@app.get('/api/v1/files/{file_key:path}/url')
+async def get_file_url(file_key: str, expires: int = 3600, token: str = Depends(security)):
+    """获取文件的访问URL"""
+    if not check_oss_config():
+        raise HTTPException(status_code=500, detail="OSS未配置")
+
+    url = oss_storage.get_file_url(file_key, expires)
+
+    if not url:
+        raise HTTPException(status_code=404, detail="文件不存在或获取失败")
+
+    return {
+        "success": True,
+        "url": url,
+        "expires": expires
+    }
+
+
+@app.get('/api/v1/files/{file_key:path}/info')
+async def get_file_info(file_key: str, token: str = Depends(security)):
+    """获取文件信息"""
+    if not check_oss_config():
+        raise HTTPException(status_code=500, detail="OSS未配置")
+
+    info = oss_storage.get_file_info(file_key)
+
+    if not info:
+        raise HTTPException(status_code=404, detail="文件不存在")
+
+    return {
+        "success": True,
+        "file": info
+    }
+
+
 # ========== 主程序 ==========
 
 if __name__ == '__main__':

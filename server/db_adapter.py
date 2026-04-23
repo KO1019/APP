@@ -21,15 +21,8 @@ class Table:
 
     def insert(self, data: Dict[str, Any]):
         """插入数据"""
-        columns = ', '.join(data.keys())
-        placeholders = ', '.join(['%s'] * len(data))
-        values = tuple(data.values())
-
-        query = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders})"
-        row_id = execute_insert(query, values)
-
-        # 返回插入的数据
-        return type('Result', (), {'data': [execute_query(f"SELECT * FROM {self.table_name} WHERE id = %s", (row_id,), fetch_one=True)]})()
+        self._insert_data = data
+        return self
 
     def update(self, data: Dict[str, Any]):
         """更新数据"""
@@ -112,7 +105,18 @@ class Table:
                 params = params + (self._limit,)
 
         # 执行查询
-        if hasattr(self, '_delete'):
+        if hasattr(self, '_insert_data'):
+            # INSERT 查询
+            columns = ', '.join(self._insert_data.keys())
+            placeholders = ', '.join(['%s'] * len(self._insert_data))
+            values = tuple(self._insert_data.values())
+
+            insert_query = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders})"
+            execute_insert(insert_query, values)
+
+            # 返回插入的数据
+            return type('Result', (), {'data': [self._insert_data]})()
+        elif hasattr(self, '_delete'):
             # DELETE 查询
             delete_query = query.replace(f"SELECT {select_columns} FROM", "DELETE FROM")
             delete_query = delete_query.split(" ORDER BY")[0]  # 删除不需要 ORDER BY
