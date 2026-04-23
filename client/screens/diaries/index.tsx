@@ -19,7 +19,6 @@ import {
 } from '@/utils/localStorage';
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown, ZoomIn } from 'react-native-reanimated';
 import { SmartDateInput } from '@/components/SmartDateInput';
-import Slider from '@react-native-community/slider';
 
 interface Diary {
   id: string;
@@ -87,7 +86,6 @@ export default function DiariesScreen() {
   const [endDate, setEndDate] = useState<string>('');
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [selectedMood, setSelectedMood] = useState<string>(''); // 情绪筛选
-  const [minIntensity, setMinIntensity] = useState<number>(0); // 最小心情强度
   const [keyword, setKeyword] = useState<string>(''); // 关键字搜索
 
   const [background, surface, accent, foreground, muted, border] = useCSSVariable([
@@ -101,7 +99,7 @@ export default function DiariesScreen() {
 
   // 应用筛选
   useEffect(() => {
-    if (!startDate && !endDate && !selectedMood && minIntensity === 0 && !keyword) {
+    if (!startDate && !endDate && !selectedMood && !keyword) {
       setFilteredDiaries(diaries);
     } else {
       const filtered = diaries.filter(diary => {
@@ -119,9 +117,6 @@ export default function DiariesScreen() {
         // 情绪筛选
         if (selectedMood && diary.mood !== selectedMood) return false;
 
-        // 心情强度筛选
-        if (minIntensity > 0 && diary.mood_intensity && diary.mood_intensity < minIntensity) return false;
-
         // 关键字搜索
         if (keyword) {
           const lowerKeyword = keyword.toLowerCase();
@@ -135,7 +130,7 @@ export default function DiariesScreen() {
       });
       setFilteredDiaries(filtered);
     }
-  }, [diaries, startDate, endDate, selectedMood, minIntensity, keyword]);
+  }, [diaries, startDate, endDate, selectedMood, keyword]);
 
   const fetchDiaries = useCallback(async () => {
     try {
@@ -308,7 +303,6 @@ export default function DiariesScreen() {
     setStartDate('');
     setEndDate('');
     setSelectedMood('');
-    setMinIntensity(0);
     setKeyword('');
     setShowFilterModal(false);
   };
@@ -388,7 +382,7 @@ export default function DiariesScreen() {
         {startDate || endDate ? '没有符合条件的日记' : '还没有日记'}
       </Text>
       <Text style={[styles.emptySubtext, { color: muted }]}>
-        {startDate || endDate || selectedMood || minIntensity > 0 || keyword ? '尝试调整筛选条件' : '点击下方按钮开始记录'}
+        {startDate || endDate || selectedMood || keyword ? '尝试调整筛选条件' : '点击下方按钮开始记录'}
       </Text>
     </View>
   );
@@ -403,14 +397,14 @@ export default function DiariesScreen() {
               style={[styles.filterButton, { borderColor: border }]}
               onPress={() => setShowFilterModal(true)}
             >
-              <FontAwesome6 name="filter" size={16} color={startDate || endDate || selectedMood || minIntensity > 0 || keyword ? accent : muted} />
-              <Text style={[styles.filterButtonText, { color: startDate || endDate || selectedMood || minIntensity > 0 || keyword ? accent : muted }]}>
-                {startDate || endDate || selectedMood || minIntensity > 0 || keyword ? '筛选中' : '筛选'}
+              <FontAwesome6 name="filter" size={16} color={startDate || endDate || selectedMood || keyword ? accent : muted} />
+              <Text style={[styles.filterButtonText, { color: startDate || endDate || selectedMood || keyword ? accent : muted }]}>
+                {startDate || endDate || selectedMood || keyword ? '筛选中' : '筛选'}
               </Text>
             </TouchableOpacity>
           </View>
           <Text style={[styles.subtitle, { color: muted }]}>
-            {startDate || endDate || selectedMood || minIntensity > 0 || keyword
+            {startDate || endDate || selectedMood || keyword
               ? `筛选条件 (${filteredDiaries.length}篇)`
               : '记录每一天的心情'}
           </Text>
@@ -469,20 +463,22 @@ export default function DiariesScreen() {
               {/* 关键字搜索 */}
               <View style={styles.filterSection}>
                 <Text style={[styles.filterLabel, { color: foreground }]}>关键字搜索</Text>
-                <View style={[styles.searchBox, { borderColor: border }]}>
-                  <FontAwesome6 name="search" size={16} color={muted} />
-                  <TextInput
-                    style={[styles.searchInput, { color: foreground }]}
-                    placeholder="搜索标题、内容或标签"
-                    placeholderTextColor={muted}
-                    value={keyword}
-                    onChangeText={setKeyword}
-                  />
-                  {keyword && (
-                    <TouchableOpacity onPress={() => setKeyword('')}>
-                      <FontAwesome6 name="xmark" size={14} color={muted} />
-                    </TouchableOpacity>
-                  )}
+                <View style={styles.searchBoxWrapper}>
+                  <View style={[styles.searchBox, { borderColor: border }]}>
+                    <FontAwesome6 name="search" size={16} color={muted} />
+                    <TextInput
+                      style={[styles.searchInput, { color: foreground }]}
+                      placeholder="搜索标题、内容或标签"
+                      placeholderTextColor={muted}
+                      value={keyword}
+                      onChangeText={setKeyword}
+                    />
+                    {keyword && (
+                      <TouchableOpacity onPress={() => setKeyword('')} style={styles.clearButton}>
+                        <FontAwesome6 name="xmark" size={14} color={muted} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
               </View>
 
@@ -517,33 +513,6 @@ export default function DiariesScreen() {
                       </Text>
                     </TouchableOpacity>
                   ))}
-                </View>
-              </View>
-
-              {/* 心情强度 */}
-              <View style={styles.filterSection}>
-                <View style={styles.intensityHeader}>
-                  <Text style={[styles.filterLabel, { color: foreground }]}>心情强度</Text>
-                  <Text style={[styles.intensityValue, { color: accent }]}>{minIntensity === 0 ? '不限' : `${minIntensity}+`}</Text>
-                </View>
-                <Slider
-                  style={styles.slider}
-                  minimumValue={0}
-                  maximumValue={5}
-                  step={1}
-                  value={minIntensity}
-                  onValueChange={setMinIntensity}
-                  minimumTrackTintColor={accent}
-                  maximumTrackTintColor={border}
-                  thumbTintColor={accent}
-                />
-                <View style={styles.sliderLabels}>
-                  <Text style={[styles.sliderLabel, { color: muted }]}>不限</Text>
-                  <Text style={[styles.sliderLabel, { color: muted }]}>1</Text>
-                  <Text style={[styles.sliderLabel, { color: muted }]}>2</Text>
-                  <Text style={[styles.sliderLabel, { color: muted }]}>3</Text>
-                  <Text style={[styles.sliderLabel, { color: muted }]}>4</Text>
-                  <Text style={[styles.sliderLabel, { color: muted }]}>5</Text>
                 </View>
               </View>
 
@@ -909,6 +878,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   // 搜索框样式
+  searchBoxWrapper: {
+    marginTop: 8,
+  },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -916,11 +888,16 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     gap: 10,
   },
   searchInput: {
     flex: 1,
     fontSize: 15,
+    padding: 0,
+  },
+  clearButton: {
+    padding: 4,
   },
   // 情绪按钮样式
   moodButtons: {
@@ -945,31 +922,6 @@ const styles = StyleSheet.create({
   },
   moodButtonText: {
     fontSize: 14,
-    fontWeight: '600',
-  },
-  // 心情强度样式
-  intensityHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  intensityValue: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
-  sliderLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 4,
-    marginTop: -8,
-  },
-  sliderLabel: {
-    fontSize: 11,
     fontWeight: '600',
   },
 });

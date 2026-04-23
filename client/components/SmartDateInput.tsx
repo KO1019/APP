@@ -248,7 +248,7 @@ export const SmartDateInput = ({
 // 设计样式
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 20,
+    marginBottom: 0, // 移除默认的 marginBottom，由父组件控制
   },
   label: {
     fontSize: 14,
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    borderWidth: 1,
+    borderWidth: 0, // 移除默认边框
     // 增加轻微阴影提升层次感 (iOS)
     shadowColor: '#EA580C',
     shadowOffset: { width: 0, height: 2 },
