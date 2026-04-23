@@ -8,6 +8,8 @@
     "start": "python3 main.py",
     "install-deps": "pip3 install -r requirements.txt"
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "dependencies": {
+    "pymysql": "^1.0.0",
+    "redis": "^5.12.1"
+  }
 }
