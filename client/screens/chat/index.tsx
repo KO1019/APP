@@ -168,73 +168,158 @@ export default function ChatScreen() {
     try {
       // AI功能只需要检查：用户已登录且不是离线模式
       if (!isOfflineMode && token) {
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        };
+        const chatUrl = buildApiUrl('/api/v1/chat');
+        console.log('[Chat] Connecting to:', chatUrl);
 
-        const sse = new RNSSE(buildApiUrl('/api/v1/chat'), {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            message: userMessage,
-            conversation_id: params.conversationId, // 如果有existing conversation ID，传递给后端
-            diaryId: params.relatedDiaryId || null, // 传递关联的日记ID
-          }),
-        });
+        // 在Web环境下，使用fetch API实现流式响应
+        if (Platform.OS === 'web') {
+          console.log('[Chat] Using Web fetch API for streaming');
+          fetch(chatUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              message: userMessage,
+              conversation_id: params.conversationId,
+              diaryId: params.relatedDiaryId || null,
+            }),
+          }).then(async (response) => {
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}`);
+            }
 
-        let aiResponse = '';
+            // 添加一个空的 AI 消息占位符
+            setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
-        sse.addEventListener('message', (event: any) => {
-          // 检查是否为流结束信号
-          if (event.data === '[DONE]') {
-            sse.close();
-            setLoading(false);
+            const reader = response.body?.getReader();
+            const decoder = new TextDecoder();
+            let aiResponse = '';
 
-            // 保存到本地（标记为已上传）
-            saveChatMessageLocally(conversationId, userMessage, aiResponse, params.relatedDiaryId || null, true);
+            if (!reader) {
+              throw new Error('No response body');
+            }
 
-            return;
-          }
+            while (true) {
+              const { done, value } = await reader.read();
 
-          // 尝试解析 JSON
-          try {
-            const data = JSON.parse(event.data);
+              if (done) {
+                console.log('[Chat] Stream finished');
+                break;
+              }
 
-            if (data.content) {
-              aiResponse += data.content;
-              setMessages(prev => {
-                const newMessages = [...prev];
-                const lastMessage = newMessages[newMessages.length - 1];
-                if (lastMessage && lastMessage.role === 'assistant') {
-                  lastMessage.content = aiResponse;
-                } else {
-                  newMessages.push({ role: 'assistant', content: aiResponse });
+              const chunk = decoder.decode(value);
+              console.log('[Chat] Chunk received:', chunk);
+
+              // 解析SSE格式
+              const lines = chunk.split('\n');
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const data = line.slice(6);
+                  if (data === '[DONE]') {
+                    console.log('[Chat] Stream finished with [DONE]');
+                    setLoading(false);
+                    saveChatMessageLocally(conversationId, userMessage, aiResponse, params.relatedDiaryId || null, true);
+                    return;
+                  }
+
+                  try {
+                    const parsed = JSON.parse(data);
+                    if (parsed.content) {
+                      aiResponse += parsed.content;
+                      setMessages(prev => {
+                        const newMessages = [...prev];
+                        const lastMessage = newMessages[newMessages.length - 1];
+                        if (lastMessage && lastMessage.role === 'assistant') {
+                          lastMessage.content = aiResponse;
+                        }
+                        return newMessages;
+                      });
+                    }
+                  } catch (e) {
+                    console.warn('[Chat] Failed to parse SSE data:', data);
+                  }
                 }
-                return newMessages;
-              });
+              }
+            }
+          }).catch((error) => {
+            console.error('[Chat] Streaming error:', error);
+            setLoading(false);
+            setMessages(prev => [...prev, { role: 'assistant', content: '抱歉，连接出现问题，请稍后再试。' }]);
+          });
+        } else {
+          // 在移动端使用 RNSSE
+          console.log('[Chat] Using RNSSE for mobile');
+
+          const sse = new RNSSE(chatUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              message: userMessage,
+              conversation_id: params.conversationId,
+              diaryId: params.relatedDiaryId || null,
+            }),
+          });
+
+          let aiResponse = '';
+
+          // 监听连接打开事件
+          sse.addEventListener('open', () => {
+            console.log('[Chat] SSE connection opened');
+          });
+
+          // 监听错误事件
+          sse.addEventListener('error', (error: any) => {
+            console.error('[Chat] SSE error:', error);
+            setLoading(false);
+            setMessages(prev => [...prev, { role: 'assistant', content: '抱歉，连接出现问题，请稍后再试。' }]);
+          });
+
+          sse.addEventListener('message', (event: any) => {
+            console.log('[Chat] SSE message received:', event.data);
+
+            // 检查是否为流结束信号
+            if (event.data === '[DONE]') {
+              console.log('[Chat] SSE stream finished');
+              sse.close();
+              setLoading(false);
+              saveChatMessageLocally(conversationId, userMessage, aiResponse, params.relatedDiaryId || null, true);
+              return;
             }
 
-            if (data.error) {
-              console.error('Chat error:', data.error);
-              setMessages(prev => [...prev, { role: 'assistant', content: '抱歉，我遇到了一些问题，请稍后再试。' }]);
+            // 尝试解析 JSON
+            try {
+              const data = JSON.parse(event.data);
+              if (data.content) {
+                aiResponse += data.content;
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  const lastMessage = newMessages[newMessages.length - 1];
+                  if (lastMessage && lastMessage.role === 'assistant') {
+                    lastMessage.content = aiResponse;
+                  } else {
+                    newMessages.push({ role: 'assistant', content: aiResponse });
+                  }
+                  return newMessages;
+                });
+              }
+
+              if (data.error) {
+                console.error('Chat error:', data.error);
+                setMessages(prev => [...prev, { role: 'assistant', content: '抱歉，我遇到了一些问题，请稍后再试。' }]);
+              }
+            } catch (e) {
+              console.warn('[Chat] Failed to parse message as JSON:', event.data);
             }
-          } catch (e) {
-            // JSON 解析失败，可能是纯文本内容
-            console.warn('Failed to parse message as JSON:', event.data);
-          }
-        });
+          });
 
-        sse.addEventListener('error', (error) => {
-          console.error('SSE error:', error);
-          setMessages(prev => [...prev, { role: 'assistant', content: '抱歉，连接出现问题，请稍后再试。' }]);
-        });
-
-        // 添加一个空的 AI 消息占位符
-        setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
-
-        // SSE 实例创建后自动连接，无需手动调用 connect()
-      } else {
+          // 添加一个空的 AI 消息占位符
+          setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+        } else {
         // 离线模式或未登录，只保存到本地
         if (isOfflineMode) {
           setMessages(prev => [...prev, { role: 'assistant', content: '抱歉，当前为离线模式，无法连接AI。' }]);
