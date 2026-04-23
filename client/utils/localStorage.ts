@@ -185,6 +185,19 @@ export async function getLocalChatMessages(): Promise<LocalChatMessage[]> {
 }
 
 /**
+ * 根据ID获取单个聊天消息
+ */
+export async function getLocalChatMessage(id: string): Promise<LocalChatMessage | null> {
+  try {
+    const messages = await getLocalChatMessages();
+    return messages.find(m => m.id === id) || null;
+  } catch (error) {
+    console.error('Error getting local chat message by id:', error);
+    return null;
+  }
+}
+
+/**
  * 删除本地聊天消息
  */
 export async function deleteLocalChatMessage(id: string): Promise<void> {

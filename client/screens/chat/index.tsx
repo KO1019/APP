@@ -11,6 +11,7 @@ import { buildApiUrl } from '@/utils';
 import {
   saveChatMessageLocally,
   generateLocalId,
+  getLocalChatMessage,
 } from '@/utils/localStorage';
 
 interface Message {
