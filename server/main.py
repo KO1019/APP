@@ -20,8 +20,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 import httpx
-from supabase import create_client, Client
 from dotenv import load_dotenv
+
+# 数据库适配器（MySQL）
+from db_adapter import db_client
 
 # 加载.env文件（使用绝对路径）
 dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
@@ -61,16 +63,8 @@ app.add_middleware(
 # JWT认证
 security = HTTPBearer()
 
-# Supabase客户端
-supabase: Optional[Client] = None
-admin_supabase: Optional[Client] = None  # Admin客户端，用于绕过RLS
-if SUPABASE_URL and SUPABASE_KEY:
-    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-    admin_supabase = supabase  # 临时方案：使用相同的客户端（RLS已禁用）
-
-# 初始化Admin Supabase客户端（使用service role key，绕过RLS）
-if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY and SUPABASE_SERVICE_ROLE_KEY != SUPABASE_KEY:
-    admin_supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+# 数据库客户端（MySQL适配器，模拟Supabase API）
+# 不再使用 Supabase，改用 MySQL + db_adapter
 
 
 # ========== 导入实时语音客户端 ==========
@@ -203,20 +197,20 @@ async def register(user: UserRegister):
     if len(user.password) < 6:
         raise HTTPException(status_code=400, detail="密码长度至少6个字符")
 
-    if not supabase:
+    if not db_client:
         raise HTTPException(
             status_code=503,
-            detail="数据库未配置，请在.env文件中配置SUPABASE_URL和SUPABASE_KEY"
+            detail="数据库未配置，请检查MySQL配置"
         )
 
     # 检查用户名是否存在
-    existing = supabase.table('users').select('*').eq('username', user.username).execute()
+    existing = db_client.table('users').select('*').eq('username', user.username).execute()
     if existing.data:
         raise HTTPException(status_code=400, detail="用户名已存在")
 
     # 创建用户
     password_hash = hash_password(user.password)
-    new_user = supabase.table('users').insert({
+    new_user = db_client.table('users').insert({
         'username': user.username,
         'password_hash': password_hash,
         'email': user.email,
@@ -236,14 +230,14 @@ async def register(user: UserRegister):
 @app.post('/api/v1/auth/login')
 async def login(user: UserLogin):
     """用户登录"""
-    if not supabase:
+    if not db_client:
         raise HTTPException(
             status_code=503,
-            detail="数据库未配置，请在.env文件中配置SUPABASE_URL和SUPABASE_KEY"
+            detail="数据库未配置，请检查MySQL配置"
         )
 
     # 查找用户
-    result = supabase.table('users').select('*').eq('username', user.username).execute()
+    result = db_client.table('users').select('*').eq('username', user.username).execute()
     if not result.data:
         raise HTTPException(status_code=401, detail="用户名或密码错误")
 
@@ -273,10 +267,10 @@ async def login(user: UserLogin):
 @app.get('/api/v1/auth/me')
 async def get_current_user(user_id: str = Depends(get_user_id)):
     """获取当前用户信息"""
-    if not supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Database not configured")
 
-    result = supabase.table('users').select('id, username, email, nickname, avatar, cloud_sync_enabled, data_encryption_enabled, anonymous_analytics, created_at').eq('id', user_id).single().execute()
+    result = db_client.table('users').select('id, username, email, nickname, avatar, cloud_sync_enabled, data_encryption_enabled, anonymous_analytics, created_at').eq('id', user_id).single().execute()
 
     if not result.data:
         raise HTTPException(status_code=404, detail="User not found")
@@ -287,7 +281,7 @@ async def get_current_user(user_id: str = Depends(get_user_id)):
 @app.post('/api/v1/auth/change-password')
 async def change_password(data: ChangePassword, user_id: str = Depends(get_user_id)):
     """修改密码"""
-    if not supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Database not configured")
 
     # 参数校验
@@ -295,7 +289,7 @@ async def change_password(data: ChangePassword, user_id: str = Depends(get_user_
         raise HTTPException(status_code=400, detail="新密码长度至少6个字符")
 
     # 获取用户信息
-    result = supabase.table('users').select('id, password_hash').eq('id', user_id).execute()
+    result = db_client.table('users').select('id, password_hash').eq('id', user_id).execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="用户不存在")
 
@@ -307,7 +301,7 @@ async def change_password(data: ChangePassword, user_id: str = Depends(get_user_
 
     # 更新密码
     new_password_hash = hash_password(data.new_password)
-    supabase.table('users').update({'password_hash': new_password_hash}).eq('id', user_id).execute()
+    db_client.table('users').update({'password_hash': new_password_hash}).eq('id', user_id).execute()
 
     return {"message": "密码修改成功"}
 
@@ -315,11 +309,11 @@ async def change_password(data: ChangePassword, user_id: str = Depends(get_user_
 @app.post('/api/v1/auth/privacy-settings')
 async def update_privacy_settings(settings: PrivacySettings, user_id: str = Depends(get_user_id)):
     """更新隐私设置"""
-    if not supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Database not configured")
 
     # 更新隐私设置
-    supabase.table('users').update({
+    db_client.table('users').update({
         'cloud_sync_enabled': settings.cloud_sync_enabled,
         'data_encryption_enabled': settings.data_encryption_enabled,
         'anonymous_analytics': settings.anonymous_analytics
@@ -331,10 +325,10 @@ async def update_privacy_settings(settings: PrivacySettings, user_id: str = Depe
 @app.get('/api/v1/auth/privacy-settings')
 async def get_privacy_settings(user_id: str = Depends(get_user_id)):
     """获取隐私设置"""
-    if not supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Database not configured")
 
-    result = supabase.table('users').select('cloud_sync_enabled, data_encryption_enabled, anonymous_analytics').eq('id', user_id).single().execute()
+    result = db_client.table('users').select('cloud_sync_enabled, data_encryption_enabled, anonymous_analytics').eq('id', user_id).single().execute()
 
     if not result.data:
         raise HTTPException(status_code=404, detail="用户不存在")
@@ -345,7 +339,7 @@ async def get_privacy_settings(user_id: str = Depends(get_user_id)):
 @app.post('/api/v1/auth/profile')
 async def update_profile(profile: UpdateProfile, user_id: str = Depends(get_user_id)):
     """更新用户资料"""
-    if not supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Database not configured")
 
     # 构建更新数据
@@ -359,7 +353,7 @@ async def update_profile(profile: UpdateProfile, user_id: str = Depends(get_user
 
     # 更新用户资料
     if update_data:
-        supabase.table('users').update(update_data).eq('id', user_id).execute()
+        db_client.table('users').update(update_data).eq('id', user_id).execute()
 
     return {"message": "资料更新成功"}
 
@@ -395,7 +389,7 @@ async def check_update(request: VersionCheckRequest):
     检查APP更新
     返回是否有新版本、版本号、更新说明、下载链接等
     """
-    if not supabase:
+    if not db_client:
         # 没有配置数据库，返回无更新
         return {
             "has_update": False,
@@ -409,7 +403,7 @@ async def check_update(request: VersionCheckRequest):
 
     try:
         # 获取当前平台的激活版本
-        result = supabase.table('app_versions').select('*').eq('platform', request.platform.lower()).eq('is_active', True).execute()
+        result = db_client.table('app_versions').select('*').eq('platform', request.platform.lower()).eq('is_active', True).execute()
     except Exception as e:
         # 表不存在或其他错误，返回无更新
         print(f"Error checking updates: {e}")
@@ -468,7 +462,7 @@ async def check_update(request: VersionCheckRequest):
 @app.post('/api/v1/diaries')
 async def create_diary(diary: DiaryCreate, user_id: str = Depends(get_user_id)):
     """创建日记"""
-    if not supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Database not configured")
 
     insert_data = {"content": diary.content, "user_id": user_id}
@@ -480,7 +474,7 @@ async def create_diary(diary: DiaryCreate, user_id: str = Depends(get_user_id)):
     if diary.tags:
         insert_data["tags"] = diary.tags
 
-    result = supabase.table('diaries').insert(insert_data).execute()
+    result = db_client.table('diaries').insert(insert_data).execute()
 
     # TODO: 异步进行情绪分析
 
@@ -500,11 +494,11 @@ async def get_diaries(
     - start_date: 开始日期（ISO格式，如：2026-04-01）
     - end_date: 结束日期（ISO格式，如：2026-04-30）
     """
-    if not supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Database not configured")
 
     # 构建查询
-    query = supabase.table('diaries').select('*').eq('user_id', user_id)
+    query = db_client.table('diaries').select('*').eq('user_id', user_id)
 
     # 添加日期筛选
     if start_date:
@@ -520,10 +514,10 @@ async def get_diaries(
 @app.get('/api/v1/diaries/{diary_id}')
 async def get_diary_detail(diary_id: str, user_id: str = Depends(get_user_id)):
     """获取日记详情"""
-    if not supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Database not configured")
 
-    result = supabase.table('diaries').select('*').eq('id', diary_id).eq('user_id', user_id).execute()
+    result = db_client.table('diaries').select('*').eq('id', diary_id).eq('user_id', user_id).execute()
 
     if not result.data:
         raise HTTPException(status_code=404, detail="Diary not found")
@@ -534,10 +528,10 @@ async def get_diary_detail(diary_id: str, user_id: str = Depends(get_user_id)):
 @app.delete('/api/v1/diaries/{diary_id}')
 async def delete_diary(diary_id: str, user_id: str = Depends(get_user_id)):
     """删除日记"""
-    if not supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Database not configured")
 
-    supabase.table('diaries').delete().eq('id', diary_id).eq('user_id', user_id).execute()
+    db_client.table('diaries').delete().eq('id', diary_id).eq('user_id', user_id).execute()
 
     return {"success": True}
 
@@ -545,11 +539,11 @@ async def delete_diary(diary_id: str, user_id: str = Depends(get_user_id)):
 @app.put('/api/v1/diaries/{diary_id}')
 async def update_diary(diary_id: str, diary: DiaryCreate, user_id: str = Depends(get_user_id)):
     """更新日记"""
-    if not supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Database not configured")
 
     # 检查日记是否存在且属于该用户
-    check_result = supabase.table('diaries').select('id').eq('id', diary_id).eq('user_id', user_id).execute()
+    check_result = db_client.table('diaries').select('id').eq('id', diary_id).eq('user_id', user_id).execute()
     if not check_result.data:
         raise HTTPException(status_code=404, detail="Diary not found")
 
@@ -559,7 +553,7 @@ async def update_diary(diary_id: str, diary: DiaryCreate, user_id: str = Depends
         'updated_at': datetime.now().isoformat(),
     }
 
-    result = supabase.table('diaries').update(update_data).eq('id', diary_id).eq('user_id', user_id).execute()
+    result = db_client.table('diaries').update(update_data).eq('id', diary_id).eq('user_id', user_id).execute()
 
     # TODO: 如果情绪或内容发生变化，重新进行情绪分析
 
@@ -575,7 +569,7 @@ class GenerateDiaryFromChat(BaseModel):
 @app.post('/api/v1/diaries/generate-from-chat')
 async def generate_diary_from_chat(data: GenerateDiaryFromChat, user_id: str = Depends(get_user_id)):
     """从聊天记录生成日记"""
-    if not supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Database not configured")
 
     try:
@@ -657,7 +651,7 @@ async def generate_diary_from_chat(data: GenerateDiaryFromChat, user_id: str = D
             "tags": diary_data.get('tags', [])
         }
 
-        result = supabase.table('diaries').insert(insert_data).execute()
+        result = db_client.table('diaries').insert(insert_data).execute()
 
         if not result.data:
             raise HTTPException(status_code=500, detail="保存日记失败")
@@ -699,8 +693,8 @@ async def chat_stream(chat: ChatMessage, user_id: str = Depends(get_user_id)):
 
         if chat.diaryId:
             # 获取关联的日记
-            if supabase:
-                diary_result = supabase.table('diaries').select('content').eq('id', chat.diaryId).maybe_single().execute()
+            if db_client:
+                diary_result = db_client.table('diaries').select('content').eq('id', chat.diaryId).maybe_single().execute()
                 if diary_result.data:
                     messages.append({
                         "role": "system",
@@ -708,8 +702,8 @@ async def chat_stream(chat: ChatMessage, user_id: str = Depends(get_user_id)):
                     })
 
         # 获取最近对话历史
-        if supabase:
-            conv_result = supabase.table('conversations').select('user_message, ai_message').order('created_at', desc=True).limit(5).execute()
+        if db_client:
+            conv_result = db_client.table('conversations').select('user_message, ai_message').order('created_at', desc=True).limit(5).execute()
             if conv_result.data:
                 for conv in reversed(conv_result.data):
                     messages.append({"role": "user", "content": conv['user_message']})
@@ -729,8 +723,8 @@ async def chat_stream(chat: ChatMessage, user_id: str = Depends(get_user_id)):
         yield "data: [DONE]\n\n"
 
         # 保存对话记录
-        if supabase:
-            supabase.table('conversations').insert({
+        if db_client:
+            db_client.table('conversations').insert({
                 'user_id': user_id,
                 'user_message': chat.message,
                 'ai_message': full_response,
@@ -743,10 +737,10 @@ async def chat_stream(chat: ChatMessage, user_id: str = Depends(get_user_id)):
 @app.get('/api/v1/conversations')
 async def get_conversations(user_id: str = Depends(get_user_id)):
     """获取对话列表"""
-    if not supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Database not configured")
 
-    result = supabase.table('conversations').select('*').eq('user_id', user_id).order('created_at', desc=True).limit(100).execute()
+    result = db_client.table('conversations').select('*').eq('user_id', user_id).order('created_at', desc=True).limit(100).execute()
 
     return result.data or []
 
@@ -1282,17 +1276,17 @@ class UpdateVersion(BaseModel):
 @app.post('/api/v1/admin/versions')
 async def create_version(version_data: CreateVersion):
     """创建新版本"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
     # 检查版本号是否已存在
-    existing = admin_supabase.table('app_versions').select('*').eq('platform', version_data.platform).eq('version', version_data.version).execute()
+    existing = db_client.table('app_versions').select('*').eq('platform', version_data.platform).eq('version', version_data.version).execute()
 
     if existing.data:
         raise HTTPException(status_code=400, detail="该平台的此版本号已存在")
 
     # 创建版本
-    result = admin_supabase.table('app_versions').insert({
+    result = db_client.table('app_versions').insert({
         "version": version_data.version,
         "build_number": version_data.build_number,
         "platform": version_data.platform,
@@ -1308,10 +1302,10 @@ async def create_version(version_data: CreateVersion):
 @app.get('/api/v1/admin/versions')
 async def get_all_versions(platform: Optional[str] = None):
     """获取所有版本"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
-    query = admin_supabase.table('app_versions').select('*').order('release_date', desc=True)
+    query = db_client.table('app_versions').select('*').order('release_date', desc=True)
 
     if platform:
         query = query.eq('platform', platform)
@@ -1324,10 +1318,10 @@ async def get_all_versions(platform: Optional[str] = None):
 @app.get('/api/v1/admin/versions/{version_id}')
 async def get_version(version_id: str):
     """获取单个版本详情"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
-    result = admin_supabase.table('app_versions').select('*').eq('id', version_id).execute()
+    result = db_client.table('app_versions').select('*').eq('id', version_id).execute()
 
     if not result.data:
         raise HTTPException(status_code=404, detail="版本不存在")
@@ -1338,7 +1332,7 @@ async def get_version(version_id: str):
 @app.put('/api/v1/admin/versions/{version_id}')
 async def update_version(version_id: str, version_data: UpdateVersion):
     """更新版本"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
     # 构建更新数据
@@ -1354,7 +1348,7 @@ async def update_version(version_id: str, version_data: UpdateVersion):
     if version_data.update_url is not None:
         update_data['update_url'] = version_data.update_url
 
-    result = admin_supabase.table('app_versions').update(update_data).eq('id', version_id).execute()
+    result = db_client.table('app_versions').update(update_data).eq('id', version_id).execute()
 
     if not result.data:
         raise HTTPException(status_code=404, detail="版本不存在")
@@ -1365,10 +1359,10 @@ async def update_version(version_id: str, version_data: UpdateVersion):
 @app.delete('/api/v1/admin/versions/{version_id}')
 async def delete_version(version_id: str):
     """删除版本"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
-    result = admin_supabase.table('app_versions').delete().eq('id', version_id).execute()
+    result = db_client.table('app_versions').delete().eq('id', version_id).execute()
 
     if not result.data:
         raise HTTPException(status_code=404, detail="版本不存在")
@@ -1379,11 +1373,11 @@ async def delete_version(version_id: str):
 @app.post('/api/v1/admin/versions/{version_id}/activate')
 async def activate_version(version_id: str):
     """激活版本（推送给用户）"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
     # 获取要激活的版本
-    version_result = admin_supabase.table('app_versions').select('*').eq('id', version_id).execute()
+    version_result = db_client.table('app_versions').select('*').eq('id', version_id).execute()
 
     if not version_result.data:
         raise HTTPException(status_code=404, detail="版本不存在")
@@ -1391,10 +1385,10 @@ async def activate_version(version_id: str):
     version = version_result.data[0]
 
     # 取消该平台所有版本的激活状态
-    admin_supabase.table('app_versions').update({'is_active': False}).eq('platform', version['platform']).execute()
+    db_client.table('app_versions').update({'is_active': False}).eq('platform', version['platform']).execute()
 
     # 激活当前版本
-    result = admin_supabase.table('app_versions').update({'is_active': True}).eq('id', version_id).execute()
+    result = db_client.table('app_versions').update({'is_active': True}).eq('id', version_id).execute()
 
     return {"success": True, "version": result.data[0]}
 
@@ -1402,10 +1396,10 @@ async def activate_version(version_id: str):
 @app.get('/api/v1/admin/versions/active')
 async def get_active_versions():
     """获取当前激活的版本"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
-    result = admin_supabase.table('app_versions').select('*').eq('is_active', True).execute()
+    result = db_client.table('app_versions').select('*').eq('is_active', True).execute()
 
     return {"success": True, "versions": result.data}
 
@@ -1602,15 +1596,15 @@ class AnnouncementUpdate(BaseModel):
 @app.get('/api/v1/admin/users')
 async def get_all_users(skip: int = 0, limit: int = 50):
     """获取所有用户列表（管理员接口）"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
     # 获取用户总数
-    count_result = admin_supabase.table('users').select('*', count='exact').execute()
+    count_result = db_client.table('users').select('*', count='exact').execute()
     total = count_result.count if hasattr(count_result, 'count') else 0
 
     # 获取用户列表（按创建时间倒序）
-    result = admin_supabase.table('users').select('*')\
+    result = db_client.table('users').select('*')\
         .order('created_at', desc=True)\
         .range(skip, skip + limit - 1)\
         .execute()
@@ -1620,7 +1614,7 @@ async def get_all_users(skip: int = 0, limit: int = 50):
     diary_stats = {}
     if user_ids:
         for user_id in user_ids:
-            diary_result = admin_supabase.table('diaries').select('*', count='exact').eq('user_id', user_id).execute()
+            diary_result = db_client.table('diaries').select('*', count='exact').eq('user_id', user_id).execute()
             diary_stats[user_id] = diary_result.count if hasattr(diary_result, 'count') else 0
 
     # 为每个用户添加活跃度数据
@@ -1642,10 +1636,10 @@ async def get_all_users(skip: int = 0, limit: int = 50):
 @app.get('/api/v1/admin/users/{user_id}')
 async def get_user_by_id(user_id: str):
     """获取指定用户详情（管理员接口）"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
-    result = admin_supabase.table('users').select('*').eq('id', user_id).execute()
+    result = db_client.table('users').select('*').eq('id', user_id).execute()
 
     if not result.data:
         raise HTTPException(status_code=404, detail="用户不存在")
@@ -1653,7 +1647,7 @@ async def get_user_by_id(user_id: str):
     user = result.data[0]
 
     # 获取用户的日记统计
-    diary_result = admin_supabase.table('diaries').select('*', count='exact').eq('user_id', user_id).execute()
+    diary_result = db_client.table('diaries').select('*', count='exact').eq('user_id', user_id).execute()
     user['diary_count'] = diary_result.count if hasattr(diary_result, 'count') else 0
 
     # 获取最近的登录记录（如果有的话）
@@ -1668,11 +1662,11 @@ async def get_user_by_id(user_id: str):
 @app.put('/api/v1/admin/users/{user_id}')
 async def update_user(user_id: str, user_update: UserUpdate):
     """更新用户信息（管理员接口）"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
     # 检查用户是否存在
-    existing = admin_supabase.table('users').select('*').eq('id', user_id).execute()
+    existing = db_client.table('users').select('*').eq('id', user_id).execute()
     if not existing.data:
         raise HTTPException(status_code=404, detail="用户不存在")
 
@@ -1680,7 +1674,7 @@ async def update_user(user_id: str, user_update: UserUpdate):
     update_data = {k: v for k, v in user_update.dict().items() if v is not None}
     update_data['updated_at'] = datetime.now().isoformat()
 
-    result = admin_supabase.table('users').update(update_data).eq('id', user_id).execute()
+    result = db_client.table('users').update(update_data).eq('id', user_id).execute()
 
     return {
         "success": True,
@@ -1692,11 +1686,11 @@ async def update_user(user_id: str, user_update: UserUpdate):
 @app.put('/api/v1/admin/users/{user_id}/password')
 async def reset_user_password(user_id: str, password_update: PasswordUpdate):
     """重置用户密码（管理员接口）"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
     # 检查用户是否存在
-    existing = admin_supabase.table('users').select('*').eq('id', user_id).execute()
+    existing = db_client.table('users').select('*').eq('id', user_id).execute()
     if not existing.data:
         raise HTTPException(status_code=404, detail="用户不存在")
 
@@ -1711,7 +1705,7 @@ async def reset_user_password(user_id: str, password_update: PasswordUpdate):
         'updated_at': datetime.now().isoformat()
     }
 
-    admin_supabase.table('users').update(update_data).eq('id', user_id).execute()
+    db_client.table('users').update(update_data).eq('id', user_id).execute()
 
     return {
         "success": True,
@@ -1722,19 +1716,19 @@ async def reset_user_password(user_id: str, password_update: PasswordUpdate):
 @app.delete('/api/v1/admin/users/{user_id}')
 async def delete_user(user_id: str):
     """删除用户（管理员接口）"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
     # 检查用户是否存在
-    existing = admin_supabase.table('users').select('*').eq('id', user_id).execute()
+    existing = db_client.table('users').select('*').eq('id', user_id).execute()
     if not existing.data:
         raise HTTPException(status_code=404, detail="用户不存在")
 
     # 删除用户的所有日记
-    admin_supabase.table('diaries').delete().eq('user_id', user_id).execute()
+    db_client.table('diaries').delete().eq('user_id', user_id).execute()
 
     # 删除用户
-    admin_supabase.table('users').delete().eq('id', user_id).execute()
+    db_client.table('users').delete().eq('id', user_id).execute()
 
     return {
         "success": True,
@@ -1745,16 +1739,16 @@ async def delete_user(user_id: str):
 @app.get('/api/v1/admin/users/{user_id}/diaries')
 async def get_user_diaries(user_id: str, skip: int = 0, limit: int = 20):
     """获取指定用户的日记列表（管理员接口）"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
     # 检查用户是否存在
-    existing = admin_supabase.table('users').select('*').eq('id', user_id).execute()
+    existing = db_client.table('users').select('*').eq('id', user_id).execute()
     if not existing.data:
         raise HTTPException(status_code=404, detail="用户不存在")
 
     # 获取用户日记
-    result = admin_supabase.table('diaries').select('*')\
+    result = db_client.table('diaries').select('*')\
         .eq('user_id', user_id)\
         .order('created_at', desc=True)\
         .range(skip, skip + limit - 1)\
@@ -1770,17 +1764,17 @@ async def get_user_diaries(user_id: str, skip: int = 0, limit: int = 20):
 @app.get('/api/v1/admin/stats')
 async def get_admin_stats():
     """获取管理员统计数据（管理员接口）"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
     try:
         # 获取用户总数
-        users_result = admin_supabase.table('users').select('*', count='exact').execute()
+        users_result = db_client.table('users').select('*', count='exact').execute()
         total_users = users_result.count if hasattr(users_result, 'count') else 0
 
         # 获取管理员数量
         try:
-            admin_result = admin_supabase.table('users').select('*', count='exact').eq('is_admin', True).execute()
+            admin_result = db_client.table('users').select('*', count='exact').eq('is_admin', True).execute()
             admin_count = admin_result.count if hasattr(admin_result, 'count') else 0
         except Exception:
             # 如果 is_admin 字段不存在，返回 0
@@ -1788,18 +1782,18 @@ async def get_admin_stats():
 
         # 获取活跃用户数量（最近30天有日记的用户）
         thirty_days_ago = (datetime.now() - timedelta(days=30)).isoformat()
-        active_users_result = admin_supabase.table('diaries').select('user_id', count='exact')\
+        active_users_result = db_client.table('diaries').select('user_id', count='exact')\
             .gte('created_at', thirty_days_ago)\
             .execute()
         active_user_ids = set(d['user_id'] for d in active_users_result.data) if active_users_result.data else set()
         active_users_count = len(active_user_ids)
 
         # 获取日记总数
-        diaries_result = admin_supabase.table('diaries').select('*', count='exact').execute()
+        diaries_result = db_client.table('diaries').select('*', count='exact').execute()
         total_diaries = diaries_result.count if hasattr(diaries_result, 'count') else 0
 
         # 获取最近30天的日记数量
-        recent_diaries_result = admin_supabase.table('diaries').select('*', count='exact')\
+        recent_diaries_result = db_client.table('diaries').select('*', count='exact')\
             .gte('created_at', thirty_days_ago)\
             .execute()
         recent_diaries_count = recent_diaries_result.count if hasattr(recent_diaries_result, 'count') else 0
@@ -1857,28 +1851,13 @@ class AnnouncementUpdate(BaseModel):
 @app.get('/api/v1/welcome')
 async def get_welcome_content():
     """获取激活的欢迎内容"""
-    if not admin_supabase:
-        raise HTTPException(status_code=500, detail="Admin database not configured")
-
     try:
-        # 使用 HTTP 直接调用 Supabase REST API
-        url = f"{SUPABASE_URL}/rest/v1/welcome_content"
-        headers = {
-            'apikey': SUPABASE_KEY,
-            'Authorization': f'Bearer {SUPABASE_KEY}',
-            'Content-Type': 'application/json'
-        }
-        params = {
-            'is_active': 'eq.true',
-            'limit': '1'
-        }
+        result = db_client.table('welcome_content').select('*')\
+            .eq('is_active', True)\
+            .execute()
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=headers, params=params)
-            if response.status_code == 200:
-                data = response.json()
-                if data and len(data) > 0:
-                    return {"success": True, "welcome": data[0]}
+        if result.data and len(result.data) > 0:
+            return {"success": True, "welcome": result.data[0]}
 
         return {"success": True, "welcome": None}
     except Exception as e:
@@ -1889,14 +1868,11 @@ async def get_welcome_content():
 @app.post('/api/v1/user/welcome/{welcome_id}/viewed')
 async def mark_welcome_viewed(welcome_id: str, token: str = Depends(security)):
     """标记用户已查看欢迎内容"""
-    if not admin_supabase:
-        raise HTTPException(status_code=500, detail="Admin database not configured")
-
     # 从 token 获取用户 ID
     user_id = await get_user_id_from_token(token)
 
     # 检查是否已标记
-    existing = admin_supabase.table('user_welcome_status').select('*')\
+    existing = db_client.table('user_welcome_status').select('*')\
         .eq('user_id', user_id)\
         .eq('welcome_id', welcome_id)\
         .execute()
@@ -1905,7 +1881,7 @@ async def mark_welcome_viewed(welcome_id: str, token: str = Depends(security)):
         return {"success": True, "message": "Already viewed"}
 
     # 标记为已查看
-    admin_supabase.table('user_welcome_status').insert({
+    db_client.table('user_welcome_status').insert({
         'id': str(uuid.uuid4()),
         'user_id': user_id,
         'welcome_id': welcome_id
@@ -1917,10 +1893,10 @@ async def mark_welcome_viewed(welcome_id: str, token: str = Depends(security)):
 @app.get('/api/v1/admin/welcome')
 async def get_all_welcome_content():
     """获取所有欢迎内容（管理员接口）"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
-    result = admin_supabase.table('welcome_content').select('*').execute()
+    result = db_client.table('welcome_content').select('*').execute()
 
     return {"success": True, "welcome_contents": result.data}
 
@@ -1928,7 +1904,7 @@ async def get_all_welcome_content():
 @app.post('/api/v1/admin/welcome')
 async def create_welcome_content(welcome: WelcomeContentUpdate):
     """创建欢迎内容（管理员接口）"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
     new_welcome = {
@@ -1940,7 +1916,7 @@ async def create_welcome_content(welcome: WelcomeContentUpdate):
         'is_active': welcome.is_active if welcome.is_active is not None else True
     }
 
-    result = admin_supabase.table('welcome_content').insert(new_welcome).execute()
+    result = db_client.table('welcome_content').insert(new_welcome).execute()
 
     return {"success": True, "welcome": result.data[0]}
 
@@ -1948,13 +1924,13 @@ async def create_welcome_content(welcome: WelcomeContentUpdate):
 @app.put('/api/v1/admin/welcome/{welcome_id}')
 async def update_welcome_content(welcome_id: str, welcome: WelcomeContentUpdate):
     """更新欢迎内容（管理员接口）"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
     update_data = {k: v for k, v in welcome.dict().items() if v is not None}
     update_data['updated_at'] = datetime.now().isoformat()
 
-    result = admin_supabase.table('welcome_content').update(update_data).eq('id', welcome_id).execute()
+    result = db_client.table('welcome_content').update(update_data).eq('id', welcome_id).execute()
 
     if not result.data:
         raise HTTPException(status_code=404, detail="Welcome content not found")
@@ -1965,10 +1941,10 @@ async def update_welcome_content(welcome_id: str, welcome: WelcomeContentUpdate)
 @app.delete('/api/v1/admin/welcome/{welcome_id}')
 async def delete_welcome_content(welcome_id: str):
     """删除欢迎内容（管理员接口）"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
-    admin_supabase.table('welcome_content').delete().eq('id', welcome_id).execute()
+    db_client.table('welcome_content').delete().eq('id', welcome_id).execute()
 
     return {"success": True, "message": "Welcome content deleted"}
 
@@ -1978,13 +1954,13 @@ async def delete_welcome_content(welcome_id: str):
 @app.get('/api/v1/announcements')
 async def get_active_announcements(user_id: Optional[str] = None):
     """获取用户可用的活跃公告"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
     now = datetime.now().isoformat()
 
     # 获取活跃的公告
-    result = admin_supabase.table('announcements').select('*')\
+    result = db_client.table('announcements').select('*')\
         .eq('is_active', True)\
         .or_(f'start_time.is.null,start_time.lte.{now}')\
         .or_(f'end_time.is.null,end_time.gte.{now}')\
@@ -1996,7 +1972,7 @@ async def get_active_announcements(user_id: Optional[str] = None):
 
     # 如果提供了用户 ID，过滤用户已查看的公告
     if user_id:
-        viewed_result = admin_supabase.table('user_announcement_status').select('announcement_id')\
+        viewed_result = db_client.table('user_announcement_status').select('announcement_id')\
             .eq('user_id', user_id)\
             .execute()
 
@@ -2013,14 +1989,14 @@ async def get_active_announcements(user_id: Optional[str] = None):
 @app.post('/api/v1/user/announcements/{announcement_id}/viewed')
 async def mark_announcement_viewed(announcement_id: str, token: str = Depends(security)):
     """标记用户已查看公告"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
     # 从 token 获取用户 ID
     user_id = await get_user_id_from_token(token)
 
     # 检查是否已标记
-    existing = admin_supabase.table('user_announcement_status').select('*')\
+    existing = db_client.table('user_announcement_status').select('*')\
         .eq('user_id', user_id)\
         .eq('announcement_id', announcement_id)\
         .execute()
@@ -2029,7 +2005,7 @@ async def mark_announcement_viewed(announcement_id: str, token: str = Depends(se
         return {"success": True, "message": "Already viewed"}
 
     # 标记为已查看
-    admin_supabase.table('user_announcement_status').insert({
+    db_client.table('user_announcement_status').insert({
         'id': str(uuid.uuid4()),
         'user_id': user_id,
         'announcement_id': announcement_id
@@ -2041,10 +2017,10 @@ async def mark_announcement_viewed(announcement_id: str, token: str = Depends(se
 @app.get('/api/v1/admin/announcements')
 async def get_all_announcements():
     """获取所有公告（管理员接口）"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
-    result = admin_supabase.table('announcements').select('*').order('priority', desc=True).execute()
+    result = db_client.table('announcements').select('*').order('priority', desc=True).execute()
 
     return {"success": True, "announcements": result.data}
 
@@ -2052,7 +2028,7 @@ async def get_all_announcements():
 @app.post('/api/v1/admin/announcements')
 async def create_announcement(announcement: AnnouncementCreate):
     """创建公告（管理员接口）"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
     new_announcement = {
@@ -2068,7 +2044,7 @@ async def create_announcement(announcement: AnnouncementCreate):
         'target_user_type': announcement.target_user_type
     }
 
-    result = admin_supabase.table('announcements').insert(new_announcement).execute()
+    result = db_client.table('announcements').insert(new_announcement).execute()
 
     return {"success": True, "announcement": result.data[0]}
 
@@ -2076,13 +2052,13 @@ async def create_announcement(announcement: AnnouncementCreate):
 @app.put('/api/v1/admin/announcements/{announcement_id}')
 async def update_announcement(announcement_id: str, announcement: AnnouncementUpdate):
     """更新公告（管理员接口）"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
     update_data = {k: v for k, v in announcement.dict().items() if v is not None}
     update_data['updated_at'] = datetime.now().isoformat()
 
-    result = admin_supabase.table('announcements').update(update_data).eq('id', announcement_id).execute()
+    result = db_client.table('announcements').update(update_data).eq('id', announcement_id).execute()
 
     if not result.data:
         raise HTTPException(status_code=404, detail="Announcement not found")
@@ -2093,10 +2069,10 @@ async def update_announcement(announcement_id: str, announcement: AnnouncementUp
 @app.delete('/api/v1/admin/announcements/{announcement_id}')
 async def delete_announcement(announcement_id: str):
     """删除公告（管理员接口）"""
-    if not admin_supabase:
+    if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
-    admin_supabase.table('announcements').delete().eq('id', announcement_id).execute()
+    db_client.table('announcements').delete().eq('id', announcement_id).execute()
 
     return {"success": True, "message": "Announcement deleted"}
 # ========== 主程序 ==========
@@ -2109,6 +2085,6 @@ if __name__ == '__main__':
     print(f"🔗 ARK API Key: {'✅ Configured' if ARK_API_KEY else '❌ Not configured'}")
     print(f"🎤 Volcengine APP ID: {'✅ Configured' if VOLCENGINE_SPEECH_APP_ID else '❌ Not configured'}")
     print(f"🎤 Volcengine Access Token: {'✅ Configured' if VOLCENGINE_ACCESS_TOKEN else '❌ Not configured'}")
-    print(f"🗄️  Supabase: {'✅ Configured' if supabase else '❌ Not configured'}")
+    print(f"🗄️  MySQL: {'✅ Configured' if db_client else '❌ Not configured'}")
 
     uvicorn.run(app, host="0.0.0.0", port=port)
