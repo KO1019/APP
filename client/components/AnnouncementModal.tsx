@@ -12,6 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { useCSSVariable } from 'uniwind';
 
 const { width, height } = Dimensions.get('window');
 
@@ -37,6 +38,14 @@ export default function AnnouncementModal({
   onClose,
   onConfirm,
 }: AnnouncementModalProps) {
+  const [background, surface, accent, foreground, muted] = useCSSVariable([
+    '--color-background',
+    '--color-surface',
+    '--color-accent',
+    '--color-foreground',
+    '--color-muted',
+  ]) as string[];
+
   const handleConfirm = () => {
     if (onConfirm) {
       onConfirm();
@@ -60,7 +69,7 @@ export default function AnnouncementModal({
         <Animated.View
           entering={FadeIn.duration(300)}
           exiting={FadeOut.duration(200)}
-          style={styles.container}
+          style={[styles.container, { backgroundColor: surface, shadowColor: accent }]}
         >
           {/* 头部图片 */}
           {announcement.image_url ? (
@@ -70,7 +79,7 @@ export default function AnnouncementModal({
               resizeMode="cover"
             />
           ) : (
-            <View style={styles.headerPlaceholder}>
+            <View style={[styles.headerPlaceholder, { backgroundColor: `${accent}15` }]}>
               <Text style={styles.placeholderIcon}>📢</Text>
             </View>
           )}
@@ -78,15 +87,15 @@ export default function AnnouncementModal({
           {/* 内容区域 */}
           <ScrollView style={styles.contentContainer}>
             <View style={styles.content}>
-              <Text style={styles.title}>{announcement.title}</Text>
-              <Text style={styles.contentText}>{announcement.content}</Text>
+              <Text style={[styles.title, { color: foreground }]}>{announcement.title}</Text>
+              <Text style={[styles.contentText, { color: muted }]}>{announcement.content}</Text>
             </View>
           </ScrollView>
 
           {/* 按钮 */}
-          <View style={styles.buttonContainer}>
+          <View style={[styles.buttonContainer, { borderTopColor: `${accent}15` }]}>
             <TouchableOpacity
-              style={styles.confirmButton}
+              style={[styles.confirmButton, { backgroundColor: accent, shadowColor: accent }]}
               onPress={handleConfirm}
               activeOpacity={0.8}
             >
@@ -97,8 +106,11 @@ export default function AnnouncementModal({
           </View>
 
           {/* 关闭按钮 */}
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <Text style={styles.closeButtonText}>✕</Text>
+          <TouchableOpacity
+            style={[styles.closeButton, { backgroundColor: `${background}90`, shadowColor: accent }]}
+            onPress={onClose}
+          >
+            <Text style={[styles.closeButtonText, { color: muted }]}>✕</Text>
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -118,12 +130,10 @@ const styles = StyleSheet.create({
     width: width * 0.9,
     maxWidth: 400,
     maxHeight: height * 0.8,
-    backgroundColor: '#FFFFFF',
     borderRadius: 24,
     overflow: 'hidden',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.1,
     shadowRadius: 24,
     elevation: 12,
   },
@@ -136,7 +146,6 @@ const styles = StyleSheet.create({
     height: 120,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
   },
   placeholderIcon: {
     fontSize: 60,
@@ -151,13 +160,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#111827',
     marginBottom: 12,
     lineHeight: 32,
   },
   contentText: {
     fontSize: 16,
-    color: '#6B7280',
     lineHeight: 24,
   },
   buttonContainer: {
@@ -165,18 +172,15 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 24,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
   },
   confirmButton: {
     width: '100%',
     height: 52,
-    backgroundColor: '#6366F1',
-    borderRadius: 14,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#6366F1',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 12,
     elevation: 8,
   },
@@ -192,10 +196,8 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -204,6 +206,5 @@ const styles = StyleSheet.create({
   closeButtonText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#6B7280',
   },
 });
