@@ -1,212 +1,212 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  Dimensions,
-  TouchableOpacity,
-  SafeAreaView,
-  StatusBar,
-} from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions } from 'react-native';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
+import { Screen } from '@/components/Screen';
+import { useCSSVariable } from 'uniwind';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
-interface WelcomeContent {
-  id: string;
-  title: string;
-  content: string;
-  image_url?: string;
-  button_text?: string;
-}
-
 export default function WelcomeScreen() {
   const router = useSafeRouter();
-  const [welcome, setWelcome] = useState<WelcomeContent | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isVisible, setIsVisible] = useState(false);
+  const [background, surface, accent, foreground, muted] = useCSSVariable([
+    '--color-background',
+    '--color-surface',
+    '--color-accent',
+    '--color-foreground',
+    '--color-muted',
+  ]) as string[];
 
   useEffect(() => {
-    checkAndLoadWelcome();
-  }, []);
-
-  const checkAndLoadWelcome = async () => {
-    try {
-      // 获取欢迎内容
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/welcome`);
-      const data = await response.json();
-
-      if (!data.welcome) {
-        // 没有欢迎内容，直接返回
-        router.replace('/');
-        return;
+    const checkUser = async () => {
+      try {
+        const token = await AsyncStorage.getItem('userToken');
+        if (!token) {
+          router.replace('/login');
+        }
+      } catch (error) {
+        router.replace('/login');
       }
+    };
+    checkUser();
+  }, [router]);
 
-      // 检查用户是否已查看过此欢迎内容
-      const hasViewed = await AsyncStorage.getItem(`welcome_viewed_${data.welcome.id}`);
-
-      if (hasViewed) {
-        // 已查看过，直接返回
-        router.replace('/');
-        return;
-      }
-
-      // 显示欢迎界面
-      setWelcome(data.welcome);
-      setIsVisible(true);
-      setIsLoading(false);
-    } catch (error) {
-      console.error('加载欢迎内容失败:', error);
-      router.replace('/');
+  const features = [
+    {
+      icon: '🎤',
+      title: 'AI 语音助手',
+      description: '通过自然对话记录心情，AI 智能识别情绪并给出建议'
+    },
+    {
+      icon: '📝',
+      title: '智能日记',
+      description: '记录每日心情变化，生成可视化情绪分析图表'
+    },
+    {
+      icon: '🎨',
+      title: '情感分析',
+      description: '深度分析情感倾向，发现情绪变化的规律与趋势'
+    },
+    {
+      icon: '🔒',
+      title: '隐私保护',
+      description: '端到端加密，确保您的日记内容安全私密'
     }
+  ];
+
+  const handleGetStarted = () => {
+    router.replace('/diaries');
   };
-
-  const handleGetStarted = async () => {
-    if (!welcome) return;
-
-    try {
-      // 标记为已查看
-      await fetch(
-        `${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/user/welcome/${welcome.id}/viewed`,
-        { method: 'POST' }
-      );
-
-      // 本地保存
-      await AsyncStorage.setItem(`welcome_viewed_${welcome.id}`, 'true');
-
-      // 导航到首页
-      router.replace('/');
-    } catch (error) {
-      console.error('标记欢迎内容失败:', error);
-      // 即使失败也继续
-      router.replace('/');
-    }
-  };
-
-  if (isLoading || !isVisible || !welcome) {
-    return null;
-  }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      <Animated.View
-        entering={FadeIn.duration(600)}
-        exiting={FadeOut.duration(300)}
-        style={styles.content}
+    <Screen>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        style={{ backgroundColor: background }}
       >
-        {/* 图片区域 */}
-        {welcome.image_url ? (
-          <View style={styles.imageContainer}>
-            <Image
-              source={{ uri: welcome.image_url }}
-              style={styles.image}
-              resizeMode="cover"
-            />
+        {/* Hero Section */}
+        <View style={styles.hero}>
+          <View style={[styles.logoContainer, { backgroundColor: `${accent}15` }]}>
+            <Text style={styles.logoIcon}>🌟</Text>
           </View>
-        ) : (
-          <View style={styles.placeholderContainer}>
-            <Text style={styles.placeholderIcon}>🌟</Text>
-          </View>
-        )}
-
-        {/* 内容区域 */}
-        <View style={styles.textContainer}>
-          <Text style={styles.title}>{welcome.title}</Text>
-          <Text style={styles.content}>{welcome.content}</Text>
+          <Text style={[styles.title, { color: foreground }]}>
+            欢迎使用
+          </Text>
+          <Text style={[styles.subtitle, { color: accent }]}>
+            AI 情绪日记
+          </Text>
+          <Text style={[styles.description, { color: muted }]}>
+            通过智能 AI 助手，记录和了解您的情绪世界
+          </Text>
         </View>
 
-        {/* 按钮 */}
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleGetStarted}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.buttonText}>{welcome.button_text || '开始使用'}</Text>
-        </TouchableOpacity>
-      </Animated.View>
-    </SafeAreaView>
+        {/* Features Grid */}
+        <View style={styles.featuresContainer}>
+          {features.map((feature, index) => (
+            <View key={index} style={[styles.featureCard, { backgroundColor: surface }]}>
+              <View style={[styles.featureIcon, { backgroundColor: `${accent}15` }]}>
+                <Text style={styles.featureIconText}>{feature.icon}</Text>
+              </View>
+              <Text style={[styles.featureTitle, { color: foreground }]}>
+                {feature.title}
+              </Text>
+              <Text style={[styles.featureDescription, { color: muted }]}>
+                {feature.description}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        {/* CTA Button */}
+        <View style={styles.ctaContainer}>
+          <TouchableOpacity
+            style={[styles.ctaButton, { backgroundColor: accent }]}
+            onPress={handleGetStarted}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.ctaButtonText}>开始使用</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
+    flexGrow: 1,
+    padding: 24,
   },
-  content: {
-    flex: 1,
+  hero: {
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingBottom: 40,
+  },
+  logoContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    marginBottom: 24,
   },
-  imageContainer: {
-    width: width * 0.8,
-    height: height * 0.4,
-    marginBottom: 40,
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-  placeholderContainer: {
-    width: width * 0.6,
-    height: height * 0.3,
-    marginBottom: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 24,
-  },
-  placeholderIcon: {
-    fontSize: 80,
-  },
-  textContainer: {
-    width: '100%',
-    marginBottom: 60,
-    alignItems: 'center',
+  logoIcon: {
+    fontSize: 48,
   },
   title: {
+    fontSize: 36,
+    fontWeight: '700',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  subtitle: {
     fontSize: 32,
-    fontWeight: 'bold',
-    color: '#111827',
-    textAlign: 'center',
+    fontWeight: '700',
     marginBottom: 16,
-    lineHeight: 40,
-  },
-  content: {
-    fontSize: 16,
-    color: '#6B7280',
     textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: 20,
   },
-  button: {
-    width: width * 0.8,
+  description: {
+    fontSize: 16,
+    textAlign: 'center',
+    paddingHorizontal: 32,
+    lineHeight: 24,
+  },
+  featuresContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 16,
+    marginBottom: 32,
+  },
+  featureCard: {
+    width: width > 600 ? '48%' : '100%',
+    padding: 20,
+    borderRadius: 24,
+    shadowColor: '#EA580C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  featureIcon: {
+    width: 56,
     height: 56,
-    backgroundColor: '#6366F1',
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    marginBottom: 16,
   },
-  buttonText: {
+  featureIconText: {
+    fontSize: 28,
+  },
+  featureTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  featureDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  ctaContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  ctaButton: {
+    paddingHorizontal: 48,
+    paddingVertical: 18,
+    borderRadius: 16,
+    shadowColor: '#EA580C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+    minWidth: 280,
+    alignItems: 'center',
+  },
+  ctaButtonText: {
     color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
   },
 });
