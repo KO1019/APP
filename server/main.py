@@ -499,7 +499,7 @@ async def check_update(request: VersionCheckRequest):
 
     try:
         # 获取当前平台的激活版本
-        result = db_client.table('app_versions').select('*').eq('platform', request.platform.lower()).eq('is_active', True).execute()
+        result = db_client.table('versions').select('*').eq('platform', request.platform.lower()).eq('is_active', True).execute()
     except Exception as e:
         # 表不存在或其他错误，返回无更新
         print(f"Error checking updates: {e}")
@@ -1431,13 +1431,13 @@ async def create_version(version_data: CreateVersion, request: Request):
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
     # 检查版本号是否已存在
-    existing = db_client.table('app_versions').select('*').eq('platform', version_data.platform).eq('version', version_data.version).execute()
+    existing = db_client.table('versions').select('*').eq('platform', version_data.platform).eq('version', version_data.version).execute()
 
     if existing.data:
         raise HTTPException(status_code=400, detail="该平台的此版本号已存在")
 
     # 创建版本
-    result = db_client.table('app_versions').insert({
+    result = db_client.table('versions').insert({
         "version": version_data.version,
         "build_number": version_data.build_number,
         "platform": version_data.platform,
@@ -1456,12 +1456,23 @@ async def get_all_versions(platform: Optional[str] = None):
     if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
-    query = db_client.table('app_versions').select('*').order('release_date', desc=True)
+    query = db_client.table('versions').select('*').order('created_at', desc=True)
 
     if platform:
         query = query.eq('platform', platform)
 
     result = query.execute()
+
+    return {"success": True, "versions": result.data}
+
+
+@app.get('/api/v1/admin/versions/active')
+async def get_active_versions():
+    """获取当前激活的版本"""
+    if not db_client:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
+
+    result = db_client.table('versions').select('*').eq('is_active', True).execute()
 
     return {"success": True, "versions": result.data}
 
@@ -1472,7 +1483,7 @@ async def get_version(version_id: str):
     if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
-    result = db_client.table('app_versions').select('*').eq('id', version_id).execute()
+    result = db_client.table('versions').select('*').eq('id', version_id).execute()
 
     if not result.data:
         raise HTTPException(status_code=404, detail="版本不存在")
@@ -1499,7 +1510,7 @@ async def update_version(version_id: str, version_data: UpdateVersion):
     if version_data.update_url is not None:
         update_data['update_url'] = version_data.update_url
 
-    result = db_client.table('app_versions').update(update_data).eq('id', version_id).execute()
+    result = db_client.table('versions').update(update_data).eq('id', version_id).execute()
 
     if not result.data:
         raise HTTPException(status_code=404, detail="版本不存在")
@@ -1513,7 +1524,7 @@ async def delete_version(version_id: str):
     if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
-    result = db_client.table('app_versions').delete().eq('id', version_id).execute()
+    result = db_client.table('versions').delete().eq('id', version_id).execute()
 
     if not result.data:
         raise HTTPException(status_code=404, detail="版本不存在")
@@ -1528,7 +1539,7 @@ async def activate_version(version_id: str):
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
     # 获取要激活的版本
-    version_result = db_client.table('app_versions').select('*').eq('id', version_id).execute()
+    version_result = db_client.table('versions').select('*').eq('id', version_id).execute()
 
     if not version_result.data:
         raise HTTPException(status_code=404, detail="版本不存在")
@@ -1536,23 +1547,12 @@ async def activate_version(version_id: str):
     version = version_result.data[0]
 
     # 取消该平台所有版本的激活状态
-    db_client.table('app_versions').update({'is_active': False}).eq('platform', version['platform']).execute()
+    db_client.table('versions').update({'is_active': False}).eq('platform', version['platform']).execute()
 
     # 激活当前版本
-    result = db_client.table('app_versions').update({'is_active': True}).eq('id', version_id).execute()
+    result = db_client.table('versions').update({'is_active': True}).eq('id', version_id).execute()
 
     return {"success": True, "version": result.data[0]}
-
-
-@app.get('/api/v1/admin/versions/active')
-async def get_active_versions():
-    """获取当前激活的版本"""
-    if not db_client:
-        raise HTTPException(status_code=500, detail="Admin database not configured")
-
-    result = db_client.table('app_versions').select('*').eq('is_active', True).execute()
-
-    return {"success": True, "versions": result.data}
 
 
 # ========== 模型管理API ==========
@@ -1750,11 +1750,11 @@ async def get_all_users(skip: int = 0, limit: int = 50):
     if not db_client:
         raise HTTPException(status_code=500, detail="Admin database not configured")
 
-    # 获取用户总数
-    count_result = db_client.table('users').select('*', count='exact').execute()
-    total = count_result.count if hasattr(count_result, 'count') else 0
+    # 获取所有用户
+    all_result = db_client.table('users').select('*').order('created_at', desc=True).execute()
+    total = len(all_result.data)
 
-    # 获取用户列表（按创建时间倒序）
+    # 分页获取用户列表
     result = db_client.table('users').select('*')\
         .order('created_at', desc=True)\
         .range(skip, skip + limit - 1)\
@@ -1764,9 +1764,13 @@ async def get_all_users(skip: int = 0, limit: int = 50):
     user_ids = [u['id'] for u in result.data]
     diary_stats = {}
     if user_ids:
-        for user_id in user_ids:
-            diary_result = db_client.table('diaries').select('*', count='exact').eq('user_id', user_id).execute()
-            diary_stats[user_id] = diary_result.count if hasattr(diary_result, 'count') else 0
+        # 批量查询所有日记
+        diaries_result = db_client.table('diaries').select('*').execute()
+        # 统计每个用户的日记数
+        for diary in diaries_result.data:
+            user_id = diary.get('user_id')
+            if user_id:
+                diary_stats[user_id] = diary_stats.get(user_id, 0) + 1
 
     # 为每个用户添加活跃度数据
     users_with_stats = []
@@ -1920,34 +1924,34 @@ async def get_admin_stats():
 
     try:
         # 获取用户总数
-        users_result = db_client.table('users').select('*', count='exact').execute()
-        total_users = users_result.count if hasattr(users_result, 'count') else 0
+        users_result = db_client.table('users').select('*').execute()
+        total_users = len(users_result.data) if users_result.data else 0
 
         # 获取管理员数量
         try:
-            admin_result = db_client.table('users').select('*', count='exact').eq('is_admin', True).execute()
-            admin_count = admin_result.count if hasattr(admin_result, 'count') else 0
+            admin_result = db_client.table('users').select('*').eq('is_admin', 1).execute()
+            admin_count = len(admin_result.data) if admin_result.data else 0
         except Exception:
             # 如果 is_admin 字段不存在，返回 0
             admin_count = 0
 
         # 获取活跃用户数量（最近30天有日记的用户）
         thirty_days_ago = (datetime.now() - timedelta(days=30)).isoformat()
-        active_users_result = db_client.table('diaries').select('user_id', count='exact')\
+        active_users_result = db_client.table('diaries').select('user_id')\
             .gte('created_at', thirty_days_ago)\
             .execute()
         active_user_ids = set(d['user_id'] for d in active_users_result.data) if active_users_result.data else set()
         active_users_count = len(active_user_ids)
 
         # 获取日记总数
-        diaries_result = db_client.table('diaries').select('*', count='exact').execute()
-        total_diaries = diaries_result.count if hasattr(diaries_result, 'count') else 0
+        diaries_result = db_client.table('diaries').select('*').execute()
+        total_diaries = len(diaries_result.data) if diaries_result.data else 0
 
         # 获取最近30天的日记数量
-        recent_diaries_result = db_client.table('diaries').select('*', count='exact')\
+        recent_diaries_result = db_client.table('diaries').select('*')\
             .gte('created_at', thirty_days_ago)\
             .execute()
-        recent_diaries_count = recent_diaries_result.count if hasattr(recent_diaries_result, 'count') else 0
+        recent_diaries_count = len(recent_diaries_result.data) if recent_diaries_result.data else 0
 
         return {
             "success": True,
