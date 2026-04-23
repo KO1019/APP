@@ -51,43 +51,68 @@ export default function ChatScreen() {
     const loadConversation = async () => {
       console.log('[Chat] loadConversation called, params.conversationId:', params.conversationId, 'token:', !!token);
 
-      if (!params.conversationId || !token) {
-        console.log('[Chat] loadConversation skipped: missing conversationId or token');
+      if (!params.conversationId) {
+        console.log('[Chat] loadConversation skipped: no conversationId');
         return;
       }
 
-      try {
-        /**
-         * 服务端文件：server/main.py
-         * 接口：GET /api/v1/conversations/:id
-         * Path 参数：id: string
-         * Headers: Authorization: Bearer {token}
-         */
-        console.log('[Chat] Fetching conversation:', params.conversationId);
-        const response = await fetch(buildApiUrl(`/api/v1/conversations/${params.conversationId}`), {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
+      // 判断是否为本地ID（以local_开头）
+      const isLocalId = params.conversationId.startsWith('local_');
 
-        console.log('[Chat] Fetch response status:', response.status);
+      if (!isLocalId && token) {
+        try {
+          /**
+           * 服务端文件：server/main.py
+           * 接口：GET /api/v1/conversations/:id
+           * Path 参数：id: string
+           * Headers: Authorization: Bearer {token}
+           */
+          console.log('[Chat] Fetching conversation from cloud:', params.conversationId);
+          const response = await fetch(buildApiUrl(`/api/v1/conversations/${params.conversationId}`), {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
 
-        if (response.ok) {
-          const data = await response.json();
-          console.log('[Chat] Conversation loaded:', data);
-          // 恢复完整的对话历史
-          setMessages([
-            { role: 'user', content: data.user_message },
-            { role: 'assistant', content: data.ai_message },
-          ]);
-          // 设置当前conversationId，确保后续消息发送到同一个对话中
-          setCurrentConversationId(params.conversationId);
-        } else {
-          // 如果云端加载失败，尝试从本地加载
-          console.warn('[Chat] Failed to load conversation from cloud, trying local storage');
+          console.log('[Chat] Fetch response status:', response.status);
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log('[Chat] Conversation loaded from cloud:', data);
+            // 恢复完整的对话历史
+            setMessages([
+              { role: 'user', content: data.user_message },
+              { role: 'assistant', content: data.ai_message },
+            ]);
+            // 设置当前conversationId，确保后续消息发送到同一个对话中
+            setCurrentConversationId(params.conversationId);
+            return;
+          } else {
+            console.warn('[Chat] Failed to load conversation from cloud, status:', response.status);
+          }
+        } catch (error) {
+          console.error('[Chat] Error loading conversation from cloud:', error);
         }
-      } catch (error) {
-        console.error('[Chat] Error loading conversation:', error);
+      }
+
+      // 如果云端加载失败或者是本地ID，尝试从本地存储加载
+      if (isLocalId || !token) {
+        console.log('[Chat] Trying to load conversation from local storage, conversationId:', params.conversationId);
+        try {
+          const localConversation = await getLocalChatMessage(params.conversationId);
+          if (localConversation) {
+            console.log('[Chat] Local conversation found:', localConversation);
+            setMessages([
+              { role: 'user', content: localConversation.userMessage },
+              { role: 'assistant', content: localConversation.aiMessage },
+            ]);
+            setCurrentConversationId(params.conversationId);
+          } else {
+            console.warn('[Chat] Local conversation not found:', params.conversationId);
+          }
+        } catch (error) {
+          console.error('[Chat] Error loading conversation from local storage:', error);
+        }
       }
     };
 

@@ -1076,22 +1076,23 @@ async def get_conversation_by_id(conversation_id: str, user_id: str = Depends(ge
 
     # 转换数据格式
     import json
-    messages_json = conv_data.get('messages', '')
+    messages_data = conv_data.get('messages', '')
     user_message = ''
     ai_message = ''
 
     try:
-        if messages_json:
-            messages = json.loads(messages_json)
-            if isinstance(messages, list):
-                for msg in messages:
-                    if msg.get('role') == 'user' and not user_message:
-                        user_message = msg.get('content', '')
-                    elif msg.get('role') == 'assistant' and not ai_message:
-                        ai_message = msg.get('content', '')
-                    if user_message and ai_message:
-                        break
-    except json.JSONDecodeError:
+        # messages 可能已经被db_adapter解析为list，或者是JSON字符串
+        messages = messages_data if isinstance(messages_data, list) else json.loads(messages_data) if isinstance(messages_data, str) else []
+
+        if isinstance(messages, list):
+            for msg in messages:
+                if msg.get('role') == 'user' and not user_message:
+                    user_message = msg.get('content', '')
+                elif msg.get('role') == 'assistant' and not ai_message:
+                    ai_message = msg.get('content', '')
+                if user_message and ai_message:
+                    break
+    except (json.JSONDecodeError, TypeError):
         pass
 
     return {
