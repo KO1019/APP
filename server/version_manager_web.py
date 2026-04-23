@@ -2155,6 +2155,11 @@ HTML_TEMPLATE = """
 """
 
 
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request):
+    """根路径，显示版本管理页面"""
+    return await version_manager(request)
+
 @app.get("/version-manager", response_class=HTMLResponse)
 async def version_manager(request: Request):
     """版本管理Web界面"""
