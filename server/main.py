@@ -1730,6 +1730,7 @@ class AnnouncementCreate(BaseModel):
     end_time: Optional[str] = None
     is_active: Optional[bool] = True
     target_user_type: Optional[str] = "all"  # all, new, active, inactive
+    is_update_announcement: Optional[bool] = False  # 是否为更新公告
 
 
 class AnnouncementUpdate(BaseModel):
@@ -1741,6 +1742,8 @@ class AnnouncementUpdate(BaseModel):
     start_time: Optional[str] = None
     end_time: Optional[str] = None
     is_active: Optional[bool] = None
+    target_user_type: Optional[str] = None
+    is_update_announcement: Optional[bool] = None  # 是否为更新公告
     target_user_type: Optional[str] = None
 
 
@@ -2211,7 +2214,8 @@ async def create_announcement(announcement: AnnouncementCreate):
         'start_time': announcement.start_time,
         'end_time': announcement.end_time,
         'is_active': announcement.is_active,
-        'target_user_type': announcement.target_user_type
+        'target_user_type': announcement.target_user_type,
+        'is_update_announcement': announcement.is_update_announcement
     }
 
     result = db_client.table('announcements').insert(new_announcement).execute()

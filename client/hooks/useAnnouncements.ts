@@ -9,6 +9,7 @@ interface Announcement {
   image_url?: string;
   button_text?: string;
   priority?: number;
+  is_update_announcement?: boolean; // 是否为更新公告
 }
 
 export function useAnnouncements() {
@@ -30,9 +31,30 @@ export function useAnnouncements() {
       const data = await response.json();
 
       if (data.success && data.announcements && data.announcements.length > 0) {
-        setAnnouncements(data.announcements);
-        setCurrentIndex(0);
-        setIsVisible(true);
+        // 过滤掉已读的公告
+        const unreadAnnouncements = await Promise.all(
+          data.announcements.map(async (announcement: Announcement) => {
+            const viewed = await AsyncStorage.getItem(`announcement_viewed_${announcement.id}`);
+            return viewed ? null : announcement;
+          })
+        );
+
+        const validAnnouncements = unreadAnnouncements.filter((a): a is Announcement => a !== null);
+
+        if (validAnnouncements.length > 0) {
+          // 优先显示更新公告，然后按优先级排序
+          const sortedAnnouncements = validAnnouncements.sort((a, b) => {
+            // 如果是更新公告，优先级最高
+            if (a.is_update_announcement && !b.is_update_announcement) return -1;
+            if (!a.is_update_announcement && b.is_update_announcement) return 1;
+            // 否则按优先级排序（优先级高的在前）
+            return (b.priority || 0) - (a.priority || 0);
+          });
+
+          setAnnouncements(sortedAnnouncements);
+          setCurrentIndex(0);
+          setIsVisible(true);
+        }
       }
     } catch (error) {
       console.error('加载公告失败:', error);
@@ -41,15 +63,14 @@ export function useAnnouncements() {
     }
   }, [user]);
 
+  // 重新加载公告（用于更新成功后）
+  const reloadAnnouncements = useCallback(async () => {
+    await loadAnnouncements();
+  }, [loadAnnouncements]);
+
   // 标记当前公告为已查看
   const markAsViewed = useCallback(async (announcementId: string) => {
     try {
-      await fetch(
-        `${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/user/announcements/${announcementId}/viewed`,
-        { method: 'POST' }
-      );
-
-      // 本地保存
       await AsyncStorage.setItem(`announcement_viewed_${announcementId}`, 'true');
     } catch (error) {
       console.error('标记公告失败:', error);
@@ -95,6 +116,7 @@ export function useAnnouncements() {
     isVisible,
     isLoading,
     loadAnnouncements,
+    reloadAnnouncements,
     showNext,
     close,
   };

@@ -32,6 +32,18 @@ export function useAppUpdate() {
     setDownloadProgress(Math.round(progress * 100));
   };
 
+  // 清除所有公告的已读标记
+  const clearAnnouncementViewedStatus = async () => {
+    try {
+      const allKeys = await AsyncStorage.getAllKeys();
+      const announcementKeys = allKeys.filter(key => key.startsWith('announcement_viewed_'));
+      await AsyncStorage.multiRemove(announcementKeys);
+      console.log('[Update] 已清除所有公告的已读标记');
+    } catch (error) {
+      console.error('[Update] 清除公告已读标记失败:', error);
+    }
+  };
+
   // 下载APK文件
   const downloadAndInstallAPK = async (updateUrl: string, version: string): Promise<boolean> => {
     try {
@@ -57,7 +69,10 @@ export function useAppUpdate() {
 
       console.log('[Update] APK下载成功:', result.uri);
 
-      // 下载完成，打开安装界面
+      // 下载完成，清除所有公告的已读标记（以便APP更新后可以再次显示）
+      await clearAnnouncementViewedStatus();
+
+      // 打开安装界面
       const success = await openAPKForInstall(result.uri);
 
       if (success) {

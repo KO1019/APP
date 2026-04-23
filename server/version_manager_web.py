@@ -1123,6 +1123,12 @@ HTML_TEMPLATE = """
                         启用
                     </label>
                 </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="announcement-is-update-announcement" name="is_update_announcement">
+                        更新公告（APP更新后自动弹出）
+                    </label>
+                </div>
                 <div class="modal-actions">
                     <button type="button" onclick="closeAnnouncementModal()" class="btn btn-secondary">取消</button>
                     <button type="button" onclick="saveAnnouncement()" class="btn btn-primary">保存</button>
@@ -2198,6 +2204,7 @@ HTML_TEMPLATE = """
             document.getElementById('announcement-end-time').value = '';
             document.getElementById('announcement-target-user-type').value = 'all';
             document.getElementById('announcement-is-active').checked = true;
+            document.getElementById('announcement-is-update-announcement').checked = false;
             document.getElementById('announcement-message').innerHTML = '';
             document.getElementById('announcement-modal').classList.add('active');
         }
@@ -2219,12 +2226,13 @@ HTML_TEMPLATE = """
                 document.getElementById('announcement-title').value = announcement.title;
                 document.getElementById('announcement-content-text').value = announcement.content;
                 document.getElementById('announcement-image-url').value = announcement.image_url || '';
-                document.getElementById('announcement-button-text').value = announcement.button_text;
-                document.getElementById('announcement-priority').value = announcement.priority;
+                document.getElementById('announcement-button-text').value = announcement.button_text || '我知道了';
+                document.getElementById('announcement-priority').value = announcement.priority || 0;
                 document.getElementById('announcement-start-time').value = announcement.start_time || '';
                 document.getElementById('announcement-end-time').value = announcement.end_time || '';
-                document.getElementById('announcement-target-user-type').value = announcement.target_user_type;
+                document.getElementById('announcement-target-user-type').value = announcement.target_user_type || 'all';
                 document.getElementById('announcement-is-active').checked = announcement.is_active;
+                document.getElementById('announcement-is-update-announcement').checked = announcement.is_update_announcement || false;
                 document.getElementById('announcement-message').innerHTML = '';
                 document.getElementById('announcement-modal').classList.add('active');
             } catch (error) {
@@ -2246,7 +2254,8 @@ HTML_TEMPLATE = """
                 start_time: document.getElementById('announcement-start-time').value || null,
                 end_time: document.getElementById('announcement-end-time').value || null,
                 target_user_type: document.getElementById('announcement-target-user-type').value,
-                is_active: document.getElementById('announcement-is-active').checked
+                is_active: document.getElementById('announcement-is-active').checked,
+                is_update_announcement: document.getElementById('announcement-is-update-announcement').checked
             };
 
             try {
