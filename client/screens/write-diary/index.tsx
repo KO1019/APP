@@ -707,31 +707,31 @@ ${content}
           {/* 天气和心情选择 */}
           <View style={styles.metaSection}>
             <TouchableOpacity
-              style={styles.metaItem}
+              style={[styles.metaTag, { backgroundColor: surface, borderColor: selectedWeather ? accent : border }]}
               onPress={handleOpenWeather}
               activeOpacity={0.7}
             >
               <FontAwesome6
                 name={selectedWeather ? (WEATHERS.find(w => w.id === selectedWeather)?.icon as any) : 'cloud-sun'}
-                size={18}
+                size={16}
                 color={selectedWeather ? accent : muted}
               />
-              <Text style={[styles.metaText, { color: selectedWeather ? foreground : muted }]}>
+              <Text style={[styles.metaTagText, { color: selectedWeather ? accent : muted }]}>
                 {selectedWeather ? WEATHERS.find(w => w.id === selectedWeather)?.label : '天气'}
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.metaItem}
+              style={[styles.metaTag, { backgroundColor: surface, borderColor: selectedMood ? MOODS.find(m => m.id === selectedMood)?.color : border }]}
               onPress={handleOpenMood}
               activeOpacity={0.7}
             >
               <FontAwesome6
                 name={selectedMood ? (MOODS.find(m => m.id === selectedMood)?.icon as any) : 'face-smile'}
-                size={18}
-                color={selectedMood ? accent : muted}
+                size={16}
+                color={selectedMood ? MOODS.find(m => m.id === selectedMood)?.color : muted}
               />
-              <Text style={[styles.metaText, { color: selectedMood ? foreground : muted }]}>
+              <Text style={[styles.metaTagText, { color: selectedMood ? (MOODS.find(m => m.id === selectedMood)?.color || foreground) : muted }]}>
                 {selectedMood ? MOODS.find(m => m.id === selectedMood)?.label : '心情'}
               </Text>
             </TouchableOpacity>
@@ -1144,9 +1144,24 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
   },
-  // 元信息区域（日期）
+  // 元信息区域
   metaSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     marginVertical: 12,
+  },
+  metaTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 6,
+  },
+  metaTagText: {
+    fontSize: 13,
   },
   dateText: {
     fontSize: 14,
