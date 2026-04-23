@@ -12,6 +12,10 @@ import json
 import httpx
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
+from passlib.context import CryptContext
+
+# 密码加密配置
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, File, Form, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -174,8 +178,8 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, hashed: str) -> bool:
-    """验证密码"""
-    return hashlib.sha256(password.encode()).hexdigest() == hashed
+    """验证密码（使用 bcrypt）"""
+    return pwd_context.verify(password, hashed)
 
 
 # ========== LLM API调用 ==========
@@ -251,6 +255,48 @@ async def register(user: UserRegister):
     return {
         "user": new_user.data[0],
         "token": token
+    }
+
+
+@app.post('/api/v1/login')
+async def admin_login(user: UserLogin):
+    """管理员登录（检查 is_admin 字段）"""
+    if not db_client:
+        raise HTTPException(
+            status_code=503,
+            detail="数据库未配置，请检查MySQL配置"
+        )
+
+    # 查找用户
+    result = db_client.table('users').select('*').eq('username', user.username).execute()
+    if not result.data:
+        raise HTTPException(status_code=401, detail="用户名或密码错误")
+
+    user_data = result.data[0]
+
+    # 验证密码
+    if not verify_password(user.password, user_data['password_hash']):
+        raise HTTPException(status_code=401, detail="用户名或密码错误")
+
+    # 检查是否为管理员
+    if not user_data.get('is_admin', False):
+        raise HTTPException(status_code=403, detail="无管理员权限，拒绝访问")
+
+    # 生成JWT Token
+    token = generate_token(user_data['id'])
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": user_data['id'],
+            "username": user_data['username'],
+            "email": user_data.get('email'),
+            "nickname": user_data.get('nickname'),
+            "avatar": user_data.get('avatar'),
+            "is_admin": user_data.get('is_admin', False),
+            "is_active": user_data.get('is_active', True)
+        }
     }
 
 
