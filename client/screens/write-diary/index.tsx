@@ -888,8 +888,8 @@ ${content}
 
           {/* 标签输入 */}
           <View style={styles.tagInputSection}>
-            <View style={styles.tagInputRow}>
-              <FontAwesome6 name="tags" size={16} color={muted} style={styles.tagInputIcon} />
+            <View style={[styles.tagInputRow, { backgroundColor: `${surface}50` }]}>
+              <FontAwesome6 name="tags" size={14} color={muted} style={styles.tagInputIcon} />
               <TextInput
                 style={[styles.tagInput, { color: foreground }]}
                 placeholder="添加标签（按回车添加）"
@@ -912,14 +912,14 @@ ${content}
           {tags.length > 0 && (
             <View style={styles.tagSection}>
               {tags.map((tag) => (
-                <View key={tag} style={[styles.tagBadge, { backgroundColor: `${accent}15` }]}>
+                <View key={tag} style={[styles.tagBadge, { backgroundColor: `${accent}10`, borderWidth: 1, borderColor: `${accent}20` }]}>
                   <Text style={[styles.tagText, { color: accent }]}>#{tag}</Text>
                   <TouchableOpacity
-                    style={styles.removeTagButton}
+                    style={[styles.removeTagButton, { backgroundColor: `${accent}15` }]}
                     onPress={() => handleRemoveTag(tag)}
                     activeOpacity={0.7}
                   >
-                    <FontAwesome6 name="xmark" size={12} color={accent} />
+                    <FontAwesome6 name="xmark" size={10} color={accent} />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -945,24 +945,6 @@ ${content}
                   </View>
                 ))}
               </ScrollView>
-            </View>
-          )}
-
-          {/* 标签显示 */}
-          {tags.length > 0 && (
-            <View style={styles.tagSection}>
-              {tags.map((tag) => (
-                <View key={tag} style={[styles.tagBadge, { backgroundColor: `${accent}15` }]}>
-                  <Text style={[styles.tagText, { color: accent }]}>#{tag}</Text>
-                  <TouchableOpacity
-                    style={styles.removeTagButton}
-                    onPress={() => handleRemoveTag(tag)}
-                    activeOpacity={0.7}
-                  >
-                    <FontAwesome6 name="xmark" size={12} color={accent} />
-                  </TouchableOpacity>
-                </View>
-              ))}
             </View>
           )}
 
@@ -1500,40 +1482,47 @@ const styles = StyleSheet.create({
   tagInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.03)',
+    backgroundColor: '#F5F5F5',
     borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
   tagInputIcon: {
-    marginRight: 8,
+    marginRight: 10,
   },
   tagInput: {
     flex: 1,
-    fontSize: 15,
-    paddingVertical: 4,
+    fontSize: 14,
+    paddingVertical: 2,
   },
   addTagButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 8,
+    marginLeft: 10,
   },
   tagBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 18,
+    marginRight: 8,
+    marginBottom: 8,
   },
   tagText: {
-    fontSize: 14,
-    marginRight: 4,
+    fontSize: 13,
+    fontWeight: '500',
+    marginRight: 6,
   },
   removeTagButton: {
-    padding: 2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   // 位置信息
   locationSection: {
