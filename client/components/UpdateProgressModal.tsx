@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, ActivityIndicator, Modal, StyleSheet } from 'react-native';
+import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut } from 'react-native-reanimated';
 
 interface UpdateProgressModalProps {
   visible: boolean;
@@ -20,9 +21,13 @@ export function UpdateProgressModal({ visible, downloading, downloadProgress }: 
   if (!visible) return null;
 
   return (
-    <Modal visible={visible} transparent={true} animationType="fade">
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: THEME.surface }]}>
+    <Modal visible={visible} transparent={true} animationType="none">
+      <Animated.View style={styles.modalOverlay} entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}>
+        <Animated.View
+          style={[styles.modalContent, { backgroundColor: THEME.surface }]}
+          entering={ZoomIn.duration(300).springify().damping(15)}
+          exiting={ZoomOut.duration(200)}
+        >
           {downloading ? (
             <>
               <ActivityIndicator size="large" color={THEME.accent} style={styles.spinner} />
@@ -33,15 +38,28 @@ export function UpdateProgressModal({ visible, downloading, downloadProgress }: 
             </>
           ) : (
             <>
-              <View style={[styles.successIcon, { backgroundColor: `${THEME.accent}15` }]}>
+              <Animated.View
+                style={[styles.successIcon, { backgroundColor: `${THEME.accent}15` }]}
+                entering={ZoomIn.duration(400).delay(100)}
+              >
                 <Text style={styles.successEmoji}>✅</Text>
-              </View>
-              <Text style={[styles.successText, { color: THEME.foreground }]}>下载完成</Text>
-              <Text style={[styles.successSubText, { color: THEME.muted }]}>安装界面已打开</Text>
+              </Animated.View>
+              <Animated.Text
+                style={[styles.successText, { color: THEME.foreground }]}
+                entering={FadeIn.duration(300).delay(200)}
+              >
+                下载完成
+              </Animated.Text>
+              <Animated.Text
+                style={[styles.successSubText, { color: THEME.muted }]}
+                entering={FadeIn.duration(300).delay(300)}
+              >
+                安装界面已打开
+              </Animated.Text>
             </>
           )}
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 }

@@ -11,7 +11,13 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  SlideInDown,
+  SlideOutDown,
+  ZoomIn,
+} from 'react-native-reanimated';
 
 const { width, height } = Dimensions.get('window');
 
@@ -58,42 +64,44 @@ export default function AnnouncementModal({
   }
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      statusBarTranslucent
-    >
+    <Modal visible={visible} transparent animationType="none" statusBarTranslucent>
       <StatusBar barStyle="dark-content" backgroundColor="rgba(0,0,0,0.5)" />
-      <View style={styles.overlay}>
+      <Animated.View style={styles.overlay} entering={FadeIn.duration(250)} exiting={FadeOut.duration(200)}>
         <Animated.View
-          entering={FadeIn.duration(300)}
-          exiting={FadeOut.duration(200)}
           style={[styles.container, { backgroundColor: THEME.surface }]}
+          entering={SlideInDown.duration(350).springify().damping(20)}
+          exiting={SlideOutDown.duration(250)}
         >
           {/* 头部图片 */}
           {announcement.image_url ? (
-            <Image
+            <Animated.Image
               source={{ uri: announcement.image_url }}
               style={styles.headerImage}
               resizeMode="cover"
+              entering={ZoomIn.duration(400)}
             />
           ) : (
-            <View style={[styles.headerPlaceholder, { backgroundColor: `${THEME.accent}15` }]}>
+            <Animated.View
+              style={[styles.headerPlaceholder, { backgroundColor: `${THEME.accent}15` }]}
+              entering={ZoomIn.duration(400)}
+            >
               <Text style={styles.placeholderIcon}>📢</Text>
-            </View>
+            </Animated.View>
           )}
 
           {/* 内容区域 */}
           <ScrollView style={styles.contentContainer}>
-            <View style={styles.content}>
+            <Animated.View style={styles.content} entering={FadeIn.duration(300).delay(150)}>
               <Text style={[styles.title, { color: THEME.foreground }]}>{announcement.title}</Text>
               <Text style={[styles.contentText, { color: THEME.muted }]}>{announcement.content}</Text>
-            </View>
+            </Animated.View>
           </ScrollView>
 
           {/* 按钮 */}
-          <View style={[styles.buttonContainer, { borderTopColor: `${THEME.accent}15` }]}>
+          <Animated.View
+            style={[styles.buttonContainer, { borderTopColor: `${THEME.accent}15` }]}
+            entering={FadeIn.duration(300).delay(200)}
+          >
             <TouchableOpacity
               style={[styles.confirmButton, { backgroundColor: THEME.accent }]}
               onPress={handleConfirm}
@@ -103,17 +111,22 @@ export default function AnnouncementModal({
                 {announcement.button_text || '我知道了'}
               </Text>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
 
           {/* 关闭按钮 */}
-          <TouchableOpacity
-            style={[styles.closeButton, { backgroundColor: `${THEME.background}90` }]}
-            onPress={onClose}
+          <Animated.View
+            entering={FadeIn.duration(300).delay(250)}
+            exiting={FadeOut.duration(100)}
           >
-            <Text style={[styles.closeButtonText, { color: THEME.muted }]}>✕</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.closeButton, { backgroundColor: `${THEME.background}90` }]}
+              onPress={onClose}
+            >
+              <Text style={[styles.closeButtonText, { color: THEME.muted }]}>✕</Text>
+            </TouchableOpacity>
+          </Animated.View>
         </Animated.View>
-      </View>
+      </Animated.View>
     </Modal>
   );
 }

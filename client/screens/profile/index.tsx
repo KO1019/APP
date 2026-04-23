@@ -16,6 +16,7 @@ import {
   markDiaryAsUploaded,
   markChatMessageAsUploaded,
 } from '@/utils/localStorage';
+import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown, ZoomIn } from 'react-native-reanimated';
 
 interface MenuItem {
   icon: string;
@@ -480,52 +481,66 @@ export default function ProfileScreen() {
 
       {/* 健康建议弹窗 */}
       {showHealthTips && (
-        <TouchableOpacity
+        <Animated.View
           style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}
-          activeOpacity={1}
-          onPress={() => setShowHealthTips(false)}
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(150)}
         >
-          <View style={[styles.modalContent, { backgroundColor: surface }]}>
-            <View style={styles.modalHeader}>
-              <FontAwesome6 name="heart-pulse" size={24} color={accent} />
-              <Text style={[styles.modalTitle, { color: foreground }]}>心理健康建议</Text>
-              <TouchableOpacity onPress={() => setShowHealthTips(false)}>
-                <FontAwesome6 name="xmark" size={24} color={muted} />
-              </TouchableOpacity>
-            </View>
-
-            {loadingTips ? (
-              <View style={styles.modalLoading}>
-                <ActivityIndicator size="large" color={accent} />
-                <Text style={[styles.modalLoadingText, { color: muted }]}>正在生成建议...</Text>
-              </View>
-            ) : healthTips ? (
-              <ScrollView style={styles.modalBody}>
-                {healthTips.message && (
-                  <View style={[styles.messageBox, { backgroundColor: `${accent}10`, borderColor: accent, borderWidth: 1 }]}>
-                    <FontAwesome6 name="lightbulb" size={20} color={accent} style={styles.messageBoxIcon} />
-                    <Text style={[styles.messageBoxText, { color: foreground }]}>{healthTips.message}</Text>
-                  </View>
-                )}
-
-                <Text style={[styles.tipsTitle, { color: foreground }]}>建议</Text>
-                {healthTips.tips && healthTips.tips.map((tip: string, index: number) => (
-                  <View key={index} style={[styles.tipItem, { backgroundColor: background, borderColor: border, borderWidth: 1 }]}>
-                    <FontAwesome6 name="circle-check" size={20} color={accent} style={styles.tipIcon} />
-                    <Text style={[styles.tipText, { color: foreground }]}>{tip}</Text>
-                  </View>
-                ))}
-              </ScrollView>
-            ) : null}
-
-            <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: accent }]}
-              onPress={() => setShowHealthTips(false)}
+          <TouchableOpacity
+            style={styles.modalOverlayTouchable}
+            activeOpacity={1}
+            onPress={() => setShowHealthTips(false)}
+          >
+            <Animated.View
+              style={[styles.modalContent, { backgroundColor: surface }]}
+              entering={SlideInDown.duration(350).springify().damping(20)}
+              exiting={SlideOutDown.duration(250)}
             >
-              <Text style={styles.modalButtonText}>知道了</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
+              <View style={styles.modalHeader}>
+                <Animated.View entering={ZoomIn.duration(300)}>
+                  <FontAwesome6 name="heart-pulse" size={24} color={accent} />
+                </Animated.View>
+                <Text style={[styles.modalTitle, { color: foreground }]}>心理健康建议</Text>
+                <TouchableOpacity onPress={() => setShowHealthTips(false)}>
+                  <FontAwesome6 name="xmark" size={24} color={muted} />
+                </TouchableOpacity>
+              </View>
+
+              {loadingTips ? (
+                <View style={styles.modalLoading}>
+                  <ActivityIndicator size="large" color={accent} />
+                  <Text style={[styles.modalLoadingText, { color: muted }]}>正在生成建议...</Text>
+                </View>
+              ) : healthTips ? (
+                <Animated.ScrollView style={styles.modalBody} entering={FadeIn.duration(300).delay(150)}>
+                  {healthTips.message && (
+                    <Animated.View style={[styles.messageBox, { backgroundColor: `${accent}10`, borderColor: accent, borderWidth: 1 }]} entering={ZoomIn.duration(300).delay(200)}>
+                      <FontAwesome6 name="lightbulb" size={20} color={accent} style={styles.messageBoxIcon} />
+                      <Text style={[styles.messageBoxText, { color: foreground }]}>{healthTips.message}</Text>
+                    </Animated.View>
+                  )}
+
+                  <Animated.Text style={[styles.tipsTitle, { color: foreground }]} entering={FadeIn.duration(300).delay(250)}>建议</Animated.Text>
+                  {healthTips.tips && healthTips.tips.map((tip: string, index: number) => (
+                    <Animated.View key={index} style={[styles.tipItem, { backgroundColor: background, borderColor: border, borderWidth: 1 }]} entering={FadeIn.duration(300).delay(300 + index * 50)}>
+                      <FontAwesome6 name="circle-check" size={20} color={accent} style={styles.tipIcon} />
+                      <Text style={[styles.tipText, { color: foreground }]}>{tip}</Text>
+                    </Animated.View>
+                  ))}
+                </Animated.ScrollView>
+              ) : null}
+
+              <Animated.View entering={FadeIn.duration(300).delay(400)}>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: accent }]}
+                  onPress={() => setShowHealthTips(false)}
+                >
+                  <Text style={styles.modalButtonText}>知道了</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            </Animated.View>
+          </TouchableOpacity>
+        </Animated.View>
       )}
 
       <UpdateProgressModal

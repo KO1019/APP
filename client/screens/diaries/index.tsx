@@ -17,6 +17,7 @@ import {
   getLocalDiaries,
   type LocalDiary,
 } from '@/utils/localStorage';
+import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
 
 interface Diary {
   id: string;
@@ -425,15 +426,19 @@ export default function DiariesScreen() {
       <Modal
         visible={showFilterModal}
         transparent={true}
-        animationType="slide"
+        animationType="none"
         onRequestClose={() => setShowFilterModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <Animated.View style={styles.modalOverlay} entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={styles.modalContainer}
           >
-            <View style={[styles.modalContent, { backgroundColor: surface }]}>
+            <Animated.View
+              style={[styles.modalContent, { backgroundColor: surface }]}
+              entering={SlideInDown.duration(350).springify().damping(20)}
+              exiting={SlideOutDown.duration(250)}
+            >
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: foreground }]}>时间筛选</Text>
                 <TouchableOpacity onPress={() => setShowFilterModal(false)}>
@@ -483,9 +488,9 @@ export default function DiariesScreen() {
                   <Text style={styles.confirmButtonText}>应用</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            </Animated.View>
           </KeyboardAvoidingView>
-        </View>
+        </Animated.View>
       </Modal>
 
       <UpdateProgressModal
