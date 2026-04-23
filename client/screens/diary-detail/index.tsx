@@ -327,8 +327,9 @@ export default function DiaryDetailScreen() {
 
   const emotionColor = diary.mood ? emotionColors[diary.mood] || emotionColors['未识别'] : null;
   const emotionLabel = diary.mood ? emotionLabels[diary.mood] || diary.mood : null;
-  const weatherIcon = diary.weather ? weatherIcons[diary.weather] : null;
-  const weatherLabel = diary.weather ? weatherLabels[diary.weather] : null;
+
+  const weatherIcon = diary.weather ? (weatherIcons[diary.weather] as any || 'cloud-sun') : null;
+  const weatherLabel = diary.weather ? (weatherLabels[diary.weather] || diary.weather) : null;
 
   const displayTitle = diary.title || '';
   const displayContent = diary.content;
