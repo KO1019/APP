@@ -1,0 +1,266 @@
+# 在 main.py 文件末尾（if __name__ == '__main__' 之前）添加以下代码
+
+# ========== 欢迎内容管理API ==========
+
+class WelcomeContentUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    image_url: Optional[str] = None
+    button_text: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class AnnouncementCreate(BaseModel):
+    title: str
+    content: str
+    image_url: Optional[str] = None
+    button_text: Optional[str] = "我知道了"
+    priority: Optional[int] = 0
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    is_active: Optional[bool] = True
+    target_user_type: Optional[str] = "all"  # all, new, active, inactive
+
+
+class AnnouncementUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    image_url: Optional[str] = None
+    button_text: Optional[str] = None
+    priority: Optional[int] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    is_active: Optional[bool] = None
+    target_user_type: Optional[str] = None
+
+
+@app.get('/api/v1/welcome')
+async def get_welcome_content():
+    """获取激活的欢迎内容"""
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
+
+    result = admin_supabase.table('welcome_content').select('*').eq('is_active', True).execute()
+
+    if not result.data:
+        return {"success": True, "welcome": None}
+
+    return {"success": True, "welcome": result.data[0]}
+
+
+@app.post('/api/v1/user/welcome/{welcome_id}/viewed')
+async def mark_welcome_viewed(welcome_id: str, token: str = Depends(security)):
+    """标记用户已查看欢迎内容"""
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
+
+    # 从 token 获取用户 ID
+    user_id = await get_user_id_from_token(token)
+
+    # 检查是否已标记
+    existing = admin_supabase.table('user_welcome_status').select('*')\
+        .eq('user_id', user_id)\
+        .eq('welcome_id', welcome_id)\
+        .execute()
+
+    if existing.data:
+        return {"success": True, "message": "Already viewed"}
+
+    # 标记为已查看
+    admin_supabase.table('user_welcome_status').insert({
+        'id': str(uuid.uuid4()),
+        'user_id': user_id,
+        'welcome_id': welcome_id
+    }).execute()
+
+    return {"success": True, "message": "Marked as viewed"}
+
+
+@app.get('/api/v1/admin/welcome')
+async def get_all_welcome_content():
+    """获取所有欢迎内容（管理员接口）"""
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
+
+    result = admin_supabase.table('welcome_content').select('*').execute()
+
+    return {"success": True, "welcome_contents": result.data}
+
+
+@app.post('/api/v1/admin/welcome')
+async def create_welcome_content(welcome: WelcomeContentUpdate):
+    """创建欢迎内容（管理员接口）"""
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
+
+    new_welcome = {
+        'id': str(uuid.uuid4()),
+        'title': welcome.title or '欢迎使用',
+        'content': welcome.content or '',
+        'image_url': welcome.image_url,
+        'button_text': welcome.button_text or '开始使用',
+        'is_active': welcome.is_active if welcome.is_active is not None else True
+    }
+
+    result = admin_supabase.table('welcome_content').insert(new_welcome).execute()
+
+    return {"success": True, "welcome": result.data[0]}
+
+
+@app.put('/api/v1/admin/welcome/{welcome_id}')
+async def update_welcome_content(welcome_id: str, welcome: WelcomeContentUpdate):
+    """更新欢迎内容（管理员接口）"""
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
+
+    update_data = {k: v for k, v in welcome.dict().items() if v is not None}
+    update_data['updated_at'] = datetime.now().isoformat()
+
+    result = admin_supabase.table('welcome_content').update(update_data).eq('id', welcome_id).execute()
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Welcome content not found")
+
+    return {"success": True, "welcome": result.data[0]}
+
+
+@app.delete('/api/v1/admin/welcome/{welcome_id}')
+async def delete_welcome_content(welcome_id: str):
+    """删除欢迎内容（管理员接口）"""
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
+
+    admin_supabase.table('welcome_content').delete().eq('id', welcome_id).execute()
+
+    return {"success": True, "message": "Welcome content deleted"}
+
+
+# ========== 公告管理API ==========
+
+@app.get('/api/v1/announcements')
+async def get_active_announcements(user_id: Optional[str] = None):
+    """获取用户可用的活跃公告"""
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
+
+    now = datetime.now().isoformat()
+
+    # 获取活跃的公告
+    result = admin_supabase.table('announcements').select('*')\
+        .eq('is_active', True)\
+        .or_(f'start_time.is.null,start_time.lte.{now}')\
+        .or_(f'end_time.is.null,end_time.gte.{now}')\
+        .order('priority', desc=True)\
+        .execute()
+
+    if not result.data:
+        return {"success": True, "announcements": []}
+
+    # 如果提供了用户 ID，过滤用户已查看的公告
+    if user_id:
+        viewed_result = admin_supabase.table('user_announcement_status').select('announcement_id')\
+            .eq('user_id', user_id)\
+            .execute()
+
+        viewed_ids = set(item['announcement_id'] for item in viewed_result.data) if viewed_result.data else set()
+
+        # 过滤已查看的
+        announcements = [a for a in result.data if a['id'] not in viewed_ids]
+    else:
+        announcements = result.data
+
+    return {"success": True, "announcements": announcements}
+
+
+@app.post('/api/v1/user/announcements/{announcement_id}/viewed')
+async def mark_announcement_viewed(announcement_id: str, token: str = Depends(security)):
+    """标记用户已查看公告"""
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
+
+    # 从 token 获取用户 ID
+    user_id = await get_user_id_from_token(token)
+
+    # 检查是否已标记
+    existing = admin_supabase.table('user_announcement_status').select('*')\
+        .eq('user_id', user_id)\
+        .eq('announcement_id', announcement_id)\
+        .execute()
+
+    if existing.data:
+        return {"success": True, "message": "Already viewed"}
+
+    # 标记为已查看
+    admin_supabase.table('user_announcement_status').insert({
+        'id': str(uuid.uuid4()),
+        'user_id': user_id,
+        'announcement_id': announcement_id
+    }).execute()
+
+    return {"success": True, "message": "Marked as viewed"}
+
+
+@app.get('/api/v1/admin/announcements')
+async def get_all_announcements():
+    """获取所有公告（管理员接口）"""
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
+
+    result = admin_supabase.table('announcements').select('*').order('priority', desc=True).execute()
+
+    return {"success": True, "announcements": result.data}
+
+
+@app.post('/api/v1/admin/announcements')
+async def create_announcement(announcement: AnnouncementCreate):
+    """创建公告（管理员接口）"""
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
+
+    new_announcement = {
+        'id': str(uuid.uuid4()),
+        'title': announcement.title,
+        'content': announcement.content,
+        'image_url': announcement.image_url,
+        'button_text': announcement.button_text,
+        'priority': announcement.priority,
+        'start_time': announcement.start_time,
+        'end_time': announcement.end_time,
+        'is_active': announcement.is_active,
+        'target_user_type': announcement.target_user_type
+    }
+
+    result = admin_supabase.table('announcements').insert(new_announcement).execute()
+
+    return {"success": True, "announcement": result.data[0]}
+
+
+@app.put('/api/v1/admin/announcements/{announcement_id}')
+async def update_announcement(announcement_id: str, announcement: AnnouncementUpdate):
+    """更新公告（管理员接口）"""
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
+
+    update_data = {k: v for k, v in announcement.dict().items() if v is not None}
+    update_data['updated_at'] = datetime.now().isoformat()
+
+    result = admin_supabase.table('announcements').update(update_data).eq('id', announcement_id).execute()
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Announcement not found")
+
+    return {"success": True, "announcement": result.data[0]}
+
+
+@app.delete('/api/v1/admin/announcements/{announcement_id}')
+async def delete_announcement(announcement_id: str):
+    """删除公告（管理员接口）"""
+    if not admin_supabase:
+        raise HTTPException(status_code=500, detail="Admin database not configured")
+
+    admin_supabase.table('announcements').delete().eq('id', announcement_id).execute()
+
+    return {"success": True, "message": "Announcement deleted"}
+
+
+# ========== 主程序 ==========
