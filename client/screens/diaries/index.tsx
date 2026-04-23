@@ -9,6 +9,8 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
 import { buildApiUrl } from '@/utils';
 import { useAppUpdate } from '@/hooks/useAppUpdate';
+import AnnouncementModal from '@/components/AnnouncementModal';
+import { useAnnouncements } from '@/hooks/useAnnouncements';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getLocalDiaries,
@@ -61,6 +63,15 @@ export default function DiariesScreen() {
   const { isLocked, hasPassword, lockApp, decryptData } = usePassword();
   const { isAuthenticated, isLoading: authLoading, token, logout, isOfflineMode, user } = useAuth();
   const { checkAutoUpdate, UpdateModal } = useAppUpdate();
+
+  // 公告弹窗
+  const {
+    currentAnnouncement,
+    isVisible: announcementVisible,
+    loadAnnouncements,
+    showNext: showNextAnnouncement,
+    close: closeAnnouncement,
+  } = useAnnouncements();
 
   const [diaries, setDiaries] = useState<Diary[]>([]);
   const [filteredDiaries, setFilteredDiaries] = useState<Diary[]>([]);
@@ -250,6 +261,9 @@ export default function DiariesScreen() {
 
         // 检查APP更新（每天最多检查一次）
         checkAppUpdate();
+
+        // 加载公告
+        loadAnnouncements();
       }
     }, [authLoading, isAuthenticated])
   );
@@ -474,6 +488,13 @@ export default function DiariesScreen() {
       </Modal>
 
       <UpdateModal />
+
+      <AnnouncementModal
+        visible={announcementVisible}
+        announcement={currentAnnouncement}
+        onClose={closeAnnouncement}
+        onConfirm={showNextAnnouncement}
+      />
     </Screen>
   );
 }

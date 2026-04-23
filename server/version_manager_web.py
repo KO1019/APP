@@ -477,6 +477,8 @@ HTML_TEMPLATE = """
             <button onclick="showSection('dashboard')" class="active" id="nav-dashboard">📊 仪表盘</button>
             <button onclick="showSection('users')" id="nav-users">👥 用户管理</button>
             <button onclick="showSection('models')" id="nav-models">🤖 模型管理</button>
+            <button onclick="showSection('welcome')" id="nav-welcome">👋 欢迎内容</button>
+            <button onclick="showSection('announcements')" id="nav-announcements">📢 公告管理</button>
             <button onclick="showSection('stats')" id="nav-stats">📈 数据统计</button>
             <button onclick="showSection('create')" id="nav-create">➕ 创建版本</button>
             <button onclick="showSection('list')" id="nav-list">📋 版本列表</button>
@@ -508,6 +510,28 @@ HTML_TEMPLATE = """
                     <button onclick="loadModels()" class="btn btn-secondary btn-small">刷新</button>
                 </div>
                 <div id="models-content">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+
+            <!-- 欢迎内容管理 -->
+            <div id="welcome" class="section">
+                <div class="filter-bar">
+                    <button onclick="showCreateWelcome()" class="btn btn-primary btn-small">➕ 创建欢迎内容</button>
+                    <button onclick="loadWelcomeContents()" class="btn btn-secondary btn-small">刷新</button>
+                </div>
+                <div id="welcome-content">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+
+            <!-- 公告管理 -->
+            <div id="announcements" class="section">
+                <div class="filter-bar">
+                    <button onclick="showCreateAnnouncement()" class="btn btn-primary btn-small">➕ 创建公告</button>
+                    <button onclick="loadAnnouncements()" class="btn btn-secondary btn-small">刷新</button>
+                </div>
+                <div id="announcements-content">
                     <div class="loading">加载中...</div>
                 </div>
             </div>
@@ -716,6 +740,106 @@ HTML_TEMPLATE = """
         </div>
     </div>
 
+    <!-- 欢迎内容编辑模态框 -->
+    <div id="welcome-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <h2 id="welcome-form-title">创建欢迎内容</h2>
+            <div id="welcome-message"></div>
+            <form id="welcome-form">
+                <input type="hidden" id="welcome-id">
+                <div class="form-group">
+                    <label for="welcome-title">标题 *</label>
+                    <input type="text" id="welcome-title" name="title" required>
+                </div>
+                <div class="form-group">
+                    <label for="welcome-content-text">内容 *</label>
+                    <textarea id="welcome-content-text" name="content" rows="4" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="welcome-image-url">图片 URL</label>
+                    <input type="url" id="welcome-image-url" name="image_url" placeholder="https://...">
+                    <small>图片必须是公网可访问的 URL</small>
+                </div>
+                <div class="form-group">
+                    <label for="welcome-button-text">按钮文字</label>
+                    <input type="text" id="welcome-button-text" name="button_text" value="开始使用">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="welcome-is-active" name="is_active">
+                        启用
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" onclick="closeWelcomeModal()" class="btn btn-secondary">取消</button>
+                    <button type="button" onclick="saveWelcomeContent()" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 公告编辑模态框 -->
+    <div id="announcement-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <h2 id="announcement-form-title">创建公告</h2>
+            <div id="announcement-message"></div>
+            <form id="announcement-form">
+                <input type="hidden" id="announcement-id">
+                <div class="form-group">
+                    <label for="announcement-title">标题 *</label>
+                    <input type="text" id="announcement-title" name="title" required>
+                </div>
+                <div class="form-group">
+                    <label for="announcement-content-text">内容 *</label>
+                    <textarea id="announcement-content-text" name="content" rows="4" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="announcement-image-url">图片 URL</label>
+                    <input type="url" id="announcement-image-url" name="image_url" placeholder="https://...">
+                    <small>图片必须是公网可访问的 URL</small>
+                </div>
+                <div class="form-group">
+                    <label for="announcement-button-text">按钮文字</label>
+                    <input type="text" id="announcement-button-text" name="button_text" value="我知道了">
+                </div>
+                <div class="form-group">
+                    <label for="announcement-priority">优先级</label>
+                    <input type="number" id="announcement-priority" name="priority" value="0" min="0">
+                    <small>数值越大优先级越高</small>
+                </div>
+                <div class="form-group">
+                    <label for="announcement-start-time">开始时间</label>
+                    <input type="datetime-local" id="announcement-start-time" name="start_time">
+                    <small>留空表示立即开始</small>
+                </div>
+                <div class="form-group">
+                    <label for="announcement-end-time">结束时间</label>
+                    <input type="datetime-local" id="announcement-end-time" name="end_time">
+                    <small>留空表示永不结束</small>
+                </div>
+                <div class="form-group">
+                    <label for="announcement-target-user-type">目标用户类型</label>
+                    <select id="announcement-target-user-type" name="target_user_type">
+                        <option value="all">所有用户</option>
+                        <option value="new">新用户</option>
+                        <option value="active">活跃用户</option>
+                        <option value="inactive">不活跃用户</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="announcement-is-active" name="is_active">
+                        启用
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" onclick="closeAnnouncementModal()" class="btn btn-secondary">取消</button>
+                    <button type="button" onclick="saveAnnouncement()" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         const API_BASE = '/api/v1';
 
@@ -731,6 +855,8 @@ HTML_TEMPLATE = """
             if (sectionId === 'dashboard') loadDashboard();
             if (sectionId === 'users') loadUsers();
             if (sectionId === 'models') loadModels();
+            if (sectionId === 'welcome') loadWelcomeContents();
+            if (sectionId === 'announcements') loadAnnouncements();
             if (sectionId === 'stats') loadStats();
             if (sectionId === 'list') loadVersions();
             if (sectionId === 'active') loadActiveVersions();
@@ -1473,6 +1599,299 @@ HTML_TEMPLATE = """
             } catch (error) {
                 message.innerHTML = '<div class="error">❌ 请求失败: ' + error.message + '</div>';
             }
+        }
+
+        // ========== 欢迎内容管理相关函数 ==========
+
+        // 加载欢迎内容列表
+        async function loadWelcomeContents() {
+            const content = document.getElementById('welcome-content');
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/welcome`);
+                const data = await response.json();
+
+                if (!data.welcome_contents || data.welcome_contents.length === 0) {
+                    content.innerHTML = '<div class="empty">没有欢迎内容</div>';
+                    return;
+                }
+
+                let html = '<table class="versions-table"><thead><tr>';
+                html += '<th>ID</th><th>标题</th><th>内容</th><th>按钮文字</th><th>状态</th><th>创建时间</th><th>操作</th>';
+                html += '</tr></thead><tbody>';
+
+                data.welcome_contents.forEach(w => {
+                    html += '<tr>';
+                    html += `<td><small>${w.id.substring(0, 8)}...</small></td>`;
+                    html += `<td><strong>${w.title}</strong></td>`;
+                    html += `<td><small>${w.content.substring(0, 50)}...</small></td>`;
+                    html += `<td>${w.button_text}</td>`;
+                    html += `<td>${w.is_active ? '<span class="badge badge-success">启用</span>' : '<span class="badge badge-warning">禁用</span>'}</td>`;
+                    html += `<td>${new Date(w.created_at).toLocaleDateString('zh-CN')}</td>`;
+                    html += '<td>';
+                    html += `<button onclick="editWelcomeContent('${w.id}')" class="btn btn-secondary btn-small">编辑</button> `;
+                    html += `<button onclick="deleteWelcomeContent('${w.id}')" class="btn btn-danger btn-small">删除</button>`;
+                    html += '</td>';
+                    html += '</tr>';
+                });
+
+                html += '</tbody></table>';
+                content.innerHTML = html;
+            } catch (error) {
+                content.innerHTML = '<div class="error">加载失败: ' + error.message + '</div>';
+            }
+        }
+
+        // 显示创建欢迎内容模态框
+        function showCreateWelcome() {
+            document.getElementById('welcome-form-title').textContent = '创建欢迎内容';
+            document.getElementById('welcome-id').value = '';
+            document.getElementById('welcome-title').value = '';
+            document.getElementById('welcome-content-text').value = '';
+            document.getElementById('welcome-image-url').value = '';
+            document.getElementById('welcome-button-text').value = '开始使用';
+            document.getElementById('welcome-is-active').checked = true;
+            document.getElementById('welcome-message').innerHTML = '';
+            document.getElementById('welcome-modal').classList.add('active');
+        }
+
+        // 编辑欢迎内容
+        async function editWelcomeContent(welcomeId) {
+            try {
+                const response = await fetch(`${API_BASE}/admin/welcome`);
+                const data = await response.json();
+                const welcome = data.welcome_contents.find(w => w.id === welcomeId);
+
+                if (!welcome) {
+                    alert('未找到欢迎内容');
+                    return;
+                }
+
+                document.getElementById('welcome-form-title').textContent = '编辑欢迎内容';
+                document.getElementById('welcome-id').value = welcome.id;
+                document.getElementById('welcome-title').value = welcome.title;
+                document.getElementById('welcome-content-text').value = welcome.content;
+                document.getElementById('welcome-image-url').value = welcome.image_url || '';
+                document.getElementById('welcome-button-text').value = welcome.button_text;
+                document.getElementById('welcome-is-active').checked = welcome.is_active;
+                document.getElementById('welcome-message').innerHTML = '';
+                document.getElementById('welcome-modal').classList.add('active');
+            } catch (error) {
+                alert('加载欢迎内容失败: ' + error.message);
+            }
+        }
+
+        // 保存欢迎内容
+        async function saveWelcomeContent() {
+            const id = document.getElementById('welcome-id').value;
+            const message = document.getElementById('welcome-message');
+
+            const data = {
+                title: document.getElementById('welcome-title').value,
+                content: document.getElementById('welcome-content-text').value,
+                image_url: document.getElementById('welcome-image-url').value,
+                button_text: document.getElementById('welcome-button-text').value,
+                is_active: document.getElementById('welcome-is-active').checked
+            };
+
+            try {
+                let url, method;
+                if (id) {
+                    url = `${API_BASE}/admin/welcome/${id}`;
+                    method = 'PUT';
+                } else {
+                    url = `${API_BASE}/admin/welcome`;
+                    method = 'POST';
+                }
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    message.innerHTML = '<div class="success">✅ 保存成功！</div>';
+                    setTimeout(() => {
+                        closeWelcomeModal();
+                        loadWelcomeContents();
+                    }, 1500);
+                } else {
+                    const error = await response.json();
+                    message.innerHTML = '<div class="error">❌ 保存失败: ' + (error.detail || '未知错误') + '</div>';
+                }
+            } catch (error) {
+                message.innerHTML = '<div class="error">❌ 请求失败: ' + error.message + '</div>';
+            }
+        }
+
+        // 关闭欢迎内容模态框
+        function closeWelcomeModal() {
+            document.getElementById('welcome-modal').classList.remove('active');
+        }
+
+        // 删除欢迎内容
+        function deleteWelcomeContent(welcomeId) {
+            if (!confirm('确定要删除这个欢迎内容吗？')) return;
+
+            fetch(`${API_BASE}/admin/welcome/${welcomeId}`, { method: 'DELETE' })
+                .then(response => response.ok ? loadWelcomeContents() : alert('删除失败'))
+                .catch(error => alert('删除失败: ' + error.message));
+        }
+
+        // ========== 公告管理相关函数 ==========
+
+        // 加载公告列表
+        async function loadAnnouncements() {
+            const content = document.getElementById('announcements-content');
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/announcements`);
+                const data = await response.json();
+
+                if (!data.announcements || data.announcements.length === 0) {
+                    content.innerHTML = '<div class="empty">没有公告</div>';
+                    return;
+                }
+
+                let html = '<table class="versions-table"><thead><tr>';
+                html += '<th>ID</th><th>标题</th><th>内容</th><th>优先级</th><th>状态</th><th>目标用户</th><th>时间范围</th><th>操作</th>';
+                html += '</tr></thead><tbody>';
+
+                data.announcements.forEach(a => {
+                    const timeRange = a.start_time && a.end_time
+                        ? `${new Date(a.start_time).toLocaleDateString('zh-CN')} - ${new Date(a.end_time).toLocaleDateString('zh-CN')}`
+                        : '无限制';
+
+                    html += '<tr>';
+                    html += `<td><small>${a.id.substring(0, 8)}...</small></td>`;
+                    html += `<td><strong>${a.title}</strong></td>`;
+                    html += `<td><small>${a.content.substring(0, 50)}...</small></td>`;
+                    html += `<td>${a.priority}</td>`;
+                    html += `<td>${a.is_active ? '<span class="badge badge-success">启用</span>' : '<span class="badge badge-warning">禁用</span>'}</td>`;
+                    html += `<td>${a.target_user_type}</td>`;
+                    html += `<td><small>${timeRange}</small></td>`;
+                    html += '<td>';
+                    html += `<button onclick="editAnnouncement('${a.id}')" class="btn btn-secondary btn-small">编辑</button> `;
+                    html += `<button onclick="deleteAnnouncement('${a.id}')" class="btn btn-danger btn-small">删除</button>`;
+                    html += '</td>';
+                    html += '</tr>';
+                });
+
+                html += '</tbody></table>';
+                content.innerHTML = html;
+            } catch (error) {
+                content.innerHTML = '<div class="error">加载失败: ' + error.message + '</div>';
+            }
+        }
+
+        // 显示创建公告模态框
+        function showCreateAnnouncement() {
+            document.getElementById('announcement-form-title').textContent = '创建公告';
+            document.getElementById('announcement-id').value = '';
+            document.getElementById('announcement-title').value = '';
+            document.getElementById('announcement-content-text').value = '';
+            document.getElementById('announcement-image-url').value = '';
+            document.getElementById('announcement-button-text').value = '我知道了';
+            document.getElementById('announcement-priority').value = '0';
+            document.getElementById('announcement-start-time').value = '';
+            document.getElementById('announcement-end-time').value = '';
+            document.getElementById('announcement-target-user-type').value = 'all';
+            document.getElementById('announcement-is-active').checked = true;
+            document.getElementById('announcement-message').innerHTML = '';
+            document.getElementById('announcement-modal').classList.add('active');
+        }
+
+        // 编辑公告
+        async function editAnnouncement(announcementId) {
+            try {
+                const response = await fetch(`${API_BASE}/admin/announcements`);
+                const data = await response.json();
+                const announcement = data.announcements.find(a => a.id === announcementId);
+
+                if (!announcement) {
+                    alert('未找到公告');
+                    return;
+                }
+
+                document.getElementById('announcement-form-title').textContent = '编辑公告';
+                document.getElementById('announcement-id').value = announcement.id;
+                document.getElementById('announcement-title').value = announcement.title;
+                document.getElementById('announcement-content-text').value = announcement.content;
+                document.getElementById('announcement-image-url').value = announcement.image_url || '';
+                document.getElementById('announcement-button-text').value = announcement.button_text;
+                document.getElementById('announcement-priority').value = announcement.priority;
+                document.getElementById('announcement-start-time').value = announcement.start_time || '';
+                document.getElementById('announcement-end-time').value = announcement.end_time || '';
+                document.getElementById('announcement-target-user-type').value = announcement.target_user_type;
+                document.getElementById('announcement-is-active').checked = announcement.is_active;
+                document.getElementById('announcement-message').innerHTML = '';
+                document.getElementById('announcement-modal').classList.add('active');
+            } catch (error) {
+                alert('加载公告失败: ' + error.message);
+            }
+        }
+
+        // 保存公告
+        async function saveAnnouncement() {
+            const id = document.getElementById('announcement-id').value;
+            const message = document.getElementById('announcement-message');
+
+            const data = {
+                title: document.getElementById('announcement-title').value,
+                content: document.getElementById('announcement-content-text').value,
+                image_url: document.getElementById('announcement-image-url').value,
+                button_text: document.getElementById('announcement-button-text').value,
+                priority: parseInt(document.getElementById('announcement-priority').value),
+                start_time: document.getElementById('announcement-start-time').value || null,
+                end_time: document.getElementById('announcement-end-time').value || null,
+                target_user_type: document.getElementById('announcement-target-user-type').value,
+                is_active: document.getElementById('announcement-is-active').checked
+            };
+
+            try {
+                let url, method;
+                if (id) {
+                    url = `${API_BASE}/admin/announcements/${id}`;
+                    method = 'PUT';
+                } else {
+                    url = `${API_BASE}/admin/announcements`;
+                    method = 'POST';
+                }
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    message.innerHTML = '<div class="success">✅ 保存成功！</div>';
+                    setTimeout(() => {
+                        closeAnnouncementModal();
+                        loadAnnouncements();
+                    }, 1500);
+                } else {
+                    const error = await response.json();
+                    message.innerHTML = '<div class="error">❌ 保存失败: ' + (error.detail || '未知错误') + '</div>';
+                }
+            } catch (error) {
+                message.innerHTML = '<div class="error">❌ 请求失败: ' + error.message + '</div>';
+            }
+        }
+
+        // 关闭公告模态框
+        function closeAnnouncementModal() {
+            document.getElementById('announcement-modal').classList.remove('active');
+        }
+
+        // 删除公告
+        function deleteAnnouncement(announcementId) {
+            if (!confirm('确定要删除这个公告吗？')) return;
+
+            fetch(`${API_BASE}/admin/announcements/${announcementId}`, { method: 'DELETE' })
+                .then(response => response.ok ? loadAnnouncements() : alert('删除失败'))
+                .catch(error => alert('删除失败: ' + error.message));
         }
     </script>
 </body>

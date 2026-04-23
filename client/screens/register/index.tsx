@@ -90,7 +90,8 @@ export default function RegisterScreen() {
         text1: '注册成功',
         text2: '欢迎加入AI情绪日记'
       });
-      router.replace('/');
+      // 跳转到欢迎界面，由欢迎界面决定是否显示
+      router.replace('/welcome');
     } catch (error: any) {
       let errorMessage = '注册失败，请稍后重试';
       let errorTitle = '注册失败';
