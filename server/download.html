@@ -648,6 +648,19 @@
             font-weight: 700;
         }
 
+        .changelog-list strong {
+            display: block;
+            padding: 16px 0 8px;
+            padding-left: 0;
+            font-size: 18px;
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .changelog-list strong::before {
+            display: none;
+        }
+
         /* ===== 底部 ===== */
         .footer {
             background: var(--dark);
@@ -1231,21 +1244,56 @@
                 versionText.textContent = `v${version}`;
                 versionTag.style.display = 'inline-flex';
 
-                // 更新更新日志
+                // 更新更新日志（显示Android和iOS的更新内容）
                 document.getElementById('changelog-version').textContent = `v${version}`;
                 const now = new Date().toISOString().split('T')[0];
                 document.getElementById('changelog-date').textContent = now;
 
-                const releaseNotes = data.android?.release_notes || 'AI情绪日记全新上线！';
                 const changelogList = document.getElementById('changelog-list');
+                const updateItems = [];
 
-                if (releaseNotes && typeof releaseNotes === 'string') {
-                    // 按行分割更新内容
-                    const lines = releaseNotes.split('\n').filter(line => line.trim());
-                    if (lines.length > 0) {
-                        changelogList.innerHTML = lines.map(line => `<li>${line.trim()}</li>`).join('');
+                // Android更新内容
+                const androidReleaseNotes = data.android?.release_notes;
+                if (androidReleaseNotes && typeof androidReleaseNotes === 'string') {
+                    const lines = androidReleaseNotes.split('\n').filter(line => line.trim());
+                    // 跳过第一行标题（如"测试版本更新内容："）
+                    if (lines.length > 1) {
+                        updateItems.push(`<strong>Android：</strong>`);
+                        for (let i = 1; i < lines.length; i++) {
+                            updateItems.push(`<li>${lines[i].trim()}</li>`);
+                        }
+                    } else if (lines.length === 1) {
+                        // 只有一行，直接显示
+                        updateItems.push(`<li>${lines[0].trim()}</li>`);
                     }
                 }
+
+                // iOS更新内容
+                const iosReleaseNotes = data.ios?.release_notes;
+                if (iosReleaseNotes && typeof iosReleaseNotes === 'string') {
+                    const lines = iosReleaseNotes.split('\n').filter(line => line.trim());
+                    // 跳过第一行标题（如"iOS版本更新内容："）
+                    if (lines.length > 1) {
+                        updateItems.push(`<strong>iOS：</strong>`);
+                        for (let i = 1; i < lines.length; i++) {
+                            updateItems.push(`<li>${lines[i].trim()}</li>`);
+                        }
+                    } else if (lines.length === 1) {
+                        // 只有一行，直接显示
+                        updateItems.push(`<li>${lines[0].trim()}</li>`);
+                    }
+                }
+
+                // 如果都没有，显示默认内容
+                if (updateItems.length === 0) {
+                    updateItems.push('<li>AI情绪日记全新上线！</li>');
+                    updateItems.push('<li>支持智能情绪记录与分析</li>');
+                    updateItems.push('<li>AI陪伴对话功能</li>');
+                    updateItems.push('<li>情绪趋势可视化报告</li>');
+                    updateItems.push('<li>端到端加密隐私保护</li>');
+                }
+
+                changelogList.innerHTML = updateItems.join('');
 
                 // 清空下载按钮组
                 const downloadGroup = document.querySelector('.download-group');
