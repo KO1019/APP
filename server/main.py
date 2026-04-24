@@ -284,36 +284,14 @@ async def get_app_download_info():
             "available": False
         }
 
-        # 从数据库获取激活的版本（添加超时控制）
+        # 从数据库获取激活的版本
         if db_client:
             try:
-                import asyncio
+                # MySQL数据库查询
+                result = db_client.table('versions').select('*').eq('is_active', 1).execute()
 
-                print(f"[DEBUG] 开始查询数据库...")
-                print(f"[DEBUG] db_client类型: {type(db_client)}")
-                print(f"[DEBUG] db_client: {db_client}")
-
-                # 设置3秒超时
-                result = await asyncio.wait_for(
-                    asyncio.to_thread(
-                        db_client.table('versions').select('*').eq('is_active', True).execute
-                    ),
-                    timeout=3.0
-                )
-
-                print(f"[DEBUG] 数据库查询结果: {result}")
-                print(f"[DEBUG] result类型: {type(result)}")
-                if hasattr(result, 'data'):
-                    print(f"[DEBUG] result.data: {result.data}")
-                    print(f"[DEBUG] result.data长度: {len(result.data) if result.data else 0}")
-                if hasattr(result, 'model_dump'):
-                    print(f"[DEBUG] result.model_dump(): {result.model_dump()}")
-
-                # 如果数据库中有激活的版本，使用数据库中的数据
                 if result and hasattr(result, 'data') and result.data:
-                    print(f"[DEBUG] 找到{len(result.data)}条激活的版本记录")
-                    for idx, version in enumerate(result.data):
-                        print(f"[DEBUG] 处理版本数据[{idx}]: {version}")
+                    for version in result.data:
                         if version.get('platform') == 'android':
                             if version.get('file_url'):
                                 android_info["url"] = version['file_url']
@@ -325,7 +303,6 @@ async def get_app_download_info():
                                 if version.get('file_size'):
                                     size_mb = version['file_size'] / (1024 * 1024)
                                     android_info["size"] = f"{size_mb:.1f}MB"
-                                print(f"[DEBUG] Android版本已更新: {android_info}")
                         elif version.get('platform') == 'ios':
                             if version.get('file_url'):
                                 ios_info["url"] = version['file_url']
@@ -337,15 +314,8 @@ async def get_app_download_info():
                                 if version.get('file_size'):
                                     size_mb = version['file_size'] / (1024 * 1024)
                                     ios_info["size"] = f"{size_mb:.1f}MB"
-                                print(f"[DEBUG] iOS版本已更新: {ios_info}")
-                else:
-                    print(f"[DEBUG] 没有找到激活的版本记录")
-            except asyncio.TimeoutError:
-                print("Database query timeout, using default data")
             except Exception as e:
                 print(f"Database query error: {e}")
-                import traceback
-                traceback.print_exc()
 
         response = {
             "android": android_info,
