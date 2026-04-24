@@ -14,15 +14,6 @@ from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 from passlib.context import CryptContext
 
-# ===== 管理后台配置 =====
-# ⚠️ 生产环境请使用环境变量或配置文件
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
-ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "admin_token_2024_change_me")
-
-# 密码加密配置
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, File, Form, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse
@@ -41,6 +32,15 @@ from oss_storage import oss_storage, check_oss_config
 # 加载.env文件（使用绝对路径）
 dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
 load_dotenv(dotenv_path)
+
+# ===== 管理后台配置 =====
+# ⚠️ 生产环境请使用环境变量或配置文件
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "admin_token_2024_change_me")
+
+# 密码加密配置
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # 环境变量配置
 JWT_SECRET = os.getenv('JWT_SECRET', 'your-secret-key-change-in-production')
