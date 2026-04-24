@@ -32,7 +32,8 @@ config.resolver.blockList = [
   /.*node_modules\/\.pnpm\/.*_tmp_\d+.*/,
 ];
 
-const BACKEND_TARGET = 'http://9.129.7.228:9091';
+// 后端地址从环境变量读取（仅用于开发代理）
+const BACKEND_TARGET = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || '';
 
 const apiProxy = createProxyMiddleware({
   target: BACKEND_TARGET,

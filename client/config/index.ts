@@ -23,18 +23,8 @@ export const APP_CONFIG = {
  * API配置
  */
 export const API_CONFIG = {
-  // 后端API基础URL
-  baseUrl: (() => {
-    const envUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
-
-    // 使用环境变量配置的后端地址
-    if (envUrl && envUrl.trim() !== '') {
-      return envUrl;
-    }
-
-    // 默认地址（如果未配置环境变量）
-    return 'http://9.129.7.228:9091';
-  })(),
+  // 后端API基础URL - 必须从环境变量读取
+  baseUrl: process.env.EXPO_PUBLIC_BACKEND_BASE_URL || '',
 
   // API超时时间（毫秒）
   timeout: parseInt(process.env.EXPO_PUBLIC_API_TIMEOUT || '30000', 10),

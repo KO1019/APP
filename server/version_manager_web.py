@@ -32,8 +32,10 @@ app.add_middleware(
 )
 
 # 配置
-# 生产环境使用指定的IP地址
-API_BASE_URL = os.getenv('API_BASE_URL', 'http://9.129.7.228:9091')
+# API基础URL - 必须从环境变量读取
+API_BASE_URL = os.getenv('API_BASE_URL')
+if not API_BASE_URL:
+    raise ValueError('环境变量 API_BASE_URL 未设置，请在 .env 文件中配置')
 API_BASE = f"{API_BASE_URL}/api/v1"
 
 # HTML模板
@@ -2940,7 +2942,7 @@ async def version_manager(request: Request):
 
 if __name__ == "__main__":
     print("🚀 版本管理系统 Web可视化工具启动中...")
-    print(f"📊 访问地址: http://localhost:9091/version-manager")
+    print(f"📊 访问地址: {API_BASE_URL}/version-manager")
     print(f"🔗 后端API: {API_BASE}")
 
     uvicorn.run(
