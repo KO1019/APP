@@ -4,7 +4,8 @@ import utc from 'dayjs/plugin/utc';
 import { API_CONFIG } from '@/config';
 dayjs.extend(utc);
 
-const API_BASE = (process.env.EXPO_PUBLIC_API_BASE ?? '').replace(/\/$/, '');
+// 使用统一的API配置，从环境变量读取后端地址
+const API_BASE = API_CONFIG.baseUrl.replace(/\/$/, '');
 
 /**
  * 构建API URL
