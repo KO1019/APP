@@ -9,6 +9,7 @@
     "install-deps": "pip3 install -r requirements.txt"
   },
   "dependencies": {
+    "oss2": "^1.0.1",
     "pymysql": "^1.0.0",
     "redis": "^5.12.1"
   }

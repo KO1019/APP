@@ -439,6 +439,252 @@ HTML_TEMPLATE = """
             opacity: 0.8;
         }
 
+        /* 表单分区样式 */
+        .form-section {
+            margin-bottom: 24px;
+            padding: 16px;
+            background: rgba(234, 88, 12, 0.03);
+            border-radius: 12px;
+            border: 1px solid rgba(234, 88, 12, 0.08);
+        }
+
+        .form-section-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #422006;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid rgba(234, 88, 12, 0.1);
+        }
+
+        .form-row {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+            min-width: 200px;
+            margin-bottom: 12px;
+        }
+
+        /* 图片预览样式 */
+        .image-preview {
+            position: relative;
+            margin-top: 12px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid rgba(234, 88, 12, 0.2);
+            max-width: 400px;
+        }
+
+        .image-preview img {
+            width: 100%;
+            height: auto;
+            display: block;
+            max-height: 300px;
+            object-fit: contain;
+            background: #FFF7ED;
+        }
+
+        .remove-image-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(220, 38, 38, 0.9);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .remove-image-btn:hover {
+            background: #DC2626;
+        }
+
+        /* 上传区域样式 */
+        .upload-area {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: flex-start;
+        }
+
+        /* 复选框组样式 */
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 8px 12px;
+            background: rgba(234, 88, 12, 0.05);
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .checkbox-label:hover {
+            background: rgba(234, 88, 12, 0.1);
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            display: none;
+        }
+
+        .checkbox-custom {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(234, 88, 12, 0.3);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        .checkbox-label input[type="checkbox"]:checked + .checkbox-custom {
+            background: #EA580C;
+            border-color: #EA580C;
+        }
+
+        .checkbox-label input[type="checkbox"]:checked + .checkbox-custom::after {
+            content: '✓';
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .checkbox-label span:not(.checkbox-custom) {
+            font-weight: 500;
+            color: #422006;
+        }
+
+        /* 模态框样式优化 */
+        .modal-content h2 {
+            color: #422006;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .modal-content .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        /* 公告列表卡片样式 */
+        .announcement-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 20px;
+        }
+
+        .announcement-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            border: 2px solid rgba(234, 88, 12, 0.08);
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .announcement-card:hover {
+            box-shadow: 0 4px 16px rgba(234, 88, 12, 0.12);
+            border-color: rgba(234, 88, 12, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .announcement-card-header {
+            display: flex;
+            gap: 12px;
+        }
+
+        .announcement-card-image {
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            overflow: hidden;
+            flex-shrink: 0;
+            background: rgba(234, 88, 12, 0.05);
+        }
+
+        .announcement-card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .announcement-card-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .announcement-card-info h3 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #422006;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .announcement-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .announcement-content {
+            margin: 0;
+            font-size: 14px;
+            color: #78350F;
+            line-height: 1.6;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .announcement-footer {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(234, 88, 12, 0.1);
+        }
+
+        .time-range,
+        .created-time {
+            font-size: 12px;
+            color: #A16207;
+            opacity: 0.8;
+        }
+
+        .announcement-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .announcement-list {
+                grid-template-columns: 1fr;
+            }
+        }
+
+
         .btn {
             padding: 12px 24px;
             border: none;
@@ -566,8 +812,15 @@ HTML_TEMPLATE = """
         }
 
         .badge-info {
-            background: #d1ecf1;
-            color: #0c5460;
+            background: rgba(234, 88, 12, 0.1);
+            color: #EA580C;
+            border: 1px solid rgba(234, 88, 12, 0.2);
+        }
+
+        .badge-secondary {
+            background: rgba(107, 114, 128, 0.1);
+            color: #6B7280;
+            border: 1px solid rgba(107, 114, 128, 0.2);
         }
 
         .loading {
@@ -1108,64 +1361,108 @@ HTML_TEMPLATE = """
 
     <!-- 公告编辑模态框 -->
     <div id="announcement-modal" class="modal">
-        <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-content" style="max-width: 700px;">
             <h2 id="announcement-form-title">创建公告</h2>
             <div id="announcement-message"></div>
             <form id="announcement-form">
                 <input type="hidden" id="announcement-id">
-                <div class="form-group">
-                    <label for="announcement-title">标题 *</label>
-                    <input type="text" id="announcement-title" name="title" required>
+
+                <!-- 基础信息 -->
+                <div class="form-section">
+                    <div class="form-section-title">📝 基础信息</div>
+                    <div class="form-group">
+                        <label for="announcement-title">标题 *</label>
+                        <input type="text" id="announcement-title" name="title" placeholder="请输入公告标题" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="announcement-content-text">内容 *</label>
+                        <textarea id="announcement-content-text" name="content" rows="5" placeholder="请输入公告内容" required></textarea>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="announcement-content-text">内容 *</label>
-                    <textarea id="announcement-content-text" name="content" rows="4" required></textarea>
+
+                <!-- 图片设置 -->
+                <div class="form-section">
+                    <div class="form-section-title">🖼️ 图片设置</div>
+                    <div class="form-group">
+                        <label for="announcement-image-url">图片 URL</label>
+                        <input type="url" id="announcement-image-url" name="image_url" placeholder="https://..." oninput="previewAnnouncementImage()">
+                        <small>图片必须是公网可访问的 URL，建议尺寸：750×440px</small>
+                        <div id="announcement-image-preview" class="image-preview" style="display: none;">
+                            <img id="announcement-preview-img" src="" alt="预览" onerror="this.parentElement.style.display='none'">
+                            <button type="button" class="remove-image-btn" onclick="removeAnnouncementImage()">✕ 移除</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>上传图片</label>
+                        <div class="upload-area">
+                            <input type="file" id="announcement-image-file" accept="image/*" style="display: none;" onchange="uploadAnnouncementImage(event)">
+                            <button type="button" class="btn btn-secondary" onclick="document.getElementById('announcement-image-file').click()">
+                                📤 选择图片上传
+                            </button>
+                            <small>支持 JPG、PNG 格式，最大 10MB</small>
+                        </div>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="announcement-image-url">图片 URL</label>
-                    <input type="url" id="announcement-image-url" name="image_url" placeholder="https://...">
-                    <small>图片必须是公网可访问的 URL</small>
+
+                <!-- 按钮设置 -->
+                <div class="form-section">
+                    <div class="form-section-title">🔘 按钮设置</div>
+                    <div class="form-group">
+                        <label for="announcement-button-text">按钮文字</label>
+                        <input type="text" id="announcement-button-text" name="button_text" value="我知道了" placeholder="例如：我知道了">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="announcement-button-text">按钮文字</label>
-                    <input type="text" id="announcement-button-text" name="button_text" value="我知道了">
+
+                <!-- 高级设置 -->
+                <div class="form-section">
+                    <div class="form-section-title">⚙️ 高级设置</div>
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 1;">
+                            <label for="announcement-priority">优先级</label>
+                            <input type="number" id="announcement-priority" name="priority" value="0" min="0">
+                            <small>数值越大优先级越高</small>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label for="announcement-target-user-type">目标用户类型</label>
+                            <select id="announcement-target-user-type" name="target_user_type">
+                                <option value="all">所有用户</option>
+                                <option value="new">新用户</option>
+                                <option value="active">活跃用户</option>
+                                <option value="inactive">不活跃用户</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 1;">
+                            <label for="announcement-start-time">开始时间</label>
+                            <input type="datetime-local" id="announcement-start-time" name="start_time">
+                            <small>留空表示立即开始</small>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label for="announcement-end-time">结束时间</label>
+                            <input type="datetime-local" id="announcement-end-time" name="end_time">
+                            <small>留空表示永不结束</small>
+                        </div>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="announcement-priority">优先级</label>
-                    <input type="number" id="announcement-priority" name="priority" value="0" min="0">
-                    <small>数值越大优先级越高</small>
+
+                <!-- 状态设置 -->
+                <div class="form-section">
+                    <div class="form-section-title">🚦 状态设置</div>
+                    <div class="checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="announcement-is-active" name="is_active">
+                            <span class="checkbox-custom"></span>
+                            <span>启用公告</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="announcement-is-update-announcement" name="is_update_announcement">
+                            <span class="checkbox-custom"></span>
+                            <span>更新公告（APP更新后自动弹出）</span>
+                        </label>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="announcement-start-time">开始时间</label>
-                    <input type="datetime-local" id="announcement-start-time" name="start_time">
-                    <small>留空表示立即开始</small>
-                </div>
-                <div class="form-group">
-                    <label for="announcement-end-time">结束时间</label>
-                    <input type="datetime-local" id="announcement-end-time" name="end_time">
-                    <small>留空表示永不结束</small>
-                </div>
-                <div class="form-group">
-                    <label for="announcement-target-user-type">目标用户类型</label>
-                    <select id="announcement-target-user-type" name="target_user_type">
-                        <option value="all">所有用户</option>
-                        <option value="new">新用户</option>
-                        <option value="active">活跃用户</option>
-                        <option value="inactive">不活跃用户</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="announcement-is-active" name="is_active">
-                        启用
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="announcement-is-update-announcement" name="is_update_announcement">
-                        更新公告（APP更新后自动弹出）
-                    </label>
-                </div>
+
                 <div class="modal-actions">
                     <button type="button" onclick="closeAnnouncementModal()" class="btn btn-secondary">取消</button>
                     <button type="button" onclick="saveAnnouncement()" class="btn btn-primary">保存</button>
@@ -2349,31 +2646,52 @@ HTML_TEMPLATE = """
                     return;
                 }
 
-                let html = '<table class="versions-table"><thead><tr>';
-                html += '<th>ID</th><th>标题</th><th>内容</th><th>优先级</th><th>状态</th><th>目标用户</th><th>时间范围</th><th>操作</th>';
-                html += '</tr></thead><tbody>';
+                let html = '<div class="announcement-list">';
 
                 data.announcements.forEach(a => {
                     const timeRange = a.start_time && a.end_time
                         ? `${new Date(a.start_time).toLocaleDateString('zh-CN')} - ${new Date(a.end_time).toLocaleDateString('zh-CN')}`
                         : '无限制';
 
-                    html += '<tr>';
-                    html += `<td><small>${a.id.substring(0, 8)}...</small></td>`;
-                    html += `<td><strong>${a.title}</strong></td>`;
-                    html += `<td><small>${a.content.substring(0, 50)}...</small></td>`;
-                    html += `<td>${a.priority}</td>`;
-                    html += `<td>${a.is_active ? '<span class="badge badge-success">启用</span>' : '<span class="badge badge-warning">禁用</span>'}</td>`;
-                    html += `<td>${a.target_user_type}</td>`;
-                    html += `<td><small>${timeRange}</small></td>`;
-                    html += '<td>';
+                    const targetUserMap = {
+                        'all': '所有用户',
+                        'new': '新用户',
+                        'active': '活跃用户',
+                        'inactive': '不活跃用户'
+                    };
+
+                    html += '<div class="announcement-card">';
+                    html += '<div class="announcement-card-header">';
+                    if (a.image_url) {
+                        html += `<div class="announcement-card-image">`;
+                        html += `<img src="${a.image_url}" alt="公告图片" onerror="this.parentElement.style.display='none'">`;
+                        html += `</div>`;
+                    }
+                    html += '<div class="announcement-card-info">';
+                    html += `<h3>${a.title}</h3>`;
+                    html += '<div class="announcement-meta">';
+                    html += `<span class="badge ${a.is_active ? 'badge-success' : 'badge-warning'}">${a.is_active ? '启用' : '禁用'}</span>`;
+                    html += `<span class="badge badge-info">优先级: ${a.priority}</span>`;
+                    html += `<span class="badge badge-info">${targetUserMap[a.target_user_type] || a.target_user_type}</span>`;
+                    if (a.is_update_announcement) {
+                        html += `<span class="badge badge-secondary">更新公告</span>`;
+                    }
+                    html += '</div>';
+                    html += '</div>';
+                    html += '</div>';
+                    html += `<p class="announcement-content">${a.content}</p>`;
+                    html += '<div class="announcement-footer">';
+                    html += `<small class="time-range">📅 ${timeRange}</small>`;
+                    html += `<small class="created-time">创建于 ${new Date(a.created_at).toLocaleString('zh-CN')}</small>`;
+                    html += '<div class="announcement-actions">';
                     html += `<button onclick="editAnnouncement('${a.id}')" class="btn btn-secondary btn-small">编辑</button> `;
                     html += `<button onclick="deleteAnnouncement('${a.id}')" class="btn btn-danger btn-small">删除</button>`;
-                    html += '</td>';
-                    html += '</tr>';
+                    html += '</div>';
+                    html += '</div>';
+                    html += '</div>';
                 });
 
-                html += '</tbody></table>';
+                html += '</div>';
                 content.innerHTML = html;
             } catch (error) {
                 content.innerHTML = '<div class="error">加载失败: ' + error.message + '</div>';
@@ -2395,6 +2713,10 @@ HTML_TEMPLATE = """
             document.getElementById('announcement-is-active').checked = true;
             document.getElementById('announcement-is-update-announcement').checked = false;
             document.getElementById('announcement-message').innerHTML = '';
+
+            // 隐藏图片预览
+            document.getElementById('announcement-image-preview').style.display = 'none';
+
             document.getElementById('announcement-modal').classList.add('active');
         }
 
@@ -2423,6 +2745,10 @@ HTML_TEMPLATE = """
                 document.getElementById('announcement-is-active').checked = announcement.is_active;
                 document.getElementById('announcement-is-update-announcement').checked = announcement.is_update_announcement || false;
                 document.getElementById('announcement-message').innerHTML = '';
+
+                // 显示图片预览
+                previewAnnouncementImage();
+
                 document.getElementById('announcement-modal').classList.add('active');
             } catch (error) {
                 alert('加载公告失败: ' + error.message);
@@ -2481,6 +2807,84 @@ HTML_TEMPLATE = """
         // 关闭公告模态框
         function closeAnnouncementModal() {
             document.getElementById('announcement-modal').classList.remove('active');
+        }
+
+        // 预览公告图片
+        function previewAnnouncementImage() {
+            const imageUrl = document.getElementById('announcement-image-url').value;
+            const preview = document.getElementById('announcement-image-preview');
+            const img = document.getElementById('announcement-preview-img');
+
+            if (imageUrl && imageUrl.trim()) {
+                img.src = imageUrl;
+                preview.style.display = 'block';
+            } else {
+                preview.style.display = 'none';
+            }
+        }
+
+        // 移除公告图片
+        function removeAnnouncementImage() {
+            document.getElementById('announcement-image-url').value = '';
+            document.getElementById('announcement-image-preview').style.display = 'none';
+        }
+
+        // 上传公告图片
+        async function uploadAnnouncementImage(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // 检查文件类型
+            if (!file.type.match(/^image\/(jpeg|jpg|png|gif|webp)$/i)) {
+                alert('请选择图片文件（JPG、PNG、GIF、WebP）');
+                return;
+            }
+
+            // 检查文件大小（10MB）
+            if (file.size > 10 * 1024 * 1024) {
+                alert('图片大小不能超过 10MB');
+                return;
+            }
+
+            const messageDiv = document.getElementById('announcement-message');
+            messageDiv.innerHTML = '<div class="success">⏳ 正在上传...</div>';
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('filename', `announcement_${Date.now()}_${file.name}`);
+                formData.append('folder', 'announcements');
+
+                const response = await fetch(`${API_BASE}/files/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || '上传失败');
+                }
+
+                const result = await response.json();
+                const imageUrl = result.url;
+
+                // 设置图片URL并显示预览
+                document.getElementById('announcement-image-url').value = imageUrl;
+                previewAnnouncementImage();
+
+                messageDiv.innerHTML = '<div class="success">✅ 图片上传成功！</div>';
+                setTimeout(() => {
+                    messageDiv.innerHTML = '';
+                }, 2000);
+
+            } catch (error) {
+                messageDiv.innerHTML = `<div class="error">❌ 上传失败: ${error.message}</div>`;
+                // 清空文件输入
+                event.target.value = '';
+            }
         }
 
         // 删除公告
