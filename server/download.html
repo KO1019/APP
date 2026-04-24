@@ -208,22 +208,42 @@
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
             min-width: 220px;
             justify-content: center;
+            border: none;
+            cursor: pointer;
         }
 
-        .btn-download:hover:not(:disabled) {
+        .btn-download:hover:not(:disabled):not(.btn-disabled) {
             transform: translateY(-3px);
             box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3);
         }
 
-        .btn-download:disabled {
-            background: rgba(255, 255, 255, 0.3);
+        .btn-download:disabled,
+        .btn-download.btn-disabled {
+            background: rgba(255, 255, 255, 0.2);
             color: rgba(255, 255, 255, 0.5);
             cursor: not-allowed;
             box-shadow: none;
+            pointer-events: none;
         }
 
         .btn-download .icon {
             font-size: 28px;
+        }
+
+        /* 暂未开放提示 */
+        .not-available-badge {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 18px 36px;
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.6);
+            border-radius: 30px;
+            font-size: 17px;
+            font-weight: 600;
+            min-width: 220px;
+            justify-content: center;
+            border: 2px dashed rgba(255, 255, 255, 0.3);
         }
 
         /* Hero右侧手机预览 */
@@ -752,14 +772,19 @@
             .hero-container {
                 grid-template-columns: 1fr;
                 text-align: center;
+                gap: 40px;
             }
 
             .hero-content {
-                padding-bottom: 40px;
+                padding-bottom: 20px;
             }
 
             .download-group {
                 justify-content: center;
+            }
+
+            .not-available-badge {
+                min-width: 200px;
             }
 
             .stats-container {
@@ -785,11 +810,12 @@
             }
 
             .hero-title {
-                font-size: 40px;
+                font-size: 36px;
+                line-height: 1.3;
             }
 
             .hero-subtitle {
-                font-size: 17px;
+                font-size: 16px;
             }
 
             .phone-frame {
@@ -800,10 +826,13 @@
             .download-group {
                 flex-direction: column;
                 width: 100%;
+                align-items: stretch;
             }
 
-            .btn-download {
+            .btn-download,
+            .not-available-badge {
                 width: 100%;
+                min-width: auto;
             }
 
             .stats-container {
@@ -812,7 +841,7 @@
             }
 
             .stat-number {
-                font-size: 36px;
+                font-size: 32px;
             }
 
             .features-grid {
@@ -834,6 +863,72 @@
 
             .section-title {
                 font-size: 32px;
+            }
+
+            .changelog-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .hero {
+                padding: 100px 0 80px;
+            }
+
+            .hero-title {
+                font-size: 28px;
+            }
+
+            .hero-subtitle {
+                font-size: 14px;
+            }
+
+            .phone-frame {
+                width: 240px;
+                height: 480px;
+            }
+
+            .phone-screen {
+                font-size: 13px;
+            }
+
+            .phone-header {
+                padding: 60px 16px 24px;
+            }
+
+            .phone-header .app-icon {
+                font-size: 40px;
+            }
+
+            .phone-header .app-name {
+                font-size: 18px;
+            }
+
+            .stats-container {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 16px;
+            }
+
+            .stat-number {
+                font-size: 28px;
+            }
+
+            .stat-label {
+                font-size: 13px;
+            }
+
+            .section-tag {
+                font-size: 12px;
+            }
+
+            .section-title {
+                font-size: 24px;
+            }
+
+            .section-subtitle {
+                font-size: 14px;
             }
         }
     </style>
@@ -868,18 +963,15 @@
                     <span id="version-text">v1.0.0</span>
                 </div>
                 <div class="download-group">
-                    <div id="loading-indicator" class="loading" style="display: none;">
-                        <div class="loading-spinner"></div>
-                        加载中...
-                    </div>
-                    <a href="#" id="android-btn" class="btn-download" download>
+                    <!-- 初始显示暂未开放，JavaScript加载后更新 -->
+                    <div class="not-available-badge">
                         <span class="icon">🤖</span>
-                        <span>Android下载</span>
-                    </a>
-                    <a href="#" id="ios-btn" class="btn-download" target="_blank">
+                        <span>Android 暂未开放</span>
+                    </div>
+                    <div class="not-available-badge">
                         <span class="icon">🍎</span>
-                        <span>iOS下载</span>
-                    </a>
+                        <span>iOS 暂未开放</span>
+                    </div>
                 </div>
             </div>
             <div class="hero-visual">
@@ -1117,11 +1209,6 @@
         // 获取下载信息
         async function fetchDownloadInfo() {
             try {
-                // 显示加载状态
-                document.getElementById('loading-indicator').style.display = 'inline-flex';
-                document.getElementById('android-btn').style.display = 'none';
-                document.getElementById('ios-btn').style.display = 'none';
-
                 const response = await fetch('/api/v1/app/download');
 
                 if (!response.ok) {
@@ -1130,8 +1217,7 @@
 
                 const data = await response.json();
 
-                // 隐藏加载状态
-                document.getElementById('loading-indicator').style.display = 'none';
+                console.log('下载信息数据:', data);
 
                 // 显示版本标签
                 const versionTag = document.getElementById('version-tag');
@@ -1157,28 +1243,40 @@
                     }
                 }
 
-                // Android下载按钮
-                const androidBtn = document.getElementById('android-btn');
-                if (data.android && data.android.url) {
+                // 清空下载按钮组
+                const downloadGroup = document.querySelector('.download-group');
+                downloadGroup.innerHTML = '';
+
+                // Android下载按钮或提示
+                const androidAvailable = data.android?.available && data.android?.url;
+                if (androidAvailable) {
+                    const androidBtn = document.createElement('a');
                     androidBtn.href = data.android.url;
-                    androidBtn.disabled = false;
-                    androidBtn.style.display = 'inline-flex';
+                    androidBtn.className = 'btn-download';
+                    androidBtn.download = '';
+                    androidBtn.innerHTML = '<span class="icon">🤖</span><span>Android下载</span>';
+                    downloadGroup.appendChild(androidBtn);
                 } else {
-                    androidBtn.href = 'javascript:void(0)';
-                    androidBtn.disabled = true;
-                    androidBtn.style.display = 'inline-flex';
+                    const androidBadge = document.createElement('div');
+                    androidBadge.className = 'not-available-badge';
+                    androidBadge.innerHTML = '<span class="icon">🤖</span><span>Android 暂未开放</span>';
+                    downloadGroup.appendChild(androidBadge);
                 }
 
-                // iOS下载按钮
-                const iosBtn = document.getElementById('ios-btn');
-                if (data.ios && data.ios.url) {
+                // iOS下载按钮或提示
+                const iosAvailable = data.ios?.available && data.ios?.url;
+                if (iosAvailable) {
+                    const iosBtn = document.createElement('a');
                     iosBtn.href = data.ios.url;
-                    iosBtn.disabled = false;
-                    iosBtn.style.display = 'inline-flex';
+                    iosBtn.className = 'btn-download';
+                    iosBtn.target = '_blank';
+                    iosBtn.innerHTML = '<span class="icon">🍎</span><span>iOS下载</span>';
+                    downloadGroup.appendChild(iosBtn);
                 } else {
-                    iosBtn.href = 'javascript:void(0)';
-                    iosBtn.disabled = true;
-                    iosBtn.style.display = 'inline-flex';
+                    const iosBadge = document.createElement('div');
+                    iosBadge.className = 'not-available-badge';
+                    iosBadge.innerHTML = '<span class="icon">🍎</span><span>iOS 暂未开放</span>';
+                    downloadGroup.appendChild(iosBadge);
                 }
 
                 console.log('下载信息加载成功:', data);
@@ -1186,23 +1284,25 @@
             } catch (error) {
                 console.error('加载下载信息失败:', error);
 
-                // 隐藏加载状态，显示默认按钮（禁用状态）
-                document.getElementById('loading-indicator').style.display = 'none';
-
+                // 显示默认版本标签
                 const versionTag = document.getElementById('version-tag');
+                const versionText = document.getElementById('version-text');
                 versionText.textContent = 'v1.0.0';
                 versionTag.style.display = 'inline-flex';
 
-                const androidBtn = document.getElementById('android-btn');
-                const iosBtn = document.getElementById('ios-btn');
+                // 清空下载按钮组，显示暂未开放
+                const downloadGroup = document.querySelector('.download-group');
+                downloadGroup.innerHTML = '';
 
-                androidBtn.href = 'javascript:void(0)';
-                androidBtn.disabled = true;
-                androidBtn.style.display = 'inline-flex';
+                const androidBadge = document.createElement('div');
+                androidBadge.className = 'not-available-badge';
+                androidBadge.innerHTML = '<span class="icon">🤖</span><span>Android 暂未开放</span>';
+                downloadGroup.appendChild(androidBadge);
 
-                iosBtn.href = 'javascript:void(0)';
-                iosBtn.disabled = true;
-                iosBtn.style.display = 'inline-flex';
+                const iosBadge = document.createElement('div');
+                iosBadge.className = 'not-available-badge';
+                iosBadge.innerHTML = '<span class="icon">🍎</span><span>iOS 暂未开放</span>';
+                downloadGroup.appendChild(iosBadge);
             }
         }
 
