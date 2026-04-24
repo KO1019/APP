@@ -15,9 +15,9 @@
 - ✅ 删除heroui中的所有.md文件
 - ✅ 创建统一的README.md文档
 
-#### 3. 配置外部IP地址
+#### 3. 配置外部地址
 - ✅ 更新 `.env.production` 中的后端API地址
-- ✅ 从 `https://api.yourdomain.com` 改为 `http://59.110.39.235:9091`
+- ✅ 改为 `https://anjia.work/api`
 
 #### 4. 创建部署脚本
 - ✅ `deploy.sh` - 前端部署脚本
@@ -58,14 +58,14 @@
 
 ## 🚀 访问地址
 
-### 生产环境（外部IP）
+### 生产环境（正式域名）
 
 | 服务 | 地址 | 说明 |
 |------|------|------|
-| 后端API | http://59.110.39.235:9091 | 后端API服务 |
-| 健康检查 | http://59.110.39.235:9091/api/v1/health | 服务健康检查 |
-| 下载页面 | http://59.110.39.235/download.html | App下载页面 |
-| 版本管理 | http://59.110.39.235/version-manager | 版本管理后台 |
+| 后端API | https://anjia.work/api | 后端API服务 |
+| 健康检查 | https://anjia.work/api/v1/health | 服务健康检查 |
+| 下载页面 | https://anjia.work/download.html | App下载页面 |
+| 版本管理 | https://anjia.work/version-manager | 版本管理后台 |
 
 ### 本地开发（如有需要）
 
@@ -176,7 +176,7 @@ cd /workspace/projects/client
 
 ## 🎯 版本管理后台登录
 
-- **地址**: http://59.110.39.235/version-manager
+- **地址**: https://anjia.work/version-manager
 - **用户名**: admin
 - **密码**: admin123
 
@@ -251,10 +251,10 @@ cd /workspace/projects
 
 **访问地址：**
 
-- 后端API: http://59.110.39.235:9091
-- 健康检查: http://59.110.39.235:9091/api/v1/health
-- 下载页面: http://59.110.39.235/download.html
-- 版本管理: http://59.110.39.235/version-manager
+- 后端API: https://anjia.work/api
+- 健康检查: https://anjia.work/api/v1/health
+- 下载页面: https://anjia.work/download.html
+- 版本管理: https://anjia.work/version-manager
 
 **下一步：**
 

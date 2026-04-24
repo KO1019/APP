@@ -257,7 +257,7 @@ cd /workspace/projects/client
 确保 `.env.production` 配置正确：
 
 ```bash
-EXPO_PUBLIC_BACKEND_BASE_URL=http://59.110.39.235:9091
+EXPO_PUBLIC_BACKEND_BASE_URL=https://anjia.work/api
 EXPO_PUBLIC_APP_NAME=AI情绪日记
 EXPO_PUBLIC_APP_VERSION=1.0.0
 ```
@@ -336,10 +336,10 @@ yes | sdkmanager --licenses
 
 ```bash
 # 上传到服务器
-scp build/*.apk user@59.110.39.235:/var/www/html/apk/
+scp build/*.apk user@anjia.work:/var/www/html/apk/
 
 # 提供下载链接
-http://59.110.39.235/apk/ai-emotion-diary-1.0.0.apk
+https://anjia.work/apk/ai-emotion-diary-1.0.0.apk
 ```
 
 ### 公开发布

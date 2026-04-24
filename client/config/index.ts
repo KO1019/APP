@@ -44,8 +44,8 @@ export const API_CONFIG = {
       // 注意：在云端环境中，localhost 无法解析到服务器，需要使用实际 IP
       return 'http://9.129.7.228:9091';
     } else {
-      // 移动端（iOS/Android）：使用阿里云后端
-      return 'http://59.110.39.235:9091';
+      // 移动端（iOS/Android）：使用正式域名
+      return 'https://anjia.work/api';
     }
   })(),
 

@@ -76,7 +76,7 @@ cp .env.example .env
 ### 健康检查
 
 ```bash
-curl http://59.110.39.235:9091/api/v1/health
+curl https://anjia.work/api/v1/health
 ```
 
 ## 🌐 访问地址
@@ -85,14 +85,14 @@ curl http://59.110.39.235:9091/api/v1/health
 
 | 服务 | 地址 |
 |------|------|
-| 后端API | http://59.110.39.235:9091 |
-| 健康检查 | http://59.110.39.235:9091/api/v1/health |
-| 下载页面 | http://59.110.39.235/download.html |
-| 版本管理 | http://59.110.39.235/version-manager |
+| 后端API | https://anjia.work/api |
+| 健康检查 | https://anjia.work/api/v1/health |
+| 下载页面 | https://anjia.work/download.html |
+| 版本管理 | https://anjia.work/version-manager |
 
 ### 版本管理后台
 
-- **地址**: http://59.110.39.235/version-manager
+- **地址**: https://anjia.work/version-manager
 - **用户名**: admin
 - **密码**: admin123
 

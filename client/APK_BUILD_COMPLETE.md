@@ -200,8 +200,8 @@ adb install build/ai-emotion-diary-1.0.0.apk
 
 ### 后端配置
 
-- **API地址**: http://59.110.39.235:9091
-- **健康检查**: http://59.110.39.235:9091/api/v1/health
+- **API地址**: https://anjia.work/api
+- **健康检查**: https://anjia.work/api/v1/health
 
 ### Android权限
 
