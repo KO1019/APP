@@ -77,15 +77,13 @@ install_dependencies() {
 
 # 配置环境变量
 configure_env() {
-    log_info "配置环境变量..."
+    log_info "检查环境变量..."
 
-    if [ ! -f ".env.production" ]; then
-        log_error ".env.production 文件不存在"
+    if [ ! -f ".env" ]; then
+        log_error ".env 文件不存在"
         exit 1
     fi
 
-    # 复制生产环境配置
-    cp .env.production .env.local
     log_success "环境变量配置完成"
 }
 

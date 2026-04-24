@@ -28,10 +28,10 @@ npm install
 复制环境变量模板：
 
 ```bash
-cp .env.example .env.local
+cp .env.example .env
 ```
 
-编辑 `.env.local`，配置后端API地址：
+编辑 `.env`，配置后端API地址：
 
 ```bash
 EXPO_PUBLIC_BACKEND_BASE_URL=http://9.129.7.228:9091
@@ -69,7 +69,7 @@ client/
 
 ### 环境变量
 
-主要的环境变量在 `.env.production` 中配置：
+主要的环境变量在 `.env` 中配置：
 
 ```bash
 # 应用基础配置
@@ -178,9 +178,6 @@ npm start
 ### 生产环境构建
 
 ```bash
-# 配置生产环境
-cp .env.production .env.local
-
 # 构建Web版本
 npm run web
 
@@ -234,7 +231,7 @@ npx expo install <package-name>
 
 ### 1. 无法连接后端API
 
-检查 `.env.local` 中的 `EXPO_PUBLIC_BACKEND_BASE_URL` 是否正确。
+检查 `.env` 中的 `EXPO_PUBLIC_BACKEND_BASE_URL` 是否正确。
 
 ### 2. 图片上传失败
 

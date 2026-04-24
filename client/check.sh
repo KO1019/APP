@@ -65,7 +65,7 @@ echo "=== 1. 项目文件检查 ==="
 check_file "package.json" "package.json"
 check_file "app.config.ts" "app.config.ts"
 check_file "tsconfig.json" "tsconfig.json"
-check_file ".env.production" ".env.production"
+check_file ".env" ".env"
 check_file ".gitignore" ".gitignore"
 
 echo ""
@@ -100,9 +100,9 @@ echo ""
 # 4. 检查环境配置
 echo "=== 4. 环境配置检查 ==="
 
-echo -n "检查 .env.production 配置 ... "
-if grep -q "EXPO_PUBLIC_BACKEND_BASE_URL" .env.production; then
-    BACKEND_URL=$(grep "EXPO_PUBLIC_BACKEND_BASE_URL" .env.production | cut -d '=' -f2)
+echo -n "检查 .env 配置 ... "
+if grep -q "EXPO_PUBLIC_BACKEND_BASE_URL" .env; then
+    BACKEND_URL=$(grep "EXPO_PUBLIC_BACKEND_BASE_URL" .env | cut -d '=' -f2)
     if [ -n "$BACKEND_URL" ]; then
         echo -e "${GREEN}✓${NC} ($BACKEND_URL)"
         ((PASS++))

@@ -2,14 +2,14 @@
 
 ## 配置文件概述
 
-本项目采用集中式配置管理，所有配置项都在 `client/config/index.ts` 中统一管理，通过环境变量 `.env.production` 进行配置。
+本项目采用集中式配置管理，所有配置项都在 `client/config/index.ts` 中统一管理，通过环境变量 `.env` 进行配置。
 
 ## 配置文件结构
 
 ```
 client/
 ├── .env.example          # 环境变量模板
-├── .env.production       # 生产环境配置（部署时修改此文件）
+├── .env                  # 环境变量配置文件（开发/生产通用）
 ├── config/
 │   └── index.ts         # 配置管理主文件
 └── app.config.ts        # Expo应用配置
@@ -162,11 +162,13 @@ EXPO_PUBLIC_BACKEND_BASE_URL=https://api.example.com
 BACKEND_BASE_URL=https://api.example.com
 ```
 
-### 2. 环境文件优先级
+### 2. 环境文件
 
-1. `.env.production` - 生产环境
-2. `.env` - 开发环境
-3. `.env.example` - 配置模板
+本项目使用统一的 `.env` 文件配置，开发和生产环境使用相同配置：
+
+1. `.env` - 环境变量配置文件（开发/生产通用）
+2. `.env.example` - 配置模板（不包含实际值）
+3. `.gitignore` - 忽略 `.env` 文件，保护敏感信息
 
 ### 3. 配置验证
 
@@ -224,14 +226,14 @@ console.log(env.platform);      // 平台类型
 ### 场景1：切换到生产环境后端
 
 ```env
-# .env.production
+# .env
 EXPO_PUBLIC_BACKEND_BASE_URL=https://api.yourdomain.com
 ```
 
 ### 场景2：禁用某些功能
 
 ```env
-# .env.production
+# .env
 EXPO_PUBLIC_ENABLE_AI_CHAT=false
 EXPO_PUBLIC_ENABLE_LOCATION=false
 ```
@@ -239,7 +241,7 @@ EXPO_PUBLIC_ENABLE_LOCATION=false
 ### 场景3：自定义应用信息
 
 ```env
-# .env.production
+# .env
 EXPO_PUBLIC_APP_NAME=我的情绪日记
 EXPO_PUBLIC_APP_VERSION=2.0.0
 EXPO_PUBLIC_APP_BUNDLE_ID=com.mycompany.mydiary
@@ -248,7 +250,7 @@ EXPO_PUBLIC_APP_BUNDLE_ID=com.mycompany.mydiary
 ### 场景4：强制使用浅色主题
 
 ```env
-# .env.production
+# .env
 EXPO_PUBLIC_THEME_MODE=light
 ```
 
@@ -264,7 +266,7 @@ EXPO_PUBLIC_THEME_MODE=light
 
 ### 问题1：配置不生效
 
-**症状**：修改 `.env.production` 后，应用没有使用新配置
+**症状**：修改 `.env` 后，应用没有使用新配置
 
 **原因**：
 - 环境变量没有 `EXPO_PUBLIC_` 前缀

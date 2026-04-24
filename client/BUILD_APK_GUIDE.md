@@ -219,7 +219,7 @@ cd /workspace/projects/client
 
 ### 应用信息
 
-修改 `app.config.ts` 或 `.env.production`：
+修改 `app.config.ts` 或 `.env`：
 
 ```typescript
 {
@@ -254,7 +254,7 @@ cd /workspace/projects/client
 
 ### 环境变量
 
-确保 `.env.production` 配置正确：
+确保 `.env` 配置正确：
 
 ```bash
 EXPO_PUBLIC_BACKEND_BASE_URL=http://9.129.7.228:9091

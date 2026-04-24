@@ -34,10 +34,10 @@ else
 fi
 
 # 检查环境变量
-if [ -f ".env.production" ]; then
-    echo -e "${GREEN}✓${NC} 生产环境配置存在"
+if [ -f ".env" ]; then
+    echo -e "${GREEN}✓${NC} 环境变量配置存在"
 else
-    echo -e "${YELLOW}⚠${NC} 生产环境配置不存在"
+    echo -e "${YELLOW}⚠${NC} 环境变量配置不存在"
     exit 1
 fi
 
