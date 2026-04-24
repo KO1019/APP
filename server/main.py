@@ -251,14 +251,14 @@ async def get_app_download_info():
             return {
                 "android": {
                     "name": "Android",
-                    "url": "https://anjia.work/download/emotion-diary.apk",
+                    "url": "",
                     "version": "1.0.0",
                     "size": "50MB",
                     "min_version": "Android 8.0"
                 },
                 "ios": {
                     "name": "iOS",
-                    "url": "https://apps.apple.com/cn/app/emotion-diary/id123456789",
+                    "url": "",
                     "version": "1.0.0",
                     "size": "45MB",
                     "min_version": "iOS 14.0"
@@ -266,12 +266,10 @@ async def get_app_download_info():
                 "download_page": "https://anjia.work/download"
             }
 
-        # 从数据库获取激活的版本
-        result = db_client.table('versions').select('*').eq('is_active', True).execute()
-
+        # 初始化为空，表示暂未开放
         android_info = {
             "name": "Android",
-            "url": "https://anjia.work/download/emotion-diary.apk",
+            "url": None,
             "version": "1.0.0",
             "size": "50MB",
             "min_version": "Android 8.0"
@@ -279,11 +277,14 @@ async def get_app_download_info():
 
         ios_info = {
             "name": "iOS",
-            "url": "https://apps.apple.com/cn/app/emotion-diary/id123456789",
+            "url": None,
             "version": "1.0.0",
             "size": "45MB",
             "min_version": "iOS 14.0"
         }
+
+        # 从数据库获取激活的版本
+        result = db_client.table('versions').select('*').eq('is_active', True).execute()
 
         # 如果数据库中有激活的版本，使用数据库中的数据
         if result.data:
@@ -313,19 +314,19 @@ async def get_app_download_info():
             "download_page": "https://anjia.work/download"
         }
     except Exception as e:
-        # 出错时返回默认数据
+        # 出错时返回默认数据（暂未开放）
         print(f"Error fetching download info: {e}")
         return {
             "android": {
                 "name": "Android",
-                "url": "https://anjia.work/download/emotion-diary.apk",
+                "url": None,
                 "version": "1.0.0",
                 "size": "50MB",
                 "min_version": "Android 8.0"
             },
             "ios": {
                 "name": "iOS",
-                "url": "https://apps.apple.com/cn/app/emotion-diary/id123456789",
+                "url": None,
                 "version": "1.0.0",
                 "size": "45MB",
                 "min_version": "iOS 14.0"
