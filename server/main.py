@@ -42,24 +42,24 @@ ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "admin_token_2024_change_me")
 # 密码加密配置
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# 环境变量配置
-JWT_SECRET = os.getenv('JWT_SECRET', 'your-secret-key-change-in-production')
+# 环境变量配置（从.env文件读取）
+JWT_SECRET = os.getenv('JWT_SECRET')
 
 # 豆包ARK API配置（语言模型）
-ARK_BASE_URL = os.getenv('ARK_BASE_URL', 'https://ark.cn-beijing.volces.com/api/v3')
-ARK_API_KEY = os.getenv('ARK_API_KEY', '')
-ARK_CHAT_MODEL = os.getenv('ARK_CHAT_MODEL', 'ep-20250212215003-7j9f8')
+ARK_BASE_URL = os.getenv('ARK_BASE_URL')
+ARK_API_KEY = os.getenv('ARK_API_KEY')
+ARK_CHAT_MODEL = os.getenv('ARK_CHAT_MODEL')
 
 # 豆包语音API配置（从.env文件读取）
-VOLCENGINE_SPEECH_APP_ID = os.getenv('VOLCENGINE_SPEECH_APP_ID', '')
-VOLCENGINE_SPEECH_SECRET_KEY = os.getenv('VOLCENGINE_SPEECH_SECRET_KEY', '')
-VOLCENGINE_ACCESS_TOKEN = os.getenv('VOLCENGINE_ACCESS_TOKEN', '')
-VOLCENGINE_API_KEY = os.getenv('VOLCENGINE_API_KEY', '')
+VOLCENGINE_SPEECH_APP_ID = os.getenv('VOLCENGINE_SPEECH_APP_ID')
+VOLCENGINE_SPEECH_SECRET_KEY = os.getenv('VOLCENGINE_SPEECH_SECRET_KEY')
+VOLCENGINE_ACCESS_TOKEN = os.getenv('VOLCENGINE_ACCESS_TOKEN')
+VOLCENGINE_API_KEY = os.getenv('VOLCENGINE_API_KEY')
 
 # Supabase配置（从环境变量读取）
-SUPABASE_URL = os.getenv('SUPABASE_URL', '')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY', '')
-SUPABASE_SERVICE_ROLE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY', SUPABASE_KEY)  # 如果没有service role key，使用普通key
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+SUPABASE_SERVICE_ROLE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY', SUPABASE_KEY)
 
 # 初始化FastAPI应用
 app = FastAPI(title="AI情绪日记 & 心理状态智能陪伴系统", version="1.0.0")
