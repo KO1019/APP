@@ -296,9 +296,14 @@ async def get_app_download_info():
                     timeout=3.0
                 )
 
+                print(f"[DEBUG] 数据库查询结果: {result}")
+                print(f"[DEBUG] result类型: {type(result)}")
+                print(f"[DEBUG] result.data: {result.data if hasattr(result, 'data') else 'N/A'}")
+
                 # 如果数据库中有激活的版本，使用数据库中的数据
-                if result and result.data:
+                if result and hasattr(result, 'data') and result.data:
                     for version in result.data:
+                        print(f"[DEBUG] 处理版本数据: {version}")
                         if version.get('platform') == 'android':
                             if version.get('file_url'):
                                 android_info["url"] = version['file_url']
@@ -325,6 +330,8 @@ async def get_app_download_info():
                 print("Database query timeout, using default data")
             except Exception as e:
                 print(f"Database query error: {e}")
+                import traceback
+                traceback.print_exc()
 
         response = {
             "android": android_info,
