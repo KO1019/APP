@@ -67,6 +67,17 @@ client/
 
 ## 配置说明
 
+### 配置文件结构
+
+```
+client/
+├── .env.example          # 环境变量模板
+├── .env                  # 环境变量配置文件（开发/生产通用）
+├── config/
+│   └── index.ts         # 配置管理主文件
+└── app.config.ts        # Expo应用配置
+```
+
 ### 环境变量
 
 主要的环境变量在 `.env` 中配置：
@@ -92,6 +103,11 @@ EXPO_PUBLIC_ENABLE_LOCATION=true
 EXPO_PUBLIC_THEME_MODE=auto
 ```
 
+**环境变量使用规则**：
+- 所有运行时变量必须以 `EXPO_PUBLIC_` 开头
+- 应用启动时自动验证配置
+- 支持功能开关控制特性启用/禁用
+
 ### 应用配置
 
 `app.config.ts` 包含应用的元数据和配置：
@@ -102,6 +118,29 @@ EXPO_PUBLIC_THEME_MODE=auto
 - **Scheme**: 从环境变量读取
 - **图标**: `./assets/images/icon.png`
 - **启动屏**: `./assets/images/splash-icon.png`
+
+### 配置示例
+
+**场景1：切换到生产环境后端**
+```bash
+# .env
+EXPO_PUBLIC_BACKEND_BASE_URL=https://api.yourdomain.com
+```
+
+**场景2：禁用某些功能**
+```bash
+# .env
+EXPO_PUBLIC_ENABLE_AI_CHAT=false
+EXPO_PUBLIC_ENABLE_LOCATION=false
+```
+
+**场景3：自定义应用信息**
+```bash
+# .env
+EXPO_PUBLIC_APP_NAME=我的情绪日记
+EXPO_PUBLIC_APP_VERSION=2.0.0
+EXPO_PUBLIC_APP_BUNDLE_ID=com.mycompany.mydiary
+```
 
 ## 核心功能
 
@@ -175,33 +214,38 @@ npm start
 
 访问 http://localhost:8081
 
-### 生产环境构建
+### 构建APK
+
+**方式1：使用脚本（推荐）**
 
 ```bash
-# 构建Web版本
-npm run web
+# 检查环境
+./check.sh
 
-# 构建Android APK
-npm run build:android
+# 清理缓存
+./clean.sh
 
-# 构建iOS
-npm run build:ios
+# 构建APK
+./build-apk.sh
 ```
 
-### EAS Build（推荐）
+**方式2：直接使用EAS**
 
 ```bash
 # 配置EAS
 eas build:configure
 
 # 构建Android
-eas build --platform android
+eas build --platform android --profile preview
 
 # 构建iOS
-eas build --platform ios
+eas build --platform ios --profile production
 ```
 
-## 依赖管理
+详细构建说明请查看 [BUILD_APK_GUIDE.md](BUILD_APK_GUIDE.md)
+
+**脚本使用说明**：
+- [脚本使用文档](SCRIPTS.md) - 查看所有脚本的详细说明
 
 ### 安装依赖
 
