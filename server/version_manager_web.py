@@ -32,8 +32,8 @@ app.add_middleware(
 )
 
 # 配置
-# 生产环境必须使用HTTPS
-API_BASE_URL = os.getenv('API_BASE_URL', 'https://anjia.work/api')
+# 生产环境使用指定的IP地址
+API_BASE_URL = os.getenv('API_BASE_URL', 'http://9.129.7.228:9091')
 API_BASE = f"{API_BASE_URL}/api/v1"
 
 # HTML模板

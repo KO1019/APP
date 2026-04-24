@@ -229,7 +229,7 @@ export default function VoiceChatRealtime() {
 
   // 连接到语音服务（自动选择WebSocket或HTTP长轮询）
   const connectWebSocket = async () => {
-    const backendUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
+    const backendUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://9.129.7.228:9091';
 
     // 检测是否在Coze环境中
     const inCozeEnv = isCozeEnvironment();

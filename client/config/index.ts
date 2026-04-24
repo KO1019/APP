@@ -9,12 +9,6 @@ import { Platform } from 'react-native';
 const isDevelopment = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
 const isWeb = Platform.OS === 'web';
 
-// 检测是否在真正的本地开发环境
-const isLocalhost = isWeb && window.location &&
-  (window.location.hostname === 'localhost' ||
-   window.location.hostname === '127.0.0.1' ||
-   window.location.hostname === '');
-
 /**
  * 应用基础配置
  */
@@ -33,20 +27,13 @@ export const API_CONFIG = {
   baseUrl: (() => {
     const envUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
 
-    // 优先使用环境变量配置
+    // 使用环境变量配置的后端地址
     if (envUrl && envUrl.trim() !== '') {
       return envUrl;
     }
 
-    // 根据平台自动选择后端地址
-    if (isWeb) {
-      // Web 环境（沙盒）：使用沙箱服务器的内网地址
-      // 注意：在云端环境中，localhost 无法解析到服务器，需要使用实际 IP
-      return 'http://9.129.7.228:9091';
-    } else {
-      // 移动端（iOS/Android）：使用正式域名
-      return 'https://anjia.work/api';
-    }
+    // 默认地址（如果未配置环境变量）
+    return 'http://9.129.7.228:9091';
   })(),
 
   // API超时时间（毫秒）
