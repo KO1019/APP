@@ -257,7 +257,7 @@ cd /workspace/projects/client
 确保 `.env.production` 配置正确：
 
 ```bash
-EXPO_PUBLIC_BACKEND_BASE_URL=https://anjia.work/api
+EXPO_PUBLIC_BACKEND_BASE_URL=http://9.129.7.228:9091
 EXPO_PUBLIC_APP_NAME=AI情绪日记
 EXPO_PUBLIC_APP_VERSION=1.0.0
 ```

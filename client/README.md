@@ -34,7 +34,7 @@ cp .env.example .env.local
 编辑 `.env.local`，配置后端API地址：
 
 ```bash
-EXPO_PUBLIC_BACKEND_BASE_URL=http://localhost:9091
+EXPO_PUBLIC_BACKEND_BASE_URL=http://9.129.7.228:9091
 ```
 
 ### 3. 启动开发服务器
@@ -79,7 +79,7 @@ EXPO_PUBLIC_APP_BUNDLE_ID=com.emotiondiary.app
 EXPO_PUBLIC_APP_SCHEME=emotiondiary
 
 # 后端API配置
-EXPO_PUBLIC_BACKEND_BASE_URL=https://anjia.work/api
+EXPO_PUBLIC_BACKEND_BASE_URL=http://9.129.7.228:9091
 EXPO_PUBLIC_API_TIMEOUT=30000
 
 # 功能开关
