@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="AI情绪日记 - 用AI陪伴你的情绪成长之路，智能情绪记录与分析">
-    <title>AI情绪日记 - APP下载</title>
+    <meta name="description" content="AI情绪日记 - 用AI陪伴你的情绪成长之路">
+    <title>AI情绪日记</title>
     <style>
         * {
             margin: 0;
@@ -12,632 +12,419 @@
             box-sizing: border-box;
         }
 
-        :root {
-            --primary-color: #EA580C;
-            --primary-light: #FFF7ED;
-            --primary-dark: #C2410C;
-            --secondary-color: #F97316;
-            --text-primary: #1F2937;
-            --text-secondary: #6B7280;
-            --text-light: #9CA3AF;
-            --bg-gradient-start: #FFF7ED;
-            --bg-gradient-end: #FFEDD5;
-            --white: #FFFFFF;
-            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
-            --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.15);
-            --shadow-xl: 0 20px 40px rgba(234, 88, 12, 0.2);
-            --radius-md: 12px;
-            --radius-lg: 20px;
-            --radius-xl: 28px;
-        }
-
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
-            min-height: 100vh;
-            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            background: #fafafa;
+            color: #1a1a1a;
             line-height: 1.6;
+            overflow-x: hidden;
         }
 
-        /* Header */
-        .header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            padding: 16px 24px;
-            z-index: 1000;
-            box-shadow: var(--shadow-sm);
-        }
-
-        .header-content {
-            max-width: 1200px;
-            margin: 0 auto;
+        /* 顶部简单导航 */
+        .nav {
+            padding: 24px 32px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
         }
 
         .logo {
             display: flex;
             align-items: center;
             gap: 12px;
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--primary-color);
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
         }
 
         .logo-icon {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #ff8a5c, #ff6b35);
             border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 20px;
+            font-size: 18px;
         }
 
-        .nav-link {
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-size: 14px;
-            transition: color 0.3s;
-        }
-
-        .nav-link:hover {
-            color: var(--primary-color);
-        }
-
-        /* Hero Section */
-        .hero {
-            padding-top: 120px;
-            padding-bottom: 80px;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            position: relative;
-            overflow: hidden;
-        }
-
-        /* Background decoration */
-        .bg-decoration {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(80px);
-            opacity: 0.6;
-            z-index: 0;
-        }
-
-        .bg-1 {
-            width: 400px;
-            height: 400px;
-            background: var(--primary-color);
-            top: -100px;
-            right: -100px;
-            opacity: 0.1;
-        }
-
-        .bg-2 {
-            width: 300px;
-            height: 300px;
-            background: var(--secondary-color);
-            bottom: -50px;
-            left: -50px;
-            opacity: 0.1;
-        }
-
-        .hero-content {
-            max-width: 1200px;
+        /* 主要内容区域 */
+        .main {
+            max-width: 1400px;
             margin: 0 auto;
-            padding: 0 24px;
+            padding: 60px 32px 100px;
+        }
+
+        /* 顶部区块 */
+        .top-section {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 60px;
+            gap: 80px;
             align-items: center;
-            position: relative;
-            z-index: 1;
+            margin-bottom: 120px;
         }
 
-        .hero-text {
-            animation: fadeInUp 0.8s ease-out;
+        .left-content {
+            padding-right: 40px;
         }
 
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 16px;
-            background: var(--primary-light);
-            color: var(--primary-dark);
+        .tag {
+            display: inline-block;
+            padding: 6px 14px;
+            background: #fff5eb;
+            color: #ff6b35;
             border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
+            font-size: 14px;
+            font-weight: 500;
             margin-bottom: 24px;
         }
 
-        .badge-dot {
-            width: 8px;
-            height: 8px;
-            background: var(--primary-color);
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
         h1 {
-            font-size: 56px;
-            font-weight: 800;
-            line-height: 1.2;
+            font-size: 48px;
+            font-weight: 700;
+            line-height: 1.3;
+            color: #1a1a1a;
             margin-bottom: 20px;
-            background: linear-gradient(135deg, var(--text-primary) 0%, var(--primary-color) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            letter-spacing: -0.5px;
         }
 
         .subtitle {
-            font-size: 20px;
-            color: var(--text-secondary);
-            margin-bottom: 32px;
-            line-height: 1.7;
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 40px;
+            line-height: 1.8;
+            max-width: 520px;
         }
 
-        .download-buttons {
+        /* 下载按钮组 */
+        .download-group {
             display: flex;
-            flex-direction: column;
             gap: 16px;
-            max-width: 400px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
         }
 
-        .download-btn {
+        .btn-download {
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 16px;
-            padding: 20px 32px;
-            background: var(--white);
-            border-radius: var(--radius-lg);
+            gap: 12px;
+            padding: 16px 28px;
+            background: #1a1a1a;
+            color: white;
+            border-radius: 12px;
             text-decoration: none;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: var(--shadow-md);
-            border: 2px solid transparent;
-            position: relative;
-            overflow: hidden;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.2s;
+            min-width: 200px;
         }
 
-        .download-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            opacity: 0;
-            transition: opacity 0.3s;
-            z-index: 0;
+        .btn-download:hover {
+            background: #ff6b35;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(255, 107, 53, 0.3);
         }
 
-        .download-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: var(--shadow-xl);
-            border-color: var(--primary-color);
+        .btn-download.ios {
+            background: #1a1a1a;
         }
 
-        .download-btn:hover::before {
-            opacity: 1;
-        }
-
-        .download-btn > * {
-            position: relative;
-            z-index: 1;
+        .btn-download.ios:hover {
+            background: #333;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
         }
 
         .btn-icon {
-            width: 48px;
-            height: 48px;
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             font-size: 24px;
-            color: white;
-            flex-shrink: 0;
-            transition: transform 0.3s;
         }
 
-        .download-btn:hover .btn-icon {
-            transform: scale(1.1) rotate(-5deg);
-        }
-
-        .btn-content {
-            flex: 1;
-            text-align: left;
-        }
-
-        .btn-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 4px;
-        }
-
-        .btn-desc {
+        .download-hint {
             font-size: 14px;
-            color: var(--text-secondary);
+            color: #999;
+            margin-top: 12px;
         }
 
-        .qrcode-btn {
-            background: var(--primary-light);
-            color: var(--primary-dark);
-            padding: 12px 24px;
-            border-radius: var(--radius-md);
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 600;
-            margin-top: 24px;
-            display: inline-block;
-            transition: all 0.3s;
-        }
-
-        .qrcode-btn:hover {
-            background: var(--primary-color);
-            color: white;
-        }
-
-        /* App Preview */
-        .app-preview {
+        /* 右侧手机展示 */
+        .right-content {
             position: relative;
-            animation: fadeInRight 0.8s ease-out;
+            display: flex;
+            justify-content: center;
         }
 
-        .phone-mockup {
-            width: 300px;
-            height: 600px;
-            background: var(--text-primary);
+        .phone-wrapper {
+            position: relative;
+            width: 280px;
+            height: 580px;
+            background: #1a1a1a;
             border-radius: 40px;
             padding: 12px;
-            box-shadow: var(--shadow-xl);
-            position: relative;
-            margin: 0 auto;
+            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.15);
         }
 
         .phone-screen {
             width: 100%;
             height: 100%;
-            background: var(--white);
+            background: white;
             border-radius: 32px;
             overflow: hidden;
-            position: relative;
-        }
-
-        .phone-notch {
-            position: absolute;
-            top: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 120px;
-            height: 28px;
-            background: var(--text-primary);
-            border-radius: 0 0 20px 20px;
-            z-index: 10;
-        }
-
-        .app-screenshot {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            background: linear-gradient(135deg, var(--primary-light) 0%, var(--bg-gradient-end) 100%);
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 40px 20px;
+        }
+
+        .phone-header {
+            background: linear-gradient(135deg, #ff8a5c, #ff6b35);
+            padding: 60px 20px 40px;
+            color: white;
             text-align: center;
         }
 
-        .app-icon-large {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 40px;
-            color: white;
-            margin-bottom: 16px;
-            box-shadow: var(--shadow-lg);
+        .phone-header .icon {
+            font-size: 48px;
+            margin-bottom: 12px;
         }
 
-        .screenshot-text {
-            font-size: 16px;
+        .phone-header .name {
+            font-size: 20px;
             font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         }
 
-        .screenshot-subtitle {
+        .phone-header .tagline {
             font-size: 14px;
-            color: var(--text-secondary);
+            opacity: 0.9;
         }
 
-        /* Features Section */
+        .phone-body {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .phone-card {
+            background: #f8f8f8;
+            padding: 16px;
+            border-radius: 12px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .phone-card-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .phone-card-text {
+            flex: 1;
+        }
+
+        .phone-card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .phone-card-desc {
+            font-size: 12px;
+            color: #999;
+            line-height: 1.5;
+        }
+
+        /* 装饰圆圈 */
+        .deco-circle {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .deco-1 {
+            width: 200px;
+            height: 200px;
+            background: linear-gradient(135deg, rgba(255, 138, 92, 0.15), rgba(255, 107, 53, 0.1));
+            top: -50px;
+            right: -50px;
+        }
+
+        .deco-2 {
+            width: 150px;
+            height: 150px;
+            background: linear-gradient(135deg, rgba(255, 107, 53, 0.1), rgba(255, 138, 92, 0.05));
+            bottom: 50px;
+            left: -30px;
+        }
+
+        /* 功能特性 */
         .features {
-            padding: 100px 24px;
-            background: var(--white);
-            position: relative;
+            margin-bottom: 120px;
         }
 
-        .features-content {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .section-title {
+        .section-header {
             text-align: center;
             margin-bottom: 60px;
         }
 
-        .section-title h2 {
-            font-size: 40px;
-            font-weight: 800;
-            margin-bottom: 16px;
-            color: var(--text-primary);
+        .section-title {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #1a1a1a;
         }
 
-        .section-title p {
-            font-size: 18px;
-            color: var(--text-secondary);
-            max-width: 600px;
-            margin: 0 auto;
+        .section-subtitle {
+            font-size: 16px;
+            color: #999;
         }
 
         .features-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-template-columns: repeat(3, 1fr);
             gap: 32px;
         }
 
-        .feature-card {
-            padding: 40px 32px;
-            background: var(--bg-gradient-start);
-            border-radius: var(--radius-xl);
+        .feature-item {
+            text-align: center;
+            padding: 32px;
             transition: all 0.3s;
-            border: 2px solid transparent;
         }
 
-        .feature-card:hover {
-            transform: translateY(-5px);
-            box-shadow: var(--shadow-lg);
-            border-color: var(--primary-color);
+        .feature-item:hover {
+            transform: translateY(-4px);
         }
 
         .feature-icon {
             width: 64px;
             height: 64px;
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            background: linear-gradient(135deg, #ff8a5c, #ff6b35);
             border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 32px;
+            font-size: 28px;
             color: white;
-            margin-bottom: 24px;
-            box-shadow: var(--shadow-md);
+            margin: 0 auto 20px;
         }
 
-        .feature-card h3 {
-            font-size: 20px;
-            font-weight: 700;
-            margin-bottom: 12px;
-            color: var(--text-primary);
+        .feature-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
         }
 
-        .feature-card p {
-            font-size: 15px;
-            color: var(--text-secondary);
+        .feature-desc {
+            font-size: 14px;
+            color: #999;
             line-height: 1.7;
         }
 
-        /* Stats Section */
-        .stats {
-            padding: 80px 24px;
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-            color: white;
+        /* 评价区域 */
+        .reviews {
+            margin-bottom: 120px;
         }
 
-        .stats-content {
-            max-width: 1200px;
-            margin: 0 auto;
+        .review-cards {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 40px;
-            text-align: center;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
         }
 
-        .stat-item {
-            animation: fadeInUp 0.6s ease-out;
+        .review-card {
+            background: white;
+            padding: 28px;
+            border-radius: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
 
-        .stat-item:nth-child(2) { animation-delay: 0.1s; }
-        .stat-item:nth-child(3) { animation-delay: 0.2s; }
-        .stat-item:nth-child(4) { animation-delay: 0.3s; }
-
-        .stat-number {
-            font-size: 48px;
-            font-weight: 800;
-            margin-bottom: 8px;
+        .review-stars {
+            font-size: 18px;
+            margin-bottom: 12px;
         }
 
-        .stat-label {
-            font-size: 16px;
-            opacity: 0.9;
-        }
-
-        /* Version Info */
-        .version-info {
-            padding: 60px 24px;
-            background: var(--white);
-        }
-
-        .version-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 40px;
-        }
-
-        .version-text {
-            flex: 1;
-        }
-
-        .version-text h3 {
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 16px;
-            color: var(--text-primary);
-        }
-
-        .version-detail {
+        .review-text {
             font-size: 15px;
-            color: var(--text-secondary);
-            margin-bottom: 8px;
+            color: #666;
+            line-height: 1.7;
+            margin-bottom: 16px;
+            font-style: italic;
         }
 
-        .version-detail strong {
-            color: var(--text-primary);
-            font-weight: 600;
-        }
-
-        .version-badge {
-            padding: 12px 24px;
-            background: var(--primary-light);
-            color: var(--primary-dark);
-            border-radius: var(--radius-md);
+        .review-author {
             font-size: 14px;
-            font-weight: 600;
-            white-space: nowrap;
+            color: #999;
         }
 
-        /* Footer */
+        /* 底部信息 */
         .footer {
-            padding: 40px 24px;
-            background: var(--text-primary);
-            color: white;
+            border-top: 1px solid #e5e5e5;
+            padding: 40px 32px;
             text-align: center;
-        }
-
-        .footer-content {
-            max-width: 1200px;
-            margin: 0 auto;
         }
 
         .footer-links {
             display: flex;
             justify-content: center;
             gap: 32px;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
         }
 
         .footer-links a {
-            color: var(--text-light);
+            color: #999;
             text-decoration: none;
             font-size: 14px;
-            transition: color 0.3s;
+            transition: color 0.2s;
         }
 
         .footer-links a:hover {
-            color: white;
+            color: #ff6b35;
         }
 
         .footer-text {
-            font-size: 14px;
-            color: var(--text-light);
+            font-size: 13px;
+            color: #ccc;
         }
 
-        /* Animations */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes fadeInRight {
-            from {
-                opacity: 0;
-                transform: translateX(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        /* Responsive */
+        /* 响应式 */
         @media (max-width: 1024px) {
-            .hero-content {
+            .top-section {
                 grid-template-columns: 1fr;
+                gap: 60px;
                 text-align: center;
             }
 
-            .hero-text {
-                order: 2;
-            }
-
-            .app-preview {
-                order: 1;
-                margin-bottom: 40px;
-            }
-
-            h1 {
-                font-size: 40px;
+            .left-content {
+                padding-right: 0;
             }
 
             .subtitle {
-                font-size: 18px;
+                margin: 0 auto 40px;
             }
 
-            .download-buttons {
-                margin: 0 auto;
+            .download-group {
+                justify-content: center;
             }
 
-            .stats-content {
+            .features-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
 
-            .version-content {
-                flex-direction: column;
-                text-align: center;
+            .review-cards {
+                grid-template-columns: 1fr;
             }
         }
 
         @media (max-width: 640px) {
-            .header-content {
-                flex-direction: column;
-                gap: 12px;
+            .nav {
+                padding: 16px 20px;
             }
 
-            .hero {
-                padding-top: 100px;
-                padding-bottom: 60px;
+            .main {
+                padding: 40px 20px 80px;
             }
 
             h1 {
@@ -648,184 +435,185 @@
                 font-size: 16px;
             }
 
-            .phone-mockup {
-                width: 260px;
-                height: 520px;
+            .download-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .btn-download {
+                justify-content: center;
+            }
+
+            .phone-wrapper {
+                width: 240px;
+                height: 500px;
             }
 
             .features-grid {
                 grid-template-columns: 1fr;
             }
 
-            .stats-content {
-                grid-template-columns: 1fr;
-                gap: 32px;
-            }
-
-            .feature-card {
-                padding: 32px 24px;
-            }
-
-            .section-title h2 {
-                font-size: 32px;
-            }
-
-            .footer-links {
-                flex-direction: column;
-                gap: 16px;
+            .section-title {
+                font-size: 24px;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Header -->
-    <header class="header">
-        <div class="header-content">
-            <div class="logo">
-                <div class="logo-icon">📝</div>
-                AI情绪日记
-            </div>
-            <a href="#features" class="nav-link">功能介绍</a>
+    <!-- 顶部导航 -->
+    <nav class="nav">
+        <div class="logo">
+            <div class="logo-icon">📝</div>
+            AI情绪日记
         </div>
-    </header>
+    </nav>
 
-    <!-- Hero Section -->
-    <section class="hero">
-        <div class="bg-decoration bg-1"></div>
-        <div class="bg-decoration bg-2"></div>
-        <div class="hero-content">
-            <div class="hero-text">
-                <div class="badge">
-                    <span class="badge-dot"></span>
-                    全新版本 v1.0.0 现已发布
-                </div>
-                <h1>AI情绪日记<br>用AI陪伴你的情绪成长之路</h1>
-                <p class="subtitle">智能情绪记录与分析，AI陪伴对话与情绪疏导，让每一天的心情都被温柔对待。</p>
-                <div class="download-buttons">
-                    <a href="#" id="android-download" class="download-btn">
-                        <div class="btn-icon">🤖</div>
-                        <div class="btn-content">
-                            <div class="btn-title">Android 下载</div>
-                            <div class="btn-desc" id="android-info">加载中...</div>
-                        </div>
+    <!-- 主要内容 -->
+    <main class="main">
+        <!-- 顶部区块 -->
+        <section class="top-section">
+            <div class="left-content">
+                <span class="tag">全新版本 v1.0.0</span>
+                <h1>用AI陪伴<br>你的情绪成长之路</h1>
+                <p class="subtitle">
+                    智能情绪记录与分析，AI陪伴对话与情绪疏导，让每一天的心情都被温柔对待。
+                </p>
+                <div class="download-group">
+                    <a href="#" id="android-download" class="btn-download">
+                        <span class="btn-icon">🤖</span>
+                        <span>Android下载</span>
                     </a>
-                    <a href="#" id="ios-download" class="download-btn">
-                        <div class="btn-icon">🍎</div>
-                        <div class="btn-content">
-                            <div class="btn-title">iOS 下载</div>
-                            <div class="btn-desc" id="ios-info">加载中...</div>
-                        </div>
+                    <a href="#" id="ios-download" class="btn-download ios">
+                        <span class="btn-icon">🍎</span>
+                        <span>iOS下载</span>
                     </a>
                 </div>
-                <a href="#" class="qrcode-btn" id="qrcode-btn">📱 扫码下载</a>
+                <p class="download-hint" id="version-info">加载中...</p>
             </div>
-            <div class="app-preview">
-                <div class="phone-mockup">
-                    <div class="phone-notch"></div>
+            <div class="right-content">
+                <div class="deco-circle deco-1"></div>
+                <div class="deco-circle deco-2"></div>
+                <div class="phone-wrapper">
                     <div class="phone-screen">
-                        <div class="app-screenshot">
-                            <div class="app-icon-large">📝</div>
-                            <div class="screenshot-text">AI情绪日记</div>
-                            <div class="screenshot-subtitle">用AI陪伴你的情绪成长之路</div>
+                        <div class="phone-header">
+                            <div class="icon">📝</div>
+                            <div class="name">AI情绪日记</div>
+                            <div class="tagline">用AI陪伴你的情绪成长之路</div>
+                        </div>
+                        <div class="phone-body">
+                            <div class="phone-card">
+                                <span class="phone-card-icon">🎯</span>
+                                <div class="phone-card-text">
+                                    <div class="phone-card-title">智能情绪记录</div>
+                                    <div class="phone-card-desc">AI分析你的情绪变化</div>
+                                </div>
+                            </div>
+                            <div class="phone-card">
+                                <span class="phone-card-icon">💬</span>
+                                <div class="phone-card-text">
+                                    <div class="phone-card-title">AI陪伴对话</div>
+                                    <div class="phone-card-desc">24小时情绪疏导</div>
+                                </div>
+                            </div>
+                            <div class="phone-card">
+                                <span class="phone-card-icon">📊</span>
+                                <div class="phone-card-text">
+                                    <div class="phone-card-title">情绪趋势分析</div>
+                                    <div class="phone-card-desc">可视化情绪报告</div>
+                                </div>
+                            </div>
+                            <div class="phone-card">
+                                <span class="phone-card-icon">🔒</span>
+                                <div class="phone-card-text">
+                                    <div class="phone-card-title">隐私保护</div>
+                                    <div class="phone-card-desc">端到端加密存储</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <!-- Features Section -->
-    <section class="features" id="features">
-        <div class="features-content">
-            <div class="section-title">
-                <h2>✨ 核心功能</h2>
-                <p>用心设计的每一个功能，只为给你更好的情绪记录体验</p>
+        <!-- 功能特性 -->
+        <section class="features">
+            <div class="section-header">
+                <h2 class="section-title">核心功能</h2>
+                <p class="section-subtitle">用心设计的每一个功能</p>
             </div>
             <div class="features-grid">
-                <div class="feature-card">
+                <div class="feature-item">
                     <div class="feature-icon">🎯</div>
-                    <h3>智能情绪记录</h3>
-                    <p>AI智能分析你的情绪变化，提供专业的情绪管理建议</p>
+                    <h3 class="feature-title">智能情绪记录</h3>
+                    <p class="feature-desc">AI智能分析你的情绪变化，提供专业的情绪管理建议</p>
                 </div>
-                <div class="feature-card">
+                <div class="feature-item">
                     <div class="feature-icon">💬</div>
-                    <h3>AI陪伴对话</h3>
-                    <p>24小时AI陪伴，随时倾听你的烦恼，温柔疏导情绪</p>
+                    <h3 class="feature-title">AI陪伴对话</h3>
+                    <p class="feature-desc">24小时AI陪伴，随时倾听你的烦恼，温柔疏导情绪</p>
                 </div>
-                <div class="feature-card">
+                <div class="feature-item">
                     <div class="feature-icon">📊</div>
-                    <h3>情绪趋势分析</h3>
-                    <p>可视化报告，让你清晰了解自己的情绪变化趋势</p>
+                    <h3 class="feature-title">情绪趋势分析</h3>
+                    <p class="feature-desc">可视化报告，让你清晰了解自己的情绪变化趋势</p>
                 </div>
-                <div class="feature-card">
+                <div class="feature-item">
                     <div class="feature-icon">🔒</div>
-                    <h3>隐私保护</h3>
-                    <p>端到端加密，确保你的日记和情绪数据绝对安全</p>
+                    <h3 class="feature-title">隐私保护</h3>
+                    <p class="feature-desc">端到端加密，确保你的日记和情绪数据绝对安全</p>
                 </div>
-                <div class="feature-card">
+                <div class="feature-item">
                     <div class="feature-icon">🌙</div>
-                    <h3>夜间模式</h3>
-                    <p>护眼夜间模式，随时随地记录心情</p>
+                    <h3 class="feature-title">夜间模式</h3>
+                    <p class="feature-desc">护眼夜间模式，随时随地记录心情</p>
                 </div>
-                <div class="feature-card">
+                <div class="feature-item">
                     <div class="feature-icon">☁️</div>
-                    <h3>云端同步</h3>
-                    <p>多设备数据同步，随时随地查看你的情绪日记</p>
+                    <h3 class="feature-title">云端同步</h3>
+                    <p class="feature-desc">多设备数据同步，随时随地查看你的情绪日记</p>
                 </div>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <!-- Stats Section -->
-    <section class="stats">
-        <div class="stats-content">
-            <div class="stat-item">
-                <div class="stat-number">100K+</div>
-                <div class="stat-label">活跃用户</div>
+        <!-- 用户评价 -->
+        <section class="reviews">
+            <div class="section-header">
+                <h2 class="section-title">用户评价</h2>
+                <p class="section-subtitle">来自100,000+用户的真实反馈</p>
             </div>
-            <div class="stat-item">
-                <div class="stat-number">4.9</div>
-                <div class="stat-label">应用评分</div>
+            <div class="review-cards">
+                <div class="review-card">
+                    <div class="review-stars">⭐⭐⭐⭐⭐</div>
+                    <p class="review-text">"用了这个App一个月，情绪管理能力提升了很多，AI陪伴真的很温暖。"</p>
+                    <p class="review-author">— 小红，用户3个月</p>
+                </div>
+                <div class="review-card">
+                    <div class="review-stars">⭐⭐⭐⭐⭐</div>
+                    <p class="review-text">"界面简洁美观，功能实用，最重要的是真的帮助我走出了情绪低谷。"</p>
+                    <p class="review-author">— 阿明，用户半年</p>
+                </div>
+                <div class="review-card">
+                    <div class="review-stars">⭐⭐⭐⭐⭐</div>
+                    <p class="review-text">"每天记录心情，看到自己的情绪变化曲线，很有成就感！"</p>
+                    <p class="review-author">— 小雨，用户1年</p>
+                </div>
             </div>
-            <div class="stat-item">
-                <div class="stat-number">1M+</div>
-                <div class="stat-label">日记记录</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-number">24h</div>
-                <div class="stat-label">AI陪伴</div>
-            </div>
-        </div>
-    </section>
+        </section>
+    </main>
 
-    <!-- Version Info -->
-    <section class="version-info">
-        <div class="version-content">
-            <div class="version-text">
-                <h3>📦 当前版本信息</h3>
-                <p class="version-detail"><strong>版本号：</strong> <span id="current-version">v1.0.0</span></p>
-                <p class="version-detail"><strong>更新日期：</strong> <span id="update-date">加载中...</span></p>
-                <p class="version-detail"><strong>系统要求：</strong> Android 8.0+ / iOS 14.0+</p>
-            </div>
-            <div class="version-badge">最新版本</div>
-        </div>
-    </section>
-
-    <!-- Footer -->
+    <!-- 底部 -->
     <footer class="footer">
-        <div class="footer-content">
-            <div class="footer-links">
-                <a href="#">使用协议</a>
-                <a href="#">隐私政策</a>
-                <a href="#">用户反馈</a>
-                <a href="#">联系我们</a>
-            </div>
-            <p class="footer-text">© 2026 AI情绪日记. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="#">使用协议</a>
+            <a href="#">隐私政策</a>
+            <a href="#">用户反馈</a>
+            <a href="#">联系我们</a>
         </div>
+        <p class="footer-text">© 2026 AI情绪日记. All rights reserved.</p>
     </footer>
 
     <script>
-        // 从后端API获取下载信息
+        // 获取下载信息
         async function fetchDownloadInfo() {
             try {
                 const response = await fetch('/api/v1/app/download');
@@ -835,35 +623,28 @@
 
                 const data = await response.json();
 
-                // 更新Android下载链接
+                // 更新下载链接
                 const androidDownload = document.getElementById('android-download');
-                const androidInfo = document.getElementById('android-info');
+                const iosDownload = document.getElementById('ios-download');
+                const versionInfo = document.getElementById('version-info');
+
                 if (androidDownload && data.android) {
                     androidDownload.href = data.android.url;
-                    androidInfo.textContent = `支持 Android 8.0+ | ${data.android.size || '约50MB'}`;
                 }
 
-                // 更新iOS下载链接
-                const iosDownload = document.getElementById('ios-download');
-                const iosInfo = document.getElementById('ios-info');
                 if (iosDownload && data.ios) {
                     iosDownload.href = data.ios.url;
-                    iosInfo.textContent = `支持 iOS 14.0+ | ${data.ios.size || '约60MB'}`;
                 }
 
-                // 更新版本信息
-                const currentVersion = document.getElementById('current-version');
-                const updateDate = document.getElementById('update-date');
-                if (currentVersion && data.android?.version) {
-                    currentVersion.textContent = `v${data.android.version}`;
-                }
-                if (updateDate) {
+                if (versionInfo) {
+                    const version = data.android?.version || '1.0.0';
                     const now = new Date();
-                    updateDate.textContent = now.toLocaleDateString('zh-CN', {
+                    const date = now.toLocaleDateString('zh-CN', {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric'
                     });
+                    versionInfo.textContent = `当前版本 v${version} | 更新于 ${date}`;
                 }
 
                 console.log('下载信息加载成功:', data);
@@ -871,57 +652,22 @@
             } catch (error) {
                 console.error('加载下载信息失败:', error);
 
-                // 加载失败时显示默认信息
-                const androidInfo = document.getElementById('android-info');
-                const iosInfo = document.getElementById('ios-info');
-
-                if (androidInfo) {
-                    androidInfo.textContent = '支持 Android 8.0+ | 约50MB';
-                }
-                if (iosInfo) {
-                    iosInfo.textContent = '支持 iOS 14.0+ | 约60MB';
-                }
-
-                const currentVersion = document.getElementById('current-version');
-                const updateDate = document.getElementById('update-date');
-                if (currentVersion) {
-                    currentVersion.textContent = 'v1.0.0';
-                }
-                if (updateDate) {
+                // 显示默认信息
+                const versionInfo = document.getElementById('version-info');
+                if (versionInfo) {
                     const now = new Date();
-                    updateDate.textContent = now.toLocaleDateString('zh-CN', {
+                    const date = now.toLocaleDateString('zh-CN', {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric'
                     });
+                    versionInfo.textContent = `当前版本 v1.0.0 | 更新于 ${date}`;
                 }
-            }
-        }
-
-        // 检测设备类型
-        function detectDevice() {
-            const userAgent = navigator.userAgent.toLowerCase();
-            const isAndroid = /android/.test(userAgent);
-            const isIOS = /iphone|ipad|ipod/.test(userAgent);
-            const isWeChat = /micromessenger/.test(userAgent);
-
-            // 如果是微信浏览器，显示扫码下载提示
-            if (isWeChat) {
-                const qrcodeBtn = document.getElementById('qrcode-btn');
-                if (qrcodeBtn) {
-                    qrcodeBtn.style.display = 'block';
-                    qrcodeBtn.textContent = '📱 点击右上角，在浏览器中打开';
-                }
-            }
-
-            if (isAndroid || isIOS) {
-                console.log(`检测到 ${isAndroid ? 'Android' : 'iOS'} 设备`);
             }
         }
 
         // 页面加载时执行
         document.addEventListener('DOMContentLoaded', function() {
-            detectDevice();
             fetchDownloadInfo();
         });
     </script>
