@@ -14,189 +14,185 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-            background: #f5f5f5;
-            color: #333;
-            line-height: 1.6;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
-            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
         }
 
         .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 60px 20px;
-            flex: 1;
+            background: white;
+            border-radius: 24px;
+            padding: 60px 40px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: fadeInUp 0.6s ease-out;
         }
 
-        /* Logo区域 */
-        .logo-section {
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
             text-align: center;
-            margin-bottom: 60px;
+            margin-bottom: 50px;
         }
 
         .logo {
-            font-size: 80px;
+            font-size: 72px;
             margin-bottom: 20px;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
         }
 
         .app-name {
-            font-size: 48px;
-            font-weight: 600;
+            font-size: 36px;
+            font-weight: 700;
             color: #333;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
         }
 
         .slogan {
-            font-size: 18px;
+            font-size: 16px;
             color: #999;
+            font-weight: 400;
         }
 
-        /* 版本信息 */
-        .version-info {
-            text-align: center;
-            margin-bottom: 60px;
-            padding: 20px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-        }
-
-        .version-number {
-            font-size: 24px;
-            font-weight: 600;
-            color: #ff6b35;
-            margin-bottom: 8px;
-        }
-
-        .update-time {
+        .version-tag {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
             font-size: 14px;
-            color: #999;
-        }
-
-        .update-content {
-            font-size: 15px;
-            color: #666;
+            font-weight: 500;
             margin-top: 16px;
-            padding-top: 16px;
-            border-top: 1px solid #e5e5e5;
-            line-height: 1.8;
+            animation: pulse 2s infinite;
         }
 
-        /* 下载区域 */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
         .download-section {
-            margin-bottom: 60px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 40px;
         }
 
-        .download-title {
-            font-size: 20px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 24px;
+        .download-card {
+            background: #f8f9fa;
+            border-radius: 16px;
+            padding: 32px;
             text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 2px solid transparent;
         }
 
-        .download-list {
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        .download-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+            border-color: #667eea;
         }
 
-        .download-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 24px 32px;
-            border-bottom: 1px solid #f0f0f0;
-            transition: background 0.2s;
+        .download-card.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
-        .download-item:last-child {
-            border-bottom: none;
+        .download-card.disabled:hover {
+            transform: none;
+            box-shadow: none;
+            border-color: transparent;
         }
 
-        .download-item:hover {
-            background: #fafafa;
-        }
-
-        .platform-info {
-            flex: 1;
+        .platform-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
         }
 
         .platform-name {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 600;
             color: #333;
-            margin-bottom: 4px;
+            margin-bottom: 8px;
         }
 
         .platform-desc {
             font-size: 14px;
             color: #999;
+            margin-bottom: 20px;
         }
 
         .download-btn {
+            display: inline-block;
             padding: 12px 32px;
-            background: #ff6b35;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             text-decoration: none;
-            border-radius: 6px;
+            border-radius: 25px;
             font-size: 16px;
-            font-weight: 500;
-            transition: all 0.2s;
-            cursor: pointer;
-            border: none;
-            white-space: nowrap;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
         }
 
-        .download-btn:hover:not(:disabled) {
-            background: #ea580c;
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
         }
 
-        .download-btn:disabled {
+        .download-btn.disabled {
             background: #ccc;
+            box-shadow: none;
             cursor: not-allowed;
         }
 
         .not-available {
             color: #999;
             font-size: 14px;
-            padding: 12px 32px;
+            font-weight: 500;
         }
 
-        /* 底部链接 */
-        .footer {
-            background: white;
+        .info-section {
+            background: #f8f9fa;
+            border-radius: 16px;
             padding: 24px;
-            text-align: center;
-            border-top: 1px solid #e5e5e5;
         }
 
-        .footer-links {
-            display: flex;
-            justify-content: center;
-            gap: 32px;
+        .info-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #667eea;
             margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .footer-links a {
-            color: #666;
-            text-decoration: none;
+        .info-content {
             font-size: 14px;
-            transition: color 0.2s;
+            color: #666;
+            line-height: 1.8;
         }
 
-        .footer-links a:hover {
-            color: #ff6b35;
-        }
-
-        .footer-text {
-            font-size: 12px;
-            color: #999;
-        }
-
-        /* 加载状态 */
         .loading {
             text-align: center;
             padding: 40px;
@@ -204,21 +200,55 @@
             font-size: 15px;
         }
 
-        .loading::after {
-            content: "...";
-            animation: dots 1.5s steps(4, end) infinite;
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            margin: 0 auto 16px;
+            animation: spin 1s linear infinite;
         }
 
-        @keyframes dots {
-            0%, 20% { content: "."; }
-            40% { content: ".."; }
-            60%, 100% { content: "..."; }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 24px;
+            border-top: 1px solid #e5e5e5;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-bottom: 12px;
+        }
+
+        .footer-links a {
+            color: #999;
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: #667eea;
+        }
+
+        .footer-text {
+            font-size: 12px;
+            color: #ccc;
         }
 
         /* 响应式 */
         @media (max-width: 640px) {
             .container {
-                padding: 40px 16px;
+                padding: 40px 24px;
             }
 
             .logo {
@@ -226,26 +256,16 @@
             }
 
             .app-name {
-                font-size: 32px;
+                font-size: 28px;
             }
 
-            .slogan {
-                font-size: 16px;
-            }
-
-            .download-item {
-                flex-direction: column;
-                gap: 16px;
-                text-align: center;
-            }
-
-            .download-btn {
-                width: 100%;
+            .download-section {
+                grid-template-columns: 1fr;
             }
 
             .footer-links {
                 flex-direction: column;
-                gap: 16px;
+                gap: 12px;
             }
         }
     </style>
@@ -253,43 +273,61 @@
 <body>
     <div class="container">
         <!-- Logo区域 -->
-        <div class="logo-section">
+        <div class="header">
             <div class="logo">📝</div>
             <h1 class="app-name">AI情绪日记</h1>
             <p class="slogan">用AI陪伴你的情绪成长之路</p>
+            <div id="version-tag" class="version-tag" style="display: none;">v1.0.0</div>
         </div>
 
-        <!-- 加载状态 -->
-        <div id="loading" class="loading">加载中</div>
+        <!-- 下载区域 -->
+        <div class="download-section" id="download-section">
+            <!-- 加载状态 -->
+            <div id="loading" class="loading" style="grid-column: 1 / -1;">
+                <div class="loading-spinner"></div>
+                加载中...
+            </div>
 
-        <!-- 版本信息 -->
-        <div id="version-section" class="version-info" style="display: none;">
-            <div class="version-number" id="version-number">v1.0.0</div>
-            <div class="update-time" id="update-time">2026-01-01</div>
-            <div class="update-content" id="update-content">
+            <!-- Android下载卡片 -->
+            <div class="download-card" id="android-card" style="display: none;">
+                <div class="platform-icon">🤖</div>
+                <div class="platform-name">Android</div>
+                <div class="platform-desc" id="android-desc">适用于Android 8.0及以上系统</div>
+                <a href="#" class="download-btn" id="android-btn">立即下载</a>
+                <div class="not-available" id="android-not-available" style="display: none;">暂未开放</div>
+            </div>
+
+            <!-- iOS下载卡片 -->
+            <div class="download-card" id="ios-card" style="display: none;">
+                <div class="platform-icon">🍎</div>
+                <div class="platform-name">iOS</div>
+                <div class="platform-desc" id="ios-desc">适用于iOS 14.0及以上系统</div>
+                <a href="#" class="download-btn" id="ios-btn">前往下载</a>
+                <div class="not-available" id="ios-not-available" style="display: none;">暂未开放</div>
+            </div>
+        </div>
+
+        <!-- 更新内容 -->
+        <div class="info-section" id="info-section" style="display: none;">
+            <div class="info-title">
+                📢 更新内容
+            </div>
+            <div class="info-content" id="update-content">
                 AI情绪日记全新上线！
             </div>
         </div>
 
-        <!-- 下载区域 -->
-        <div id="download-section" class="download-section" style="display: none;">
-            <h2 class="download-title">选择你的平台</h2>
-            <div class="download-list" id="download-list">
-                <!-- 下载列表将由JavaScript生成 -->
+        <!-- 底部 -->
+        <div class="footer">
+            <div class="footer-links">
+                <a href="#">用户协议</a>
+                <a href="#">隐私政策</a>
+                <a href="#">联系我们</a>
+                <a href="#">帮助中心</a>
             </div>
+            <p class="footer-text">© 2026 AI情绪日记. All rights reserved.</p>
         </div>
     </div>
-
-    <!-- 底部 -->
-    <footer class="footer">
-        <div class="footer-links">
-            <a href="#">用户协议</a>
-            <a href="#">隐私政策</a>
-            <a href="#">联系我们</a>
-            <a href="#">帮助中心</a>
-        </div>
-        <p class="footer-text">© 2026 AI情绪日记. All rights reserved.</p>
-    </footer>
 
     <script>
         // 获取下载信息
@@ -306,69 +344,62 @@
                 // 隐藏加载状态
                 document.getElementById('loading').style.display = 'none';
 
-                // 显示版本信息
-                const versionSection = document.getElementById('version-section');
-                versionSection.style.display = 'block';
+                // 显示下载卡片
+                const androidCard = document.getElementById('android-card');
+                const iosCard = document.getElementById('ios-card');
 
-                // 更新版本信息
-                const androidVersion = data.android?.version || '1.0.0';
-                const updateTime = new Date().toISOString().split('T')[0];
-                const updateNotes = data.android?.release_notes || 'AI情绪日记全新上线！';
+                androidCard.style.display = 'block';
+                iosCard.style.display = 'block';
 
-                document.getElementById('version-number').textContent = `v${androidVersion}`;
-                document.getElementById('update-time').textContent = updateTime;
-                document.getElementById('update-content').textContent = updateNotes;
+                // 显示版本标签
+                const versionTag = document.getElementById('version-tag');
+                const version = data.android?.version || '1.0.0';
+                versionTag.textContent = `v${version}`;
+                versionTag.style.display = 'inline-block';
 
-                // 生成下载列表
-                const downloadList = document.getElementById('download-list');
-                const downloadSection = document.getElementById('download-section');
+                // 显示更新内容
+                const infoSection = document.getElementById('info-section');
+                const updateContent = document.getElementById('update-content');
+                const releaseNotes = data.android?.release_notes || 'AI情绪日记全新上线！';
 
-                // Android下载项
-                const androidItem = document.createElement('div');
-                androidItem.className = 'download-item';
+                updateContent.textContent = releaseNotes;
+                infoSection.style.display = 'block';
+
+                // Android下载卡片
+                const androidBtn = document.getElementById('android-btn');
+                const androidNotAvailable = document.getElementById('android-not-available');
+                const androidDesc = document.getElementById('android-desc');
+
                 if (data.android && data.android.url) {
-                    androidItem.innerHTML = `
-                        <div class="platform-info">
-                            <div class="platform-name">Android</div>
-                            <div class="platform-desc">适用于Android 8.0及以上系统 ${data.android.size || ''}</div>
-                        </div>
-                        <a href="${data.android.url}" class="download-btn" download>立即下载</a>
-                    `;
+                    androidBtn.href = data.android.url;
+                    androidBtn.classList.remove('disabled');
+                    androidBtn.style.display = 'inline-block';
+                    androidNotAvailable.style.display = 'none';
+                    androidDesc.textContent = `适用于Android 8.0及以上系统 ${data.android.size || ''}`;
+                    androidCard.classList.remove('disabled');
                 } else {
-                    androidItem.innerHTML = `
-                        <div class="platform-info">
-                            <div class="platform-name">Android</div>
-                            <div class="platform-desc">适用于Android 8.0及以上系统</div>
-                        </div>
-                        <span class="not-available">暂未开放</span>
-                    `;
+                    androidBtn.style.display = 'none';
+                    androidNotAvailable.style.display = 'block';
+                    androidCard.classList.add('disabled');
                 }
-                downloadList.appendChild(androidItem);
 
-                // iOS下载项
-                const iosItem = document.createElement('div');
-                iosItem.className = 'download-item';
+                // iOS下载卡片
+                const iosBtn = document.getElementById('ios-btn');
+                const iosNotAvailable = document.getElementById('ios-not-available');
+                const iosDesc = document.getElementById('ios-desc');
+
                 if (data.ios && data.ios.url) {
-                    iosItem.innerHTML = `
-                        <div class="platform-info">
-                            <div class="platform-name">iOS</div>
-                            <div class="platform-desc">适用于iOS 14.0及以上系统 ${data.ios.size || ''}</div>
-                        </div>
-                        <a href="${data.ios.url}" class="download-btn" target="_blank">前往下载</a>
-                    `;
+                    iosBtn.href = data.ios.url;
+                    iosBtn.classList.remove('disabled');
+                    iosBtn.style.display = 'inline-block';
+                    iosNotAvailable.style.display = 'none';
+                    iosDesc.textContent = `适用于iOS 14.0及以上系统 ${data.ios.size || ''}`;
+                    iosCard.classList.remove('disabled');
                 } else {
-                    iosItem.innerHTML = `
-                        <div class="platform-info">
-                            <div class="platform-name">iOS</div>
-                            <div class="platform-desc">适用于iOS 14.0及以上系统</div>
-                        </div>
-                        <span class="not-available">暂未开放</span>
-                    `;
+                    iosBtn.style.display = 'none';
+                    iosNotAvailable.style.display = 'block';
+                    iosCard.classList.add('disabled');
                 }
-                downloadList.appendChild(iosItem);
-
-                // 显示下载区域
-                downloadSection.style.display = 'block';
 
                 console.log('下载信息加载成功:', data);
 
@@ -378,44 +409,24 @@
                 // 隐藏加载状态
                 document.getElementById('loading').style.display = 'none';
 
-                // 显示版本信息（默认值）
-                const versionSection = document.getElementById('version-section');
-                versionSection.style.display = 'block';
-                document.getElementById('version-number').textContent = 'v1.0.0';
-                document.getElementById('update-time').textContent = new Date().toISOString().split('T')[0];
-                document.getElementById('update-content').textContent = 'AI情绪日记全新上线！';
+                // 显示暂未开放状态
+                const androidCard = document.getElementById('android-card');
+                const iosCard = document.getElementById('ios-card');
 
-                // 显示暂未开放
-                const downloadList = document.getElementById('download-list');
-                const downloadSection = document.getElementById('download-section');
+                androidCard.style.display = 'block';
+                iosCard.style.display = 'block';
 
-                const androidItem = document.createElement('div');
-                androidItem.className = 'download-item';
-                androidItem.innerHTML = `
-                    <div class="platform-info">
-                        <div class="platform-name">Android</div>
-                        <div class="platform-desc">适用于Android 8.0及以上系统</div>
-                    </div>
-                    <span class="not-available">暂未开放</span>
-                `;
-                downloadList.appendChild(androidItem);
+                document.getElementById('android-btn').style.display = 'none';
+                document.getElementById('android-not-available').style.display = 'block';
+                androidCard.classList.add('disabled');
 
-                const iosItem = document.createElement('div');
-                iosItem.className = 'download-item';
-                iosItem.innerHTML = `
-                    <div class="platform-info">
-                        <div class="platform-name">iOS</div>
-                        <div class="platform-desc">适用于iOS 14.0及以上系统</div>
-                    </div>
-                    <span class="not-available">暂未开放</span>
-                `;
-                downloadList.appendChild(iosItem);
-
-                downloadSection.style.display = 'block';
+                document.getElementById('ios-btn').style.display = 'none';
+                document.getElementById('ios-not-available').style.display = 'block';
+                iosCard.classList.add('disabled');
             }
         }
 
-        // 页面加载时执行
+        // 页面加载时立即执行
         document.addEventListener('DOMContentLoaded', function() {
             fetchDownloadInfo();
         });

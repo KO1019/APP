@@ -242,29 +242,24 @@ async def health_check():
     return {"status": "ok"}
 
 
+# 下载信息缓存
+_download_info_cache = None
+_download_info_cache_time = None
+_download_info_cache_ttl = 60  # 缓存60秒
+
 @app.get('/api/v1/app/download')
 async def get_app_download_info():
-    """获取APP下载链接（从数据库读取管理员推送的版本）"""
+    """获取APP下载链接（从数据库读取管理员推送的版本，带缓存）"""
+    global _download_info_cache, _download_info_cache_time
+
     try:
-        if not db_client:
-            # 如果数据库未配置，返回默认数据
-            return {
-                "android": {
-                    "name": "Android",
-                    "url": "",
-                    "version": "1.0.0",
-                    "size": "50MB",
-                    "min_version": "Android 8.0"
-                },
-                "ios": {
-                    "name": "iOS",
-                    "url": "",
-                    "version": "1.0.0",
-                    "size": "45MB",
-                    "min_version": "iOS 14.0"
-                },
-                "download_page": "https://anjia.work/download"
-            }
+        import time
+        current_time = time.time()
+
+        # 检查缓存
+        if _download_info_cache and _download_info_cache_time:
+            if current_time - _download_info_cache_time < _download_info_cache_ttl:
+                return _download_info_cache
 
         # 初始化为空，表示暂未开放
         android_info = {
@@ -284,35 +279,42 @@ async def get_app_download_info():
         }
 
         # 从数据库获取激活的版本
-        result = db_client.table('versions').select('*').eq('is_active', True).execute()
+        if db_client:
+            result = db_client.table('versions').select('*').eq('is_active', True).execute()
 
-        # 如果数据库中有激活的版本，使用数据库中的数据
-        if result.data:
-            for version in result.data:
-                if version.get('platform') == 'android' and version.get('file_url'):
-                    android_info["url"] = version['file_url']
-                    android_info["version"] = version.get('version_name', '1.0.0')
-                    android_info["build_number"] = version.get('build_number', '1')
-                    android_info["version_code"] = version.get('version_code', '1')
-                    android_info["release_notes"] = version.get('release_notes', '')
-                    if version.get('file_size'):
-                        size_mb = version['file_size'] / (1024 * 1024)
-                        android_info["size"] = f"{size_mb:.1f}MB"
-                elif version.get('platform') == 'ios' and version.get('file_url'):
-                    ios_info["url"] = version['file_url']
-                    ios_info["version"] = version.get('version_name', '1.0.0')
-                    ios_info["build_number"] = version.get('build_number', '1')
-                    ios_info["version_code"] = version.get('version_code', '1')
-                    ios_info["release_notes"] = version.get('release_notes', '')
-                    if version.get('file_size'):
-                        size_mb = version['file_size'] / (1024 * 1024)
-                        ios_info["size"] = f"{size_mb:.1f}MB"
+            # 如果数据库中有激活的版本，使用数据库中的数据
+            if result.data:
+                for version in result.data:
+                    if version.get('platform') == 'android' and version.get('file_url'):
+                        android_info["url"] = version['file_url']
+                        android_info["version"] = version.get('version_name', '1.0.0')
+                        android_info["build_number"] = version.get('build_number', '1')
+                        android_info["version_code"] = version.get('version_code', '1')
+                        android_info["release_notes"] = version.get('release_notes', '')
+                        if version.get('file_size'):
+                            size_mb = version['file_size'] / (1024 * 1024)
+                            android_info["size"] = f"{size_mb:.1f}MB"
+                    elif version.get('platform') == 'ios' and version.get('file_url'):
+                        ios_info["url"] = version['file_url']
+                        ios_info["version"] = version.get('version_name', '1.0.0')
+                        ios_info["build_number"] = version.get('build_number', '1')
+                        ios_info["version_code"] = version.get('version_code', '1')
+                        ios_info["release_notes"] = version.get('release_notes', '')
+                        if version.get('file_size'):
+                            size_mb = version['file_size'] / (1024 * 1024)
+                            ios_info["size"] = f"{size_mb:.1f}MB"
 
-        return {
+        response = {
             "android": android_info,
             "ios": ios_info,
             "download_page": "https://anjia.work/download"
         }
+
+        # 更新缓存
+        _download_info_cache = response
+        _download_info_cache_time = current_time
+
+        return response
     except Exception as e:
         # 出错时返回默认数据（暂未开放）
         print(f"Error fetching download info: {e}")
