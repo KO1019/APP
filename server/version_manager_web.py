@@ -876,12 +876,48 @@ HTML_TEMPLATE = """
                         </div>
 
                         <div class="form-group">
-                            <label for="update_url">更新包URL（可选）</label>
+                            <label>上传安装包</label>
+                            <div style="margin-bottom: 10px;">
+                                <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                                    <input type="radio" id="upload-mode-upload" name="upload-mode" value="upload" checked onchange="toggleUploadMode()">
+                                    <span>直接上传安装包</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                                    <input type="radio" id="upload-mode-url" name="upload-mode" value="url" onchange="toggleUploadMode()">
+                                    <span>使用外部链接</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 文件上传 -->
+                        <div class="form-group" id="file-upload-group">
+                            <label for="file">选择文件 *</label>
+                            <input type="file" id="file" name="file" accept=".apk,.ipa">
+                            <small>支持 .apk (Android) 或 .ipa (iOS) 文件</small>
+                            <div id="upload-progress" style="display: none; margin-top: 10px;">
+                                <div style="background: rgba(234, 88, 12, 0.1); border-radius: 8px; overflow: hidden;">
+                                    <div id="upload-progress-bar" style="width: 0%; height: 20px; background: linear-gradient(135deg, #EA580C 0%, #F97316 100%); transition: width 0.3s;"></div>
+                                </div>
+                                <div id="upload-status" style="margin-top: 5px; font-size: 12px; color: #78350F;">正在上传...</div>
+                            </div>
+                            <div id="upload-success" style="display: none; margin-top: 10px; padding: 10px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 8px; font-size: 14px; color: #10B981;">
+                                ✓ 文件上传成功
+                            </div>
+                            <div id="upload-error" style="display: none; margin-top: 10px; padding: 10px; background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.2); border-radius: 8px; font-size: 14px; color: #DC2626;">
+                                ✗ 文件上传失败
+                            </div>
+                            <input type="hidden" id="uploaded_file_url" name="uploaded_file_url">
+                            <input type="hidden" id="uploaded_file_size" name="uploaded_file_size">
+                        </div>
+
+                        <!-- 外部链接 -->
+                        <div class="form-group" id="url-group" style="display: none;">
+                            <label for="update_url">更新包URL *</label>
                             <input type="url" id="update_url" name="update_url" placeholder="https://example.com/app-v1.0.1.apk">
                             <small>APK或IPA的下载地址</small>
                         </div>
 
-                        <button type="submit" class="btn btn-primary">创建版本</button>
+                        <button type="submit" class="btn btn-primary" id="create-btn" disabled>创建版本</button>
                     </form>
                 </div>
             </div>
@@ -1302,6 +1338,122 @@ HTML_TEMPLATE = """
             }
         }
 
+        // 切换上传模式
+        function toggleUploadMode() {
+            const uploadMode = document.querySelector('input[name="upload-mode"]:checked').value;
+            const fileUploadGroup = document.getElementById('file-upload-group');
+            const urlGroup = document.getElementById('url-group');
+            const fileInput = document.getElementById('file');
+
+            if (uploadMode === 'upload') {
+                fileUploadGroup.style.display = 'block';
+                urlGroup.style.display = 'none';
+                fileInput.required = true;
+            } else {
+                fileUploadGroup.style.display = 'none';
+                urlGroup.style.display = 'block';
+                fileInput.required = false;
+            }
+        }
+
+        // 上传文件到对象存储
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const progressBar = document.getElementById('upload-progress-bar');
+            const uploadStatus = document.getElementById('upload-status');
+            const uploadSuccess = document.getElementById('upload-success');
+            const uploadError = document.getElementById('upload-error');
+            const uploadProgress = document.getElementById('upload-progress');
+            const createBtn = document.getElementById('create-btn');
+
+            // 重置状态
+            uploadProgress.style.display = 'block';
+            uploadSuccess.style.display = 'none';
+            uploadError.style.display = 'none';
+            uploadStatus.textContent = '正在上传...';
+            progressBar.style.width = '0%';
+            createBtn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE}/files/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || '上传失败');
+                }
+
+                const data = await response.json();
+
+                // 更新进度条
+                progressBar.style.width = '100%';
+                uploadStatus.textContent = '上传成功！';
+
+                // 显示成功消息
+                uploadSuccess.style.display = 'block';
+                uploadProgress.style.display = 'none';
+
+                // 设置隐藏字段的值
+                document.getElementById('uploaded_file_url').value = data.url;
+                document.getElementById('uploaded_file_size').value = file.size;
+
+                // 启用创建按钮
+                createBtn.disabled = false;
+                createBtn.textContent = '创建版本';
+
+                return data;
+            } catch (error) {
+                uploadError.style.display = 'block';
+                uploadError.textContent = '✗ ' + error.message;
+                uploadProgress.style.display = 'none';
+                createBtn.disabled = false;
+                createBtn.textContent = '创建版本';
+                throw error;
+            }
+        }
+
+        // 监听文件选择
+        document.addEventListener('DOMContentLoaded', function() {
+            const fileInput = document.getElementById('file');
+            if (fileInput) {
+                fileInput.addEventListener('change', async function(e) {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    // 检查文件类型
+                    const allowedTypes = ['.apk', '.ipa'];
+                    const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+                    if (!allowedTypes.includes(fileExt)) {
+                        alert('只支持 .apk 或 .ipa 文件');
+                        fileInput.value = '';
+                        return;
+                    }
+
+                    // 检查文件大小（最大500MB）
+                    const maxSize = 500 * 1024 * 1024;
+                    if (file.size > maxSize) {
+                        alert('文件大小不能超过500MB');
+                        fileInput.value = '';
+                        return;
+                    }
+
+                    // 自动上传文件
+                    try {
+                        await uploadFile(file);
+                    } catch (error) {
+                        console.error('文件上传失败:', error);
+                    }
+                });
+            }
+        });
+
         // 创建版本
         async function createVersion(event) {
             event.preventDefault();
@@ -1310,13 +1462,40 @@ HTML_TEMPLATE = """
             const form = event.target;
             const formData = new FormData(form);
 
+            // 检查上传模式
+            const uploadMode = document.querySelector('input[name="upload-mode"]:checked').value;
+
+            let fileUrl = null;
+            let fileSize = null;
+
+            if (uploadMode === 'upload') {
+                // 使用上传的文件
+                fileUrl = document.getElementById('uploaded_file_url').value;
+                fileSize = parseInt(document.getElementById('uploaded_file_size').value);
+
+                if (!fileUrl) {
+                    message.innerHTML = '<div class="error">❌ 请先上传文件</div>';
+                    return;
+                }
+            } else {
+                // 使用外部链接
+                fileUrl = formData.get('update_url');
+                if (!fileUrl) {
+                    message.innerHTML = '<div class="error">❌ 请输入更新包URL</div>';
+                    return;
+                }
+            }
+
             const data = {
                 version: formData.get('version'),
+                version_name: formData.get('version'),
                 build_number: parseInt(formData.get('build_number')),
+                version_code: parseInt(formData.get('build_number')),
                 platform: formData.get('platform'),
-                force_update: formData.get('force_update') === 'true',
                 release_notes: formData.get('release_notes'),
-                update_url: formData.get('update_url') || null
+                file_url: fileUrl,
+                file_size: fileSize,
+                is_active: false
             };
 
             try {
@@ -1329,6 +1508,15 @@ HTML_TEMPLATE = """
                 if (response.ok) {
                     message.innerHTML = '<div class="success">✅ 版本创建成功！</div>';
                     form.reset();
+
+                    // 重置上传状态
+                    document.getElementById('upload-progress').style.display = 'none';
+                    document.getElementById('upload-success').style.display = 'none';
+                    document.getElementById('upload-error').style.display = 'none';
+                    document.getElementById('uploaded_file_url').value = '';
+                    document.getElementById('uploaded_file_size').value = '';
+                    document.getElementById('upload-progress-bar').style.width = '0%';
+
                     setTimeout(() => {
                         showSection('list');
                     }, 1500);
