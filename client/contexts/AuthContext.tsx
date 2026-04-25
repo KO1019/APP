@@ -103,13 +103,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (username: string, password: string) => {
     try {
       const apiUrl = buildApiUrl('/api/v1/auth/login');
-      console.log('[Auth] Attempting login to:', apiUrl);
+      console.log('[Auth] ==================== 登录开始 ====================');
+      console.log('[Auth] 目标URL:', apiUrl);
+      console.log('[Auth] 用户名:', username);
+      console.log('[Auth] API配置:', API_CONFIG);
+      console.log('[Auth] 环境变量:', process.env.EXPO_PUBLIC_BACKEND_BASE_URL);
 
       /**
        * 服务端文件：server/main.py
        * 接口：POST /api/v1/auth/login
        * Body 参数：username: string, password: string
        */
+      console.log('[Auth] 发送请求...');
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -118,28 +123,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ username, password }),
       });
 
-      console.log('[Auth] Response status:', response.status);
-      console.log('[Auth] Response ok:', response.ok);
+      console.log('[Auth] 响应状态:', response.status);
+      console.log('[Auth] 响应类型:', response.type);
+      console.log('[Auth] 响应ok:', response.ok);
 
       if (!response.ok) {
         // 先读取响应内容（只读取一次，避免"body stream already read"错误）
         const text = await response.text();
-        console.log('[Auth] Error response:', text);
+        console.log('[Auth] 错误响应内容:', text);
+        console.log('[Auth] 错误响应长度:', text.length);
+
         let errorMessage = '登录失败';
 
         try {
           // 尝试解析为JSON
           const data = JSON.parse(text);
           errorMessage = data.detail || data.error || errorMessage;
+          console.log('[Auth] 解析的错误消息:', errorMessage);
         } catch {
           // 如果不是JSON，使用原始文本
           errorMessage = text || `登录失败 (${response.status})`;
+          console.log('[Auth] 原始错误文本:', errorMessage);
         }
+
+        console.error('[Auth] 抛出错误:', errorMessage);
         throw new Error(errorMessage);
       }
 
       const data = await response.json();
-      console.log('[Auth] Login successful, user:', data.user.username);
+      console.log('[Auth] 登录成功！');
+      console.log('[Auth] 用户数据:', {
+        username: data.user.username,
+        email: data.user.email,
+        is_admin: data.user.is_admin,
+      });
+      console.log('[Auth] ==================== 登录结束 ====================');
 
       // 保存到本地存储
       await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, data.token);
@@ -149,12 +167,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(data.token);
       setUser(data.user);
     } catch (error: any) {
-      console.error('[Auth] Error logging in:', error);
-      console.error('[Auth] Error details:', {
-        message: error.message,
-        stack: error.stack,
-        cause: error.cause,
-      });
+      console.error('[Auth] ==================== 登录错误 ====================');
+      console.error('[Auth] 错误消息:', error.message);
+      console.error('[Auth] 错误类型:', error.name);
+      console.error('[Auth] 错误堆栈:', error.stack);
+      if (error.cause) {
+        console.error('[Auth] 错误原因:', error.cause);
+      }
+      console.error('[Auth] 目标URL:', buildApiUrl('/api/v1/auth/login'));
+      console.error('[Auth] API配置:', API_CONFIG);
+      console.error('[Auth] =====================================================');
       throw error;
     }
   };

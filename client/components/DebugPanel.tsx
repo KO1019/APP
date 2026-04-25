@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Dimensions, ActivityIndicator, Alert } from 'react-native';
+import { buildApiUrl } from '@/utils';
+import { API_CONFIG } from '@/config';
 
 const { width, height } = Dimensions.get('window');
 
@@ -10,7 +12,7 @@ interface DebugLog {
 }
 
 let logs: DebugLog[] = [];
-let maxLogs = 50;
+let maxLogs = 200; // 增加日志数量限制
 
 // 重写console方法，同步输出到调试面板
 const originalConsoleError = console.error;
@@ -23,10 +25,10 @@ if (typeof __DEV__ !== 'undefined' && __DEV__) {
     // 先调用原始console输出
     originalConsoleError.apply(console, args);
     // 然后记录到日志数组
-    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
     const log: DebugLog = {
       timestamp: new Date().toLocaleTimeString(),
-      message: message.substring(0, 500), // 限制长度
+      message: message, // 不限制长度
       type: 'error'
     };
     logs = [log, ...logs].slice(0, maxLogs);
@@ -34,10 +36,10 @@ if (typeof __DEV__ !== 'undefined' && __DEV__) {
 
   console.warn = (...args: any[]) => {
     originalConsoleWarn.apply(console, args);
-    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
     const log: DebugLog = {
       timestamp: new Date().toLocaleTimeString(),
-      message: message.substring(0, 500),
+      message: message, // 不限制长度
       type: 'warn'
     };
     logs = [log, ...logs].slice(0, maxLogs);
@@ -45,10 +47,10 @@ if (typeof __DEV__ !== 'undefined' && __DEV__) {
 
   console.info = (...args: any[]) => {
     originalConsoleInfo.apply(console, args);
-    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
     const log: DebugLog = {
       timestamp: new Date().toLocaleTimeString(),
-      message: message.substring(0, 500),
+      message: message, // 不限制长度
       type: 'info'
     };
     logs = [log, ...logs].slice(0, maxLogs);
@@ -56,10 +58,10 @@ if (typeof __DEV__ !== 'undefined' && __DEV__) {
 
   console.log = (...args: any[]) => {
     originalConsoleLog.apply(console, args);
-    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
     const log: DebugLog = {
       timestamp: new Date().toLocaleTimeString(),
-      message: message.substring(0, 500),
+      message: message, // 不限制长度
       type: 'info'
     };
     logs = [log, ...logs].slice(0, maxLogs);
@@ -100,6 +102,7 @@ export const debug = {
 export default function DebugPanel() {
   const [visible, setVisible] = useState(false);
   const [currentLogs, setCurrentLogs] = useState<DebugLog[]>(logs);
+  const [testingConnection, setTestingConnection] = useState(false);
 
   const toggleDebug = () => {
     setCurrentLogs(logs);
@@ -109,6 +112,46 @@ export default function DebugPanel() {
   const clearLogs = () => {
     debug.clearLogs();
     setCurrentLogs([]);
+  };
+
+  const testConnection = async () => {
+    setTestingConnection(true);
+    try {
+      const healthUrl = buildApiUrl('/api/v1/health');
+      debug.info('==================== 测试后端连接 ====================');
+      debug.info('目标URL:', healthUrl);
+      debug.info('API配置:', JSON.stringify(API_CONFIG, null, 2));
+      debug.info('环境变量:', process.env.EXPO_PUBLIC_BACKEND_BASE_URL);
+
+      const response = await fetch(healthUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      debug.info('响应状态:', response.status);
+      debug.info('响应类型:', response.type);
+
+      if (response.ok) {
+        const data = await response.json();
+        debug.info('连接成功！响应数据:', JSON.stringify(data, null, 2));
+        Alert.alert('连接测试', '✅ 后端连接成功！');
+      } else {
+        const text = await response.text();
+        debug.error('连接失败！状态码:', response.status);
+        debug.error('错误响应:', text);
+        Alert.alert('连接测试', `❌ 后端连接失败\n状态码: ${response.status}\n错误: ${text}`);
+      }
+      debug.info('====================================================');
+    } catch (error: any) {
+      debug.error('连接异常！', error.message);
+      debug.error('错误详情:', error.toString());
+      Alert.alert('连接测试', `❌ 连接异常\n错误: ${error.message}`);
+    } finally {
+      setCurrentLogs([...logs]);
+      setTestingConnection(false);
+    }
   };
 
   return (
@@ -134,6 +177,13 @@ export default function DebugPanel() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>调试日志</Text>
               <View style={styles.headerButtons}>
+                <TouchableOpacity onPress={testConnection} style={styles.testButton} disabled={testingConnection}>
+                  {testingConnection ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.testButtonText}>测试连接</Text>
+                  )}
+                </TouchableOpacity>
                 <TouchableOpacity onPress={clearLogs} style={styles.clearButton}>
                   <Text style={styles.clearButtonText}>清空</Text>
                 </TouchableOpacity>
@@ -164,13 +214,26 @@ export default function DebugPanel() {
 
             <View style={styles.configInfo}>
               <Text style={styles.configLabel}>配置信息:</Text>
-              {typeof __DEV__ !== 'undefined' && __DEV__ && (
+              <Text style={styles.configText}>后端URL: {API_CONFIG.baseUrl || '未配置'}</Text>
+              <Text style={styles.configText}>环境变量: {process.env.EXPO_PUBLIC_BACKEND_BASE_URL || '未设置'}</Text>
+              <Text style={styles.configText}>平台: {typeof window !== 'undefined' ? 'web' : 'native'}</Text>
+              {typeof window === 'undefined' && (
                 <>
-                  <Text style={styles.configText}>后端URL: {process.env.EXPO_PUBLIC_BACKEND_BASE_URL || '未配置'}</Text>
-                  <Text style={styles.configText}>平台: {typeof window !== 'undefined' ? 'web' : 'native'}</Text>
-                  <Text style={styles.configText}>环境: {process.env.NODE_ENV || 'unknown'}</Text>
+                  <Text style={styles.configText}>设备: {Platform.OS} {Platform.Version}</Text>
+                  <Text style={styles.configText}>网络: {Platform.OS === 'android' ? '移动网络/WiFi' : 'WiFi'}</Text>
                 </>
               )}
+              <Text style={styles.configText}>环境: {process.env.NODE_ENV || 'unknown'}</Text>
+              <TouchableOpacity onPress={testConnection} style={styles.testConnectionButton} disabled={testingConnection}>
+                {testingConnection ? (
+                  <>
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <Text style={styles.testConnectionButtonText}>测试中...</Text>
+                  </>
+                ) : (
+                  <Text style={styles.testConnectionButtonText}>🔗 测试后端连接</Text>
+                )}
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -184,9 +247,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 30,
     right: 30,
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -198,7 +261,7 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
   },
   debugButtonText: {
-    fontSize: 24,
+    fontSize: 30,
   },
   modalOverlay: {
     flex: 1,
@@ -207,8 +270,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    width: width * 0.9,
-    maxHeight: height * 0.6,
+    width: width * 0.95, // 增加宽度到95%
+    maxHeight: height * 0.75, // 增加高度到75%
     backgroundColor: '#1F2937',
     borderRadius: 16,
     overflow: 'hidden',
@@ -230,8 +293,22 @@ const styles = StyleSheet.create({
   },
   headerButtons: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
     alignItems: 'center',
+  },
+  testButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    backgroundColor: '#10B981',
+    borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  testButtonText: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   clearButton: {
     paddingHorizontal: 12,
@@ -263,13 +340,12 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
   logItem: {
-    flexDirection: 'row',
+    flexDirection: 'column', // 改为垂直布局
     paddingVertical: 8,
     paddingHorizontal: 12,
-    marginBottom: 6,
+    marginBottom: 8,
     backgroundColor: '#374151',
     borderRadius: 8,
-    gap: 12,
   },
   logError: {
     backgroundColor: 'rgba(239, 68, 68, 0.2)',
@@ -284,12 +360,12 @@ const styles = StyleSheet.create({
   logTimestamp: {
     fontSize: 10,
     color: '#9CA3AF',
-    minWidth: 70,
+    marginBottom: 4,
   },
   logMessage: {
-    flex: 1,
-    fontSize: 12,
+    fontSize: 13,
     color: '#E5E7EB',
+    lineHeight: 18, // 增加行高
   },
   configInfo: {
     paddingHorizontal: 16,
@@ -302,11 +378,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#FFFFFF',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   configText: {
     fontSize: 11,
     color: '#9CA3AF',
-    marginBottom: 2,
+    marginBottom: 4,
+  },
+  testConnectionButton: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#10B981',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  testConnectionButtonText: {
+    fontSize: 13,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
 });
