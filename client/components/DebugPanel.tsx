@@ -12,6 +12,34 @@ interface DebugLog {
 let logs: DebugLog[] = [];
 let maxLogs = 50;
 
+// 重写console方法，同步输出到调试面板
+const originalConsoleError = console.error;
+const originalConsoleWarn = console.warn;
+const originalConsoleInfo = console.info;
+const originalConsoleLog = console.log;
+
+if (typeof __DEV__ !== 'undefined' && __DEV__) {
+  console.error = (...args: any[]) => {
+    originalConsoleError.apply(console, args);
+    debug.error(args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' '));
+  };
+
+  console.warn = (...args: any[]) => {
+    originalConsoleWarn.apply(console, args);
+    debug.warn(args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' '));
+  };
+
+  console.info = (...args: any[]) => {
+    originalConsoleInfo.apply(console, args);
+    debug.info(args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' '));
+  };
+
+  console.log = (...args: any[]) => {
+    originalConsoleLog.apply(console, args);
+    debug.info(args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' '));
+  };
+}
+
 export const debug = {
   info: (message: string) => {
     const log: DebugLog = {
