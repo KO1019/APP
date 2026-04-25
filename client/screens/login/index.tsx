@@ -200,13 +200,15 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   passwordInput: {
-    paddingRight: 50,
+    paddingRight: 48,
   },
   passwordToggle: {
     position: 'absolute',
-    right: 12,
-    top: 12,
-    padding: 8,
+    right: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 40,
+    height: 48,
   },
   loginButton: {
     borderRadius: 12,
