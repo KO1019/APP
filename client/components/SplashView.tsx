@@ -13,6 +13,7 @@ import Animated, {
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
+import * as SplashScreen from 'expo-splash-screen';
 
 const iconTransparent = require('@/assets/images/icon-transparent.png');
 
@@ -50,6 +51,11 @@ export default function SplashView() {
   };
 
   useEffect(() => {
+    // 延迟隐藏原生启动画面，确保动画已经开始播放
+    setTimeout(() => {
+      SplashScreen.hideAsync();
+    }, 100);
+
     // 图标入场动画 - 柔和的弹跳效果
     iconOpacity.value = withTiming(1, { duration: 600, easing: Easing.out(Easing.ease) });
     iconScale.value = withDelay(150, withSpring(1, { damping: 12, stiffness: 85 }));
