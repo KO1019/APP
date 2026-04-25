@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, Image } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -14,6 +14,8 @@ import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 
+const robotIcon = require('@/assets/images/icon-transparent.png');
+
 const { width, height } = Dimensions.get('window');
 
 export default function SplashView() {
@@ -24,13 +26,8 @@ export default function SplashView() {
   const robotOpacity = useSharedValue(0);
   const robotScale = useSharedValue(0.5);
 
-  const bookRotation = useSharedValue(-15);
-  const bookOpacity = useSharedValue(0);
-
   const titleOpacity = useSharedValue(0);
   const titleY = useSharedValue(50);
-
-  const heartScale = useSharedValue(1);
 
   const sparkleScale1 = useSharedValue(0);
   const sparkleScale2 = useSharedValue(0);
@@ -179,39 +176,12 @@ export default function SplashView() {
 
       {/* 主要内容 */}
       <View style={styles.content}>
-        {/* 机器人和日记 */}
-        <View style={styles.iconContainer}>
-          {/* 机器人 */}
-          <Animated.View style={[styles.robotContainer, robotStyle]}>
-            <View style={styles.robotBody}>
-              <View style={styles.robotHead}>
-                <View style={styles.robotAntenna} />
-                <View style={styles.robotAntennaBall} />
-              </View>
-              <View style={styles.robotFace}>
-                <View style={styles.eyesContainer}>
-                  <View style={styles.eye} />
-                  <View style={styles.eye} />
-                </View>
-                <View style={styles.cheeksContainer}>
-                  <View style={styles.cheek} />
-                  <View style={styles.cheek} />
-                </View>
-                <View style={styles.mouth} />
-              </View>
-            </View>
-          </Animated.View>
-
-          {/* 日记本 */}
-          <Animated.View style={[styles.bookContainer, bookStyle]}>
-            <View style={styles.bookCover}>
-              <Animated.View style={[styles.heartBadge, heartStyle]}>
-                <Text style={styles.heartEmoji}>❤</Text>
-              </Animated.View>
-            </View>
-            <View style={styles.bookPages} />
-          </Animated.View>
-        </View>
+        {/* 机器人图标 */}
+        <Animated.Image
+          source={robotIcon}
+          style={[styles.robotImage, robotStyle]}
+          resizeMode="contain"
+        />
 
         {/* 应用名称 */}
         <Animated.View style={[styles.titleContainer, titleStyle]}>
