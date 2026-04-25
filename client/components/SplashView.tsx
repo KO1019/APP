@@ -14,7 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
-import { FontAwesome } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 
 // 防止原生启动屏自动隐藏
 SplashScreen.preventAutoHideAsync();
@@ -214,7 +214,7 @@ export default function SplashView() {
           <Animated.View style={[styles.bookContainer, bookStyle]}>
             <View style={styles.bookCover}>
               <Animated.View style={[styles.heartBadge, heartStyle]}>
-                <FontAwesome name="heart" size={28} color="#FFFFFF" />
+                <Ionicons name="heart" size={28} color="#FFFFFF" />
               </Animated.View>
             </View>
             <View style={styles.bookPages} />
@@ -235,16 +235,16 @@ export default function SplashView() {
         {/* 闪光装饰 */}
         <View style={styles.sparkles}>
           <Animated.View style={[styles.sparkle, sparkleStyle1, { top: 20, left: 30 }]}>
-            <FontAwesome name="star" size={24} color="#FFFFFF" />
+            <Ionicons name="star" size={24} color="#FFFFFF" />
           </Animated.View>
           <Animated.View style={[styles.sparkle, sparkleStyle2, { top: 40, right: 40 }]}>
-            <FontAwesome name="star-o" size={20} color="#FFFFFF" />
+            <Ionicons name="star-outline" size={20} color="#FFFFFF" />
           </Animated.View>
           <Animated.View style={[styles.sparkle, sparkleStyle3, { top: 80, left: 50 }]}>
-            <FontAwesome name="star" size={18} color="#FFFFFF" />
+            <Ionicons name="star" size={18} color="#FFFFFF" />
           </Animated.View>
           <Animated.View style={[styles.sparkle, sparkleStyle4, { top: 60, right: 60 }]}>
-            <FontAwesome name="star-o" size={22} color="#FFFFFF" />
+            <Ionicons name="star-outline" size={22} color="#FFFFFF" />
           </Animated.View>
         </View>
       </View>
