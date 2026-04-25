@@ -123,7 +123,6 @@ export default function LoginScreen() {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
-                  delayedSecure
                   style={styles.passwordInput}
                 />
                 <TouchableOpacity
@@ -200,15 +199,13 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   passwordInput: {
-    paddingRight: 48,
+    paddingRight: 50,
   },
   passwordToggle: {
     position: 'absolute',
-    right: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 40,
-    height: 48,
+    right: 12,
+    top: 12,
+    padding: 8,
   },
   loginButton: {
     borderRadius: 12,

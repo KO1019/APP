@@ -148,7 +148,6 @@ export default function RegisterScreen() {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
-                  delayedSecure
                   style={styles.passwordInput}
                 />
                 <TouchableOpacity
@@ -173,7 +172,6 @@ export default function RegisterScreen() {
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry={!showConfirmPassword}
-                  delayedSecure
                   style={styles.passwordInput}
                 />
                 <TouchableOpacity
@@ -270,15 +268,13 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   passwordInput: {
-    paddingRight: 48,
+    paddingRight: 50,
   },
   passwordToggle: {
     position: 'absolute',
-    right: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 40,
-    height: 48,
+    right: 12,
+    top: 12,
+    padding: 8,
   },
   registerButton: {
     borderRadius: 12,
