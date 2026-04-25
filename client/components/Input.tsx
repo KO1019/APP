@@ -16,7 +16,7 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
   ]) as string[];
 
   // 延迟变星号逻辑
-  const [isShowingPlainText, setIsShowingPlainText] = useState(false);
+  const [isShowingLastChar, setIsShowingLastChar] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 清理定时器
@@ -31,8 +31,8 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
   const handleChangeText = (text: string) => {
     // 只有当启用了delayedSecure且当前处于隐藏模式（secureTextEntry=true）时才处理
     if (delayedSecure && secureTextEntry) {
-      // 正在输入时，短暂显示明文
-      setIsShowingPlainText(true);
+      // 正在输入时，短暂显示最后一个字符
+      setIsShowingLastChar(true);
 
       // 取消之前的定时器
       if (timeoutRef.current) {
@@ -41,7 +41,7 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
 
       // 延迟0.8秒后变成星号
       timeoutRef.current = setTimeout(() => {
-        setIsShowingPlainText(false);
+        setIsShowingLastChar(false);
       }, 800);
 
       // 调用原始的onChangeText
@@ -57,8 +57,24 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
   };
 
   // 确定显示内容和是否使用secureTextEntry
-  // 当delayedSecure和secureTextEntry都为true时，根据isShowingPlainText决定是否显示明文
-  const shouldSecure = secureTextEntry && delayedSecure ? !isShowingPlainText : secureTextEntry;
+  let finalValue = value;
+  let shouldSecure = secureTextEntry;
+  let selection: { start: number; end: number } | undefined = undefined;
+
+  if (delayedSecure && secureTextEntry) {
+    if (isShowingLastChar && value && value.length > 0) {
+      // 短暂显示模式：显示星号+最后一个字符
+      const stars = '•'.repeat(value.length - 1);
+      finalValue = stars + value[value.length - 1];
+      shouldSecure = false;  // 不使用secureTextEntry，我们手动构建显示内容
+      // 确保光标在最后
+      selection = { start: finalValue.length, end: finalValue.length };
+    } else {
+      // 完全隐藏模式：使用secureTextEntry显示星号
+      finalValue = value;
+      shouldSecure = true;
+    }
+  }
 
   return (
     <View>
@@ -73,9 +89,10 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
           style,
         ]}
         placeholderTextColor={muted}
-        value={value}
+        value={finalValue}
         onChangeText={handleChangeText}
         secureTextEntry={shouldSecure}
+        selection={selection}
         {...props}
       />
       {error && <Text style={styles.error}>{error}</Text>}
