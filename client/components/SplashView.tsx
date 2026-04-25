@@ -41,16 +41,11 @@ export default function SplashView() {
 
   const navigateToNext = async () => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-
-      if (token) {
-        router.replace('/');
-      } else {
-        router.replace('/welcome');
-      }
+      // 直接跳转到登录页面，只保留一个启动页面（splash）
+      router.replace('/login');
     } catch (error) {
       console.error('启动页跳转失败:', error);
-      router.replace('/welcome');
+      router.replace('/login');
     }
   };
 
