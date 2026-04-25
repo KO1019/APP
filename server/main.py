@@ -469,6 +469,7 @@ async def login(user: UserLogin):
             "nickname": user_data.get('nickname'),
             "avatar": user_data.get('avatar'),
             "cloud_sync_enabled": user_data.get('cloud_sync_enabled'),
+            "is_admin": user_data.get('is_admin', False),  # 添加管理员权限字段
             "created_at": user_data['created_at']
         },
         "token": token
@@ -481,7 +482,7 @@ async def get_current_user(user_id: str = Depends(get_user_id)):
     if not db_client:
         raise HTTPException(status_code=500, detail="Database not configured")
 
-    result = db_client.table('users').select('id, username, email, nickname, avatar, cloud_sync_enabled, data_encryption_enabled, anonymous_analytics, created_at').eq('id', user_id).single().execute()
+    result = db_client.table('users').select('id, username, email, nickname, avatar, cloud_sync_enabled, is_admin, data_encryption_enabled, anonymous_analytics, created_at').eq('id', user_id).single().execute()
 
     if not result.data:
         raise HTTPException(status_code=404, detail="User not found")
@@ -1688,21 +1689,38 @@ def verify_admin_token(request: Request) -> bool:
 
 
 @app.post('/api/v1/admin/login')
-async def admin_login(request: Request, username: str = Form(...), password: str = Form(...)):
-    """管理员登录"""
-    # 验证用户名和密码（简化版本）
-    if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
-        response = JSONResponse({"success": True, "message": "登录成功"})
-        # 设置 cookie
-        response.set_cookie(
-            key="admin_token",
-            value=ADMIN_TOKEN,
-            httponly=True,
-            max_age=3600 * 24  # 24 小时
+async def admin_login(username: str = Form(...), password: str = Form(...)):
+    """管理员登录 - 验证用户密码和管理员权限"""
+    if not db_client:
+        raise HTTPException(
+            status_code=503,
+            detail="数据库未配置，请检查MySQL配置"
         )
-        return response
-    else:
+
+    # 查找用户
+    result = db_client.table('users').select('*').eq('username', username).execute()
+    if not result.data:
         raise HTTPException(status_code=401, detail="用户名或密码错误")
+
+    user_data = result.data[0]
+
+    # 验证密码
+    if not verify_password(password, user_data['password_hash']):
+        raise HTTPException(status_code=401, detail="用户名或密码错误")
+
+    # 检查是否为管理员
+    if not user_data.get('is_admin', False):
+        raise HTTPException(status_code=403, detail="无管理员权限，拒绝访问")
+
+    # 登录成功，设置cookie
+    response = JSONResponse({"success": True, "message": "登录成功", "user": {"username": user_data['username'], "nickname": user_data.get('nickname')}})
+    response.set_cookie(
+        key="admin_token",
+        value=ADMIN_TOKEN,
+        httponly=True,
+        max_age=3600 * 24  # 24 小时
+    )
+    return response
 
 
 @app.post('/api/v1/admin/logout')

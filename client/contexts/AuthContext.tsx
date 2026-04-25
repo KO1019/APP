@@ -10,6 +10,7 @@ interface User {
   nickname: string;
   avatar: string | null;
   cloud_sync_enabled: boolean;
+  is_admin: boolean; // 添加管理员权限字段
   created_at: string;
 }
 
@@ -18,6 +19,7 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isAdmin: boolean; // 添加管理员状态
   isOfflineMode: boolean; // 离线模式
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, password: string, email?: string, nickname?: string) => Promise<void>;
@@ -344,6 +346,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     token,
     isLoading,
     isAuthenticated: !!user && !!token,
+    isAdmin: user?.is_admin || false, // 添加管理员状态
     isOfflineMode,
     login,
     register,
