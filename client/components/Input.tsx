@@ -29,17 +29,6 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
     };
   }, []);
 
-  // 当 secureTextEntry 改变时，清除延迟显示状态
-  useEffect(() => {
-    if (!secureTextEntry) {
-      // 切换到明文模式，清除延迟显示
-      setIsShowingLastChar(false);
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    }
-  }, [secureTextEntry]);
-
   // 当显示最后一个字符时，短暂设置光标到最后
   useEffect(() => {
     if (isShowingLastChar && value && value.length > 0) {
@@ -83,20 +72,17 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
   let finalValue = value;
   let shouldSecure = secureTextEntry;
 
-  // 只有在启用delayedSecure且secureTextEntry为true时才使用延迟显示逻辑
-  // 当 secureTextEntry=false 时（用户点击眼睛），直接显示明文
-  if (delayedSecure && secureTextEntry) {
-    if (isShowingLastChar && value && value.length > 0) {
-      // 短暂显示模式：显示星号+最后一个字符
-      const stars = '•'.repeat(value.length - 1);
-      finalValue = stars + value[value.length - 1];
-      shouldSecure = false;  // 不使用secureTextEntry，我们手动构建显示内容
-    } else {
-      // 完全隐藏模式：使用secureTextEntry显示星号
-      finalValue = value;
-      shouldSecure = true;
-    }
+  // 只有在启用delayedSecure且secureTextEntry为true且isShowingLastChar为true时才使用延迟显示逻辑
+  // 关键修改：当 secureTextEntry=false 时，不进入这个分支，finalValue 保持为原始 value
+  if (delayedSecure && secureTextEntry && isShowingLastChar && value && value.length > 0) {
+    // 短暂显示模式：显示星号+最后一个字符
+    const stars = '•'.repeat(value.length - 1);
+    finalValue = stars + value[value.length - 1];
+    shouldSecure = false;  // 不使用secureTextEntry，我们手动构建显示内容
   }
+  // 其他情况（包括 secureTextEntry=false）：
+  // - finalValue 保持为 value（原始密码）
+  // - shouldSecure 保持为 secureTextEntry（false时不隐藏）
 
   return (
     <View>
