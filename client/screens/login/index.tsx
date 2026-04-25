@@ -123,6 +123,7 @@ export default function LoginScreen() {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
+                  delayedSecure
                   style={styles.passwordInput}
                 />
                 <TouchableOpacity

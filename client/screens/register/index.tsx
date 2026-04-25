@@ -148,6 +148,7 @@ export default function RegisterScreen() {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
+                  delayedSecure
                   style={styles.passwordInput}
                 />
                 <TouchableOpacity
@@ -172,6 +173,7 @@ export default function RegisterScreen() {
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry={!showConfirmPassword}
+                  delayedSecure
                   style={styles.passwordInput}
                 />
                 <TouchableOpacity
