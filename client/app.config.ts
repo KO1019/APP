@@ -56,12 +56,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       "expo-updates",
       "expo-router",
       [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#EA580C"
-        }
-      ],
-      [
         "expo-image-picker",
         {
           "photosPermission": `允许${projectName}访问您的相册，以便您上传或保存图片。`,

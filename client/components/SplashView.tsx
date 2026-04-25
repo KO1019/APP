@@ -11,12 +11,8 @@ import Animated, {
   withSpring
 } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
-import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
-
-// 防止原生启动屏自动隐藏
-SplashScreen.preventAutoHideAsync();
 
 const { width, height } = Dimensions.get('window');
 
@@ -47,8 +43,6 @@ export default function SplashView() {
 
   const navigateToNext = async () => {
     try {
-      await SplashScreen.hideAsync();
-
       const token = await AsyncStorage.getItem('userToken');
 
       if (token) {
@@ -58,7 +52,6 @@ export default function SplashView() {
       }
     } catch (error) {
       console.error('启动页跳转失败:', error);
-      await SplashScreen.hideAsync();
       router.replace('/welcome');
     }
   };
