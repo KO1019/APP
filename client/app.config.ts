@@ -30,7 +30,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#EA580C"  // 暖橙色主题背景
       },
       "package": APP_CONFIG.bundleId,
       "permissions": [
@@ -61,7 +61,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#EA580C"  // 暖橙色主题背景
         }
       ],
       [
