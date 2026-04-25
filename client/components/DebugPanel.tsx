@@ -15,59 +15,58 @@ interface DebugLog {
 let logs: DebugLog[] = [];
 let maxLogs = 200; // 增加日志数量限制
 
-// 重写console方法，同步输出到调试面板
+// 重写console方法，同步输出到调试面板（包括APK环境）
 const originalConsoleError = console.error;
 const originalConsoleWarn = console.warn;
 const originalConsoleInfo = console.info;
 const originalConsoleLog = console.log;
 
-if (typeof __DEV__ !== 'undefined' && __DEV__) {
-  console.error = (...args: any[]) => {
-    // 先调用原始console输出
-    originalConsoleError.apply(console, args);
-    // 然后记录到日志数组
-    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
-    const log: DebugLog = {
-      timestamp: new Date().toLocaleTimeString(),
-      message: message, // 不限制长度
-      type: 'error'
-    };
-    logs = [log, ...logs].slice(0, maxLogs);
+// 始终重写console方法，在APK中也生效
+console.error = (...args: any[]) => {
+  // 先调用原始console输出
+  originalConsoleError.apply(console, args);
+  // 然后记录到日志数组
+  const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
+  const log: DebugLog = {
+    timestamp: new Date().toLocaleTimeString(),
+    message: message, // 不限制长度
+    type: 'error'
   };
+  logs = [log, ...logs].slice(0, maxLogs);
+};
 
-  console.warn = (...args: any[]) => {
-    originalConsoleWarn.apply(console, args);
-    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
-    const log: DebugLog = {
-      timestamp: new Date().toLocaleTimeString(),
-      message: message, // 不限制长度
-      type: 'warn'
-    };
-    logs = [log, ...logs].slice(0, maxLogs);
+console.warn = (...args: any[]) => {
+  originalConsoleWarn.apply(console, args);
+  const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
+  const log: DebugLog = {
+    timestamp: new Date().toLocaleTimeString(),
+    message: message, // 不限制长度
+    type: 'warn'
   };
+  logs = [log, ...logs].slice(0, maxLogs);
+};
 
-  console.info = (...args: any[]) => {
-    originalConsoleInfo.apply(console, args);
-    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
-    const log: DebugLog = {
-      timestamp: new Date().toLocaleTimeString(),
-      message: message, // 不限制长度
-      type: 'info'
-    };
-    logs = [log, ...logs].slice(0, maxLogs);
+console.info = (...args: any[]) => {
+  originalConsoleInfo.apply(console, args);
+  const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
+  const log: DebugLog = {
+    timestamp: new Date().toLocaleTimeString(),
+    message: message, // 不限制长度
+    type: 'info'
   };
+  logs = [log, ...logs].slice(0, maxLogs);
+};
 
-  console.log = (...args: any[]) => {
-    originalConsoleLog.apply(console, args);
-    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
-    const log: DebugLog = {
-      timestamp: new Date().toLocaleTimeString(),
-      message: message, // 不限制长度
-      type: 'info'
-    };
-    logs = [log, ...logs].slice(0, maxLogs);
+console.log = (...args: any[]) => {
+  originalConsoleLog.apply(console, args);
+  const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
+  const log: DebugLog = {
+    timestamp: new Date().toLocaleTimeString(),
+    message: message, // 不限制长度
+    type: 'info'
   };
-}
+  logs = [log, ...logs].slice(0, maxLogs);
+};
 
 export const debug = {
   info: (message: string) => {
@@ -102,17 +101,14 @@ export const debug = {
 
 export default function DebugPanel() {
   const [visible, setVisible] = useState(false);
-  const [currentLogs, setCurrentLogs] = useState<DebugLog[]>(logs);
   const [testingConnection, setTestingConnection] = useState(false);
 
   const toggleDebug = () => {
-    setCurrentLogs(logs);
     setVisible(!visible);
   };
 
   const clearLogs = () => {
     debug.clearLogs();
-    setCurrentLogs([]);
   };
 
   const testConnection = async () => {
@@ -152,7 +148,6 @@ export default function DebugPanel() {
       console.error('错误堆栈:', error.stack);
       Alert.alert('连接测试', `❌ 连接异常\n错误: ${error.message}`);
     } finally {
-      setCurrentLogs([...logs]);
       setTestingConnection(false);
     }
   };
@@ -160,7 +155,7 @@ export default function DebugPanel() {
   const copyLogs = async () => {
     try {
       // 格式化日志内容
-      const logText = currentLogs.map(log => {
+      const logText = logs.map(log => {
         const typeIcon = log.type === 'error' ? '❌' : log.type === 'warn' ? '⚠️' : 'ℹ️';
         return `[${log.timestamp}] ${typeIcon} ${log.message}`;
       }).join('\n\n');
@@ -179,7 +174,7 @@ export default function DebugPanel() {
       const fullText = logText + configText;
 
       await Clipboard.setStringAsync(fullText);
-      Alert.alert('复制成功', `已复制 ${currentLogs.length} 条日志到剪贴板`);
+      Alert.alert('复制成功', `已复制 ${logs.length} 条日志到剪贴板`);
     } catch (error: any) {
       Alert.alert('复制失败', error.message);
     }
@@ -228,10 +223,10 @@ export default function DebugPanel() {
             </View>
 
             <ScrollView style={styles.logContainer}>
-              {currentLogs.length === 0 ? (
+              {logs.length === 0 ? (
                 <Text style={styles.emptyText}>暂无日志</Text>
               ) : (
-                currentLogs.map((log, index) => (
+                logs.map((log, index) => (
                   <View key={index} style={[
                     styles.logItem,
                     log.type === 'error' && styles.logError,

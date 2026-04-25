@@ -15,6 +15,16 @@ const API_BASE = API_CONFIG.baseUrl.replace(/\/$/, '');
  * @throws Error 如果后端URL未配置
  */
 export const buildApiUrl = (path: string): string => {
+  console.log('========== [buildApiUrl] 开始构建URL ==========');
+  console.log('[buildApiUrl] 输入参数:');
+  console.log('  path:', path);
+  console.log('  type:', typeof path);
+  console.log('[buildApiUrl] 当前配置:');
+  console.log('  API_CONFIG.baseUrl:', API_CONFIG.baseUrl);
+  console.log('  API_CONFIG.baseUrl类型:', typeof API_CONFIG.baseUrl);
+  console.log('  process.env.EXPO_PUBLIC_BACKEND_BASE_URL:', process.env.EXPO_PUBLIC_BACKEND_BASE_URL);
+  console.log('  Platform.OS:', Platform.OS);
+
   // 检查后端URL是否已配置
   if (!API_CONFIG.baseUrl) {
     const errorMessage = '[buildApiUrl] 后端URL未配置，请在 .env 文件中设置 EXPO_PUBLIC_BACKEND_BASE_URL';
@@ -24,24 +34,37 @@ export const buildApiUrl = (path: string): string => {
       baseUrl: API_CONFIG.baseUrl,
       envBackendUrl: process.env.EXPO_PUBLIC_BACKEND_BASE_URL,
     });
+    console.log('========== [buildApiUrl] 构建失败 ==========');
     throw new Error('后端URL未配置，请检查环境变量');
   }
 
   let url: string;
   let baseUrl = API_CONFIG.baseUrl;
 
+  console.log('[buildApiUrl] 开始处理路径...');
+  console.log('  原始baseUrl:', baseUrl);
+  console.log('  原始path:', path);
+
   // 智能处理：如果baseUrl已经以/api结尾，则去掉path中的/api前缀
   if (baseUrl.endsWith('/api')) {
+    console.log('[buildApiUrl] baseUrl以/api结尾，需要调整path');
     // 如果path以/api开头，则去掉path的/api部分
     if (path.startsWith('/api')) {
       path = path.substring(4); // 去掉 '/api'
+      console.log('  移除path的/api前缀，新path:', path);
     }
     // 确保baseUrl不以斜杠结尾
     baseUrl = baseUrl.replace(/\/$/, '');
+    console.log('  调整后baseUrl:', baseUrl);
   }
 
   // 构建最终URL
   url = `${baseUrl}${path}`;
+
+  console.log('[buildApiUrl] 构建完成:');
+  console.log('  最终URL:', url);
+  console.log('  最终URL长度:', url.length);
+  console.log('========== [buildApiUrl] 构建完成 ==========');
 
   const logInfo = {
     platform: Platform.OS,
@@ -50,8 +73,8 @@ export const buildApiUrl = (path: string): string => {
     finalUrl: url
   };
 
-  debug.info('[buildApiUrl] 构建URL:', JSON.stringify(logInfo));
-  console.log('[buildApiUrl] 构建URL:', logInfo);
+  debug.info('[buildApiUrl] 构建URL:', JSON.stringify(logInfo, null, 2));
+  console.log('[buildApiUrl] 详细信息:', logInfo);
 
   return url;
 };
