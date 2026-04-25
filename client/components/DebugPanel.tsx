@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Dimensions, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Dimensions, ActivityIndicator, Alert, Platform } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { buildApiUrl } from '@/utils';
 import { API_CONFIG } from '@/config';
 
@@ -154,6 +155,34 @@ export default function DebugPanel() {
     }
   };
 
+  const copyLogs = async () => {
+    try {
+      // 格式化日志内容
+      const logText = currentLogs.map(log => {
+        const typeIcon = log.type === 'error' ? '❌' : log.type === 'warn' ? '⚠️' : 'ℹ️';
+        return `[${log.timestamp}] ${typeIcon} ${log.message}`;
+      }).join('\n\n');
+
+      // 添加配置信息
+      const configText = `\n\n========== 配置信息 ==========\n`;
+      const configDetails = [
+        `后端URL: ${API_CONFIG.baseUrl || '未配置'}`,
+        `环境变量: ${process.env.EXPO_PUBLIC_BACKEND_BASE_URL || '未设置'}`,
+        `平台: ${typeof window !== 'undefined' ? 'web' : 'native'}`,
+        typeof window === 'undefined' && `设备: ${Platform.OS} ${Platform.Version}`,
+        typeof window === 'undefined' && `网络: ${Platform.OS === 'android' ? '移动网络/WiFi' : 'WiFi'}`,
+        `环境: ${process.env.NODE_ENV || 'unknown'}`,
+      ].filter(Boolean).join('\n');
+
+      const fullText = logText + configText;
+
+      await Clipboard.setStringAsync(fullText);
+      Alert.alert('复制成功', `已复制 ${currentLogs.length} 条日志到剪贴板`);
+    } catch (error: any) {
+      Alert.alert('复制失败', error.message);
+    }
+  };
+
   return (
     <>
       {/* 调试按钮 */}
@@ -183,6 +212,9 @@ export default function DebugPanel() {
                   ) : (
                     <Text style={styles.testButtonText}>测试连接</Text>
                   )}
+                </TouchableOpacity>
+                <TouchableOpacity onPress={copyLogs} style={styles.copyButton}>
+                  <Text style={styles.copyButtonText}>📋 复制</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={clearLogs} style={styles.clearButton}>
                   <Text style={styles.clearButtonText}>清空</Text>
@@ -306,6 +338,20 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   testButtonText: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  copyButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    backgroundColor: '#6366F1',
+    borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  copyButtonText: {
     fontSize: 12,
     color: '#FFFFFF',
     fontWeight: '600',
