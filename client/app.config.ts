@@ -23,9 +23,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     "scheme": APP_CONFIG.scheme,
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "backgroundColor": "#EA580C", // 设置启动画面背景色与启动页面一致
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": APP_CONFIG.bundleId
+      "bundleIdentifier": APP_CONFIG.bundleId,
+      "backgroundColor": "#EA580C", // iOS启动画面背景色
     },
     "android": {
       "adaptiveIcon": {
@@ -35,6 +37,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       },
       "icon": "./assets/images/icon-safe.png",
       "package": APP_CONFIG.bundleId,
+      "backgroundColor": "#EA580C", // Android启动画面背景色
       "permissions": [
         'INTERNET',
         'ACCESS_NETWORK_STATE',
