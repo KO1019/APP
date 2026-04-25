@@ -377,7 +377,7 @@ export default function ProfileScreen() {
         onPress={item.action}
       >
         <View style={[styles.menuIcon, { backgroundColor: iconBgColor }]}>
-          <Ionicons name={item.icon as any} size={20} color={iconColor} />
+          <FontAwesome6 name={item.icon as any} size={20} color={iconColor} />
         </View>
         <View style={styles.menuContent}>
           <Text style={[styles.menuTitle, { color: titleColor, fontWeight: isLogout ? '600' : '500' }]}>
@@ -389,7 +389,7 @@ export default function ProfileScreen() {
             </Text>
           )}
         </View>
-        <Ionicons name={isLogout ? 'right-from-bracket' : 'chevron-right'} size={16} color={isLogout ? '#DC2626' : muted} />
+        <FontAwesome6 name={isLogout ? 'right-from-bracket' : 'chevron-right'} size={16} color={isLogout ? '#DC2626' : muted} />
       </TouchableOpacity>
     );
   };
@@ -399,7 +399,7 @@ export default function ProfileScreen() {
       <ScrollView style={[styles.container, { backgroundColor: background }]}>
         <View style={styles.header}>
           <View style={[styles.avatar, { backgroundColor: `${accent}20` }]}>
-            <Ionicons name="person" size={32} color={accent} />
+            <FontAwesome6 name="user" size={32} color={accent} />
           </View>
           <View>
             <Text style={[styles.userName, { color: foreground }]}>我的日记</Text>
@@ -465,13 +465,13 @@ export default function ProfileScreen() {
               }
             }}
           >
-            <Ionicons name="right-from-bracket" size={24} color="#DC2626" />
+            <FontAwesome6 name="right-from-bracket" size={24} color="#DC2626" />
             <Text style={[styles.logoutButtonText, { color: '#DC2626' }]}>退出登录</Text>
           </TouchableOpacity>
         </View>
 
         <View style={[styles.footer, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
-          <Ionicons name="heart" size={16} color={accent} style={styles.footerIcon} />
+          <FontAwesome6 name="heart" size={16} color={accent} style={styles.footerIcon} />
           <Text style={[styles.footerText, { color: muted }]}>
             情绪日记 & 心理状态智能陪伴系统
           </Text>
@@ -498,11 +498,11 @@ export default function ProfileScreen() {
             >
               <View style={styles.modalHeader}>
                 <Animated.View entering={ZoomIn.duration(300)}>
-                  <Ionicons name="heart-pulse" size={24} color={accent} />
+                  <FontAwesome6 name="heart-pulse" size={24} color={accent} />
                 </Animated.View>
                 <Text style={[styles.modalTitle, { color: foreground }]}>心理健康建议</Text>
                 <TouchableOpacity onPress={() => setShowHealthTips(false)}>
-                  <Ionicons name="xmark" size={24} color={muted} />
+                  <FontAwesome6 name="xmark" size={24} color={muted} />
                 </TouchableOpacity>
               </View>
 
@@ -515,7 +515,7 @@ export default function ProfileScreen() {
                 <Animated.ScrollView style={styles.modalBody} entering={FadeIn.duration(300).delay(150)}>
                   {healthTips.message && (
                     <Animated.View style={[styles.messageBox, { backgroundColor: `${accent}10`, borderColor: accent, borderWidth: 1 }]} entering={ZoomIn.duration(300).delay(200)}>
-                      <Ionicons name="lightbulb" size={20} color={accent} style={styles.messageBoxIcon} />
+                      <FontAwesome6 name="lightbulb" size={20} color={accent} style={styles.messageBoxIcon} />
                       <Text style={[styles.messageBoxText, { color: foreground }]}>{healthTips.message}</Text>
                     </Animated.View>
                   )}
@@ -523,7 +523,7 @@ export default function ProfileScreen() {
                   <Animated.Text style={[styles.tipsTitle, { color: foreground }]} entering={FadeIn.duration(300).delay(250)}>建议</Animated.Text>
                   {healthTips.tips && healthTips.tips.map((tip: string, index: number) => (
                     <Animated.View key={index} style={[styles.tipItem, { backgroundColor: background, borderColor: border, borderWidth: 1 }]} entering={FadeIn.duration(300).delay(300 + index * 50)}>
-                      <Ionicons name="checkmark-circle" size={20} color={accent} style={styles.tipIcon} />
+                      <FontAwesome6 name="circle-check" size={20} color={accent} style={styles.tipIcon} />
                       <Text style={[styles.tipText, { color: foreground }]}>{tip}</Text>
                     </Animated.View>
                   ))}

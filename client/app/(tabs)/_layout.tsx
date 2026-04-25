@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { FontAwesome6 } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
 
 export default function TabLayout() {
@@ -43,7 +43,7 @@ export default function TabLayout() {
         options={{
           title: '日记',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="book-outline" size={size} color={color} />
+            <FontAwesome6 name="book-open" size={size} color={color} />
           ),
         }}
       />
@@ -52,7 +52,7 @@ export default function TabLayout() {
         options={{
           title: '陪伴',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubbles" size={size} color={color} />
+            <FontAwesome6 name="comments" size={size} color={color} />
           ),
         }}
       />
@@ -61,7 +61,7 @@ export default function TabLayout() {
         options={{
           title: '统计',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="stats-chart" size={size} color={color} />
+            <FontAwesome6 name="chart-line" size={size} color={color} />
           ),
         }}
       />
@@ -70,7 +70,7 @@ export default function TabLayout() {
         options={{
           title: '我的',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={size} color={color} />
+            <FontAwesome6 name="user" size={size} color={color} />
           ),
         }}
       />

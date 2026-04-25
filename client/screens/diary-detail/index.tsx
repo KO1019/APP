@@ -280,7 +280,7 @@ export default function DiaryDetailScreen() {
         <View style={[styles.container, { backgroundColor: background }]}>
           <View style={[styles.header, { paddingTop: 12 }]}>
             <TouchableOpacity onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={24} color={foreground} />
+              <FontAwesome6 name="arrow-left" size={24} color={foreground} />
             </TouchableOpacity>
             <Text style={[styles.title, { color: foreground }]}>日记详情</Text>
             <View style={{ width: 24 }} />
@@ -299,13 +299,13 @@ export default function DiaryDetailScreen() {
         <View style={[styles.container, { backgroundColor: background }]}>
           <View style={[styles.header, { paddingTop: 12 }]}>
             <TouchableOpacity onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={24} color={foreground} />
+              <FontAwesome6 name="arrow-left" size={24} color={foreground} />
             </TouchableOpacity>
             <Text style={[styles.title, { color: foreground }]}>日记详情</Text>
             <View style={{ width: 24 }} />
           </View>
           <View style={styles.emptyContainer}>
-            <Ionicons name="file-xmark" size={64} color={muted} />
+            <FontAwesome6 name="file-xmark" size={64} color={muted} />
             <Text style={[styles.emptyText, { color: muted }]}>日记不存在</Text>
           </View>
         </View>
@@ -333,7 +333,7 @@ export default function DiaryDetailScreen() {
           {/* 头部导航 */}
           <View style={[styles.header, { paddingTop: 12 }]}>
             <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
-              <Ionicons name="arrow-back" size={24} color={foreground} />
+              <FontAwesome6 name="arrow-left" size={24} color={foreground} />
             </TouchableOpacity>
             <Text style={[styles.title, { color: foreground }]}>日记详情</Text>
             <View style={styles.headerActions}>
@@ -342,7 +342,7 @@ export default function DiaryDetailScreen() {
                 style={styles.headerButton}
                 activeOpacity={0.7}
               >
-                <Ionicons name="pen-to-square" size={20} color={accent} />
+                <FontAwesome6 name="pen-to-square" size={20} color={accent} />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleDelete}
@@ -350,7 +350,7 @@ export default function DiaryDetailScreen() {
                 activeOpacity={0.7}
                 disabled={deleting}
               >
-                <Ionicons name="trash" size={20} color={deleting ? muted : destructive} />
+                <FontAwesome6 name="trash" size={20} color={deleting ? muted : destructive} />
               </TouchableOpacity>
             </View>
           </View>
@@ -372,13 +372,13 @@ export default function DiaryDetailScreen() {
               <View style={styles.weatherMoodRow}>
                 {diary.weather && (
                   <View style={[styles.badge, { backgroundColor: `${accent}15` }]}>
-                    <Ionicons name={weatherIcon as any} size={18} color={accent} />
+                    <FontAwesome6 name={weatherIcon as any} size={18} color={accent} />
                     <Text style={[styles.badgeText, { color: foreground }]}>{weatherLabel}</Text>
                   </View>
                 )}
                 {diary.mood && (
                   <View style={[styles.badge, { backgroundColor: `${emotionColor}20` }]}>
-                    <Ionicons name={emotionIcons[diary.mood] as any || 'face-smile'} size={18} color={emotionColor} />
+                    <FontAwesome6 name={emotionIcons[diary.mood] as any || 'face-smile'} size={18} color={emotionColor} />
                     <Text style={[styles.badgeText, { color: foreground }]}>{emotionLabel}</Text>
                   </View>
                 )}
@@ -411,7 +411,7 @@ export default function DiaryDetailScreen() {
             {/* 位置 - 修复toFixed错误 */}
             {diary.location && diary.location.latitude && diary.location.longitude && (
               <View style={[styles.infoCard, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
-                <Ionicons name="location-dot" size={16} color={accent} />
+                <FontAwesome6 name="location-dot" size={16} color={accent} />
                 <Text style={[styles.infoText, { color: foreground }]}>
                   {diary.location.address || `${diary.location.latitude.toFixed(4)}, ${diary.location.longitude.toFixed(4)}`}
                 </Text>
@@ -425,7 +425,7 @@ export default function DiaryDetailScreen() {
                 <View style={styles.tagsRow}>
                   {diary.tags.map((tag, index) => (
                     <View key={index} style={[styles.tag, { backgroundColor: `${accent}10`, borderColor: `${accent}30`, borderWidth: 1 }]}>
-                      <Ionicons name="tag" size={12} color={accent} />
+                      <FontAwesome6 name="tag" size={12} color={accent} />
                       <Text style={[styles.tagText, { color: foreground }]}>{tag}</Text>
                     </View>
                   ))}
@@ -458,12 +458,12 @@ export default function DiaryDetailScreen() {
               onPress={() => router.push('/chat', { diaryId: diary.id })}
               activeOpacity={0.8}
             >
-              <Ionicons name="chatbubbles" size={24} color="#FFFFFF" />
+              <FontAwesome6 name="comments" size={24} color="#FFFFFF" />
               <View style={styles.chatButtonContent}>
                 <Text style={[styles.chatButtonText, { color: '#FFFFFF' }]}>与AI聊聊</Text>
                 <Text style={[styles.chatButtonSubtitle, { color: `${accent}90` }]}>让AI陪伴你聊聊这篇日记</Text>
               </View>
-              <Ionicons name="arrow-right" size={20} color="#FFFFFF" />
+              <FontAwesome6 name="arrow-right" size={20} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         </ScrollView>

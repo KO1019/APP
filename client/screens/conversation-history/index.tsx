@@ -309,11 +309,11 @@ export default function ConversationHistoryScreen() {
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color={foreground} />
+              <FontAwesome6 name="arrow-left" size={24} color={foreground} />
             </TouchableOpacity>
           </View>
           <View style={styles.headerCenter}>
-            <Ionicons name="clock-rotate-left" size={24} color={accent} style={styles.headerIcon} />
+            <FontAwesome6 name="clock-rotate-left" size={24} color={accent} style={styles.headerIcon} />
             <View>
               <Text style={[styles.title, { color: foreground }]}>对话历史</Text>
               <Text style={[styles.subtitle, { color: muted }]}>查看你的聊天记录</Text>
@@ -321,20 +321,20 @@ export default function ConversationHistoryScreen() {
           </View>
           <View style={styles.headerRight}>
             <TouchableOpacity onPress={() => router.replace('/chat')} style={styles.newChatButton}>
-              <Ionicons name="add" size={20} color={foreground} />
+              <FontAwesome6 name="plus" size={20} color={foreground} />
             </TouchableOpacity>
           </View>
         </View>
 
         {conversations.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Ionicons name="chatbubbles" size={64} color={muted} style={styles.emptyIcon} />
+            <FontAwesome6 name="comments" size={64} color={muted} style={styles.emptyIcon} />
             <Text style={[styles.emptyTitle, { color: foreground }]}>还没有对话记录</Text>
             <Text style={[styles.emptyText, { color: muted }]}>
               和AI陪伴助手聊聊天，开始记录你的对话吧
             </Text>
             <View style={styles.tipsContainer}>
-              <Ionicons name="lightbulb" size={16} color={accent} style={styles.tipsIcon} />
+              <FontAwesome6 name="lightbulb" size={16} color={accent} style={styles.tipsIcon} />
               <Text style={[styles.tipsText, { color: muted }]}>
                 小提示：在日记详情页点击&ldquo;与AI聊聊&rdquo;，可以围绕日记内容进行对话
               </Text>
@@ -351,7 +351,7 @@ export default function ConversationHistoryScreen() {
               >
                 <View style={styles.conversationHeader}>
                   <View style={[styles.avatarContainer, { backgroundColor: `${accent}20` }]}>
-                    <Ionicons name="person" size={16} color={accent} />
+                    <FontAwesome6 name="user" size={16} color={accent} />
                   </View>
                   <Text style={[styles.conversationTime, { color: muted }]} numberOfLines={1}>
                     {formatDate(conversation.created_at)}
@@ -367,7 +367,7 @@ export default function ConversationHistoryScreen() {
                     activeOpacity={0.6}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Ionicons name="trash-can" size={16} color="#EF4444" />
+                    <FontAwesome6 name="trash-can" size={16} color="#EF4444" />
                   </TouchableOpacity>
                 </View>
                 <Text
@@ -380,7 +380,7 @@ export default function ConversationHistoryScreen() {
                 <View style={[styles.divider, { backgroundColor: border }]} />
                 {conversation.ai_message ? (
                   <View style={styles.aiMessageContainer}>
-                    <Ionicons name="robot" size={14} color={accent} style={styles.aiIcon} />
+                    <FontAwesome6 name="robot" size={14} color={accent} style={styles.aiIcon} />
                     <Text
                       style={[styles.aiMessage, { color: foreground }]}
                       numberOfLines={2}

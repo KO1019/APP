@@ -3,7 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LogBox } from 'react-native';
 import { View, Text, StyleSheet } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { Ionicons } from '@expo/vector-icons';
+import { FontAwesome6 } from '@expo/vector-icons';
 import { Provider } from '@/components/Provider';
 import { PasswordProvider } from '@/contexts/PasswordContext';
 import { AppLockProvider } from '@/components/AppLockProvider';
@@ -30,7 +30,7 @@ const toastConfig = {
   success: (internalState: any) => (
     <View style={styles.toastContainer}>
       <View style={[styles.toastIcon, { backgroundColor: '#10B981' }]}>
-        <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+        <FontAwesome6 name="check" size={16} color="#FFFFFF" />
       </View>
       <View style={styles.toastContent}>
         <Text style={styles.toastTitle}>{internalState.text1}</Text>
@@ -43,7 +43,7 @@ const toastConfig = {
   error: (internalState: any) => (
     <View style={styles.toastContainer}>
       <View style={[styles.toastIcon, { backgroundColor: '#EF4444' }]}>
-        <Ionicons name="alert-circle" size={16} color="#FFFFFF" />
+        <FontAwesome6 name="circle-exclamation" size={16} color="#FFFFFF" />
       </View>
       <View style={styles.toastContent}>
         <Text style={styles.toastTitle}>{internalState.text1}</Text>
@@ -56,7 +56,7 @@ const toastConfig = {
   info: (internalState: any) => (
     <View style={styles.toastContainer}>
       <View style={[styles.toastIcon, { backgroundColor: '#3B82F6' }]}>
-        <Ionicons name="information-circle" size={16} color="#FFFFFF" />
+        <FontAwesome6 name="circle-info" size={16} color="#FFFFFF" />
       </View>
       <View style={styles.toastContent}>
         <Text style={styles.toastTitle}>{internalState.text1}</Text>

@@ -84,7 +84,7 @@ export default function LockScreen() {
       <Screen>
         <View style={[styles.container, { backgroundColor: background }]}>
           <View style={styles.content}>
-            <Ionicons name="lock" size={64} color={accent} style={styles.icon} />
+            <FontAwesome6 name="lock" size={64} color={accent} style={styles.icon} />
             <Text style={[styles.title, { color: foreground }]}>欢迎使用</Text>
             <Text style={[styles.subtitle, { color: muted }]}>
               请先设置密码以保护您的隐私
@@ -99,7 +99,7 @@ export default function LockScreen() {
     <Screen>
       <View style={[styles.container, { backgroundColor: background }]}>
         <View style={styles.content}>
-          <Ionicons name="shield-halved" size={64} color={accent} style={styles.icon} />
+          <FontAwesome6 name="shield-halved" size={64} color={accent} style={styles.icon} />
           <Text style={[styles.title, { color: foreground }]}>安全锁</Text>
           <Text style={[styles.subtitle, { color: muted }]}>
             {isGuestMode ? '请输入访客密码' : '请输入密码解锁'}
@@ -148,7 +148,7 @@ export default function LockScreen() {
               style={[styles.biometricButton, { backgroundColor: surface, borderColor: accent, borderWidth: 2 }]}
               onPress={handleEnableBiometric}
             >
-              <Ionicons name="fingerprint" size={20} color={accent} />
+              <FontAwesome6 name="fingerprint" size={20} color={accent} />
               <Text style={[styles.biometricButtonText, { color: foreground }]}>启用生物识别</Text>
             </TouchableOpacity>
           )}

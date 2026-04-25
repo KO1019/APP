@@ -86,7 +86,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       // 移除 URL 配置，使用默认配置避免 EAS Build 警告
     },
     "runtimeVersion": {
-      "policy": "sdkVersion"
+      "policy": "appVersion"
     },
     "experiments": {
       "typedRoutes": true

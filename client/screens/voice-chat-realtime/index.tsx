@@ -858,7 +858,7 @@ export default function VoiceChatRealtime() {
         <View style={[styles.topBar, { paddingTop: insets.top }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.navButton}>
             <View style={[styles.navButtonInner, { backgroundColor: `${foreground}10` }]}>
-              <Ionicons name="chevron-down" size={20} color={foreground} />
+              <FontAwesome6 name="chevron-down" size={20} color={foreground} />
             </View>
           </TouchableOpacity>
           <View style={styles.statusContainer}>
@@ -878,7 +878,7 @@ export default function VoiceChatRealtime() {
               });
             }}
           >
-            <Ionicons
+            <FontAwesome6
               name={recordMode ? 'file-circle-check' : 'file-lines'}
               size={20}
               color={recordMode ? '#FFFFFF' : accent}
@@ -889,7 +889,7 @@ export default function VoiceChatRealtime() {
         {/* 配置提示 */}
         {!isConnected && (
           <View style={[styles.configWarning, { backgroundColor: `${accent}10`, borderColor: accent, borderWidth: 1 }]}>
-            <Ionicons name="spinner" size={16} color={accent} />
+            <FontAwesome6 name="spinner" size={16} color={accent} />
             <Text style={[styles.configWarningText, { color: accent }]}>
               正在连接语音服务...
             </Text>
@@ -971,7 +971,7 @@ export default function VoiceChatRealtime() {
                   }
                 ]}
               >
-                <Ionicons name="microphone" size={10} color="#FFFFFF" />
+                <FontAwesome6 name="microphone" size={10} color="#FFFFFF" />
               </Animated.View>
             )}
           </View>
@@ -981,7 +981,7 @@ export default function VoiceChatRealtime() {
         <View style={styles.textContainer}>
           {currentInterimText ? (
             <View style={[styles.messageBubble, { backgroundColor: `${accent}20`, borderColor: accent, borderWidth: 1 }]}>
-              <Ionicons name="person" size={16} color={accent} style={styles.icon} />
+              <FontAwesome6 name="user" size={16} color={accent} style={styles.icon} />
               <Text style={[styles.messageText, { color: foreground }]}>{currentInterimText}</Text>
             </View>
           ) : isProcessing ? (
@@ -991,7 +991,7 @@ export default function VoiceChatRealtime() {
             </View>
           ) : latestAiMessage ? (
             <View style={[styles.messageBubble, { backgroundColor: `${surface}`, borderColor: border, borderWidth: 1 }]}>
-              <Ionicons name="robot" size={16} color={accent} style={styles.icon} />
+              <FontAwesome6 name="robot" size={16} color={accent} style={styles.icon} />
               <Text style={[styles.messageText, { color: foreground }]}>{latestAiMessage}</Text>
             </View>
           ) : (
@@ -1012,27 +1012,27 @@ export default function VoiceChatRealtime() {
           <View style={styles.statusContainer}>
             {!isConnected ? (
               <>
-                <Ionicons name="spinner" size={20} color={muted} />
+                <FontAwesome6 name="spinner" size={20} color={muted} />
                 <Text style={[styles.statusText, { color: muted }]}>连接中...</Text>
               </>
             ) : callStatus === 'connecting' ? (
               <>
-                <Ionicons name="spinner" size={20} color={accent} />
+                <FontAwesome6 name="spinner" size={20} color={accent} />
                 <Text style={[styles.statusText, { color: accent }]}>初始化中...</Text>
               </>
             ) : callStatus === 'listening' ? (
               <>
-                <Ionicons name="microphone" size={20} color="#10B981" />
+                <FontAwesome6 name="microphone" size={20} color="#10B981" />
                 <Text style={[styles.statusText, { color: '#10B981' }]}>聆听中</Text>
               </>
             ) : callStatus === 'thinking' ? (
               <>
-                <Ionicons name="brain" size={20} color="#F59E0B" />
+                <FontAwesome6 name="brain" size={20} color="#F59E0B" />
                 <Text style={[styles.statusText, { color: '#F59E0B' }]}>思考中...</Text>
               </>
             ) : callStatus === 'speaking' ? (
               <>
-                <Ionicons name="volume-high" size={20} color={accent} />
+                <FontAwesome6 name="volume-high" size={20} color={accent} />
                 <Text style={[styles.statusText, { color: accent }]}>说话中</Text>
               </>
             ) : null}
@@ -1044,7 +1044,7 @@ export default function VoiceChatRealtime() {
             onPress={handleEndCall}
             activeOpacity={0.7}
           >
-            <Ionicons name="phone-slash" size={24} color="#EF4444" />
+            <FontAwesome6 name="phone-slash" size={24} color="#EF4444" />
             <Text style={[styles.controlButtonText, { color: '#EF4444' }]}>挂断</Text>
           </TouchableOpacity>
         </View>

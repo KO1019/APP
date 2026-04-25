@@ -89,21 +89,21 @@ export default function DownloadScreen() {
           >
             <View style={styles.cardHeader}>
               <View style={styles.iconContainer}>
-                <Ionicons name="android" size={40} color="#3DDC84" />
+                <FontAwesome6 name="android" size={40} color="#3DDC84" />
               </View>
               <View style={styles.cardInfo}>
                 <Text style={styles.platformName}>Android</Text>
                 <Text style={styles.versionText}>版本 {downloadInfo?.android.version}</Text>
               </View>
-              <Ionicons name="download" size={24} color="#3DDC84" />
+              <FontAwesome6 name="download" size={24} color="#3DDC84" />
             </View>
             <View style={styles.cardDetails}>
               <View style={styles.detailItem}>
-                <Ionicons name="hard-drive" size={16} color="#666" />
+                <FontAwesome6 name="hard-drive" size={16} color="#666" />
                 <Text style={styles.detailText}>{downloadInfo?.android.size}</Text>
               </View>
               <View style={styles.detailItem}>
-                <Ionicons name="mobile-screen" size={16} color="#666" />
+                <FontAwesome6 name="mobile-screen" size={16} color="#666" />
                 <Text style={styles.detailText}>{downloadInfo?.android.min_version}+</Text>
               </View>
             </View>
@@ -119,21 +119,21 @@ export default function DownloadScreen() {
           >
             <View style={styles.cardHeader}>
               <View style={styles.iconContainer}>
-                <Ionicons name="apple" size={40} color="#000000" />
+                <FontAwesome6 name="apple" size={40} color="#000000" />
               </View>
               <View style={styles.cardInfo}>
                 <Text style={styles.platformName}>iOS</Text>
                 <Text style={styles.versionText}>版本 {downloadInfo?.ios.version}</Text>
               </View>
-              <Ionicons name="download" size={24} color="#000000" />
+              <FontAwesome6 name="download" size={24} color="#000000" />
             </View>
             <View style={styles.cardDetails}>
               <View style={styles.detailItem}>
-                <Ionicons name="hard-drive" size={16} color="#666" />
+                <FontAwesome6 name="hard-drive" size={16} color="#666" />
                 <Text style={styles.detailText}>{downloadInfo?.ios.size}</Text>
               </View>
               <View style={styles.detailItem}>
-                <Ionicons name="mobile-screen" size={16} color="#666" />
+                <FontAwesome6 name="mobile-screen" size={16} color="#666" />
                 <Text style={styles.detailText}>{downloadInfo?.ios.min_version}+</Text>
               </View>
             </View>
@@ -146,28 +146,28 @@ export default function DownloadScreen() {
           <View style={styles.featuresSection}>
             <Text style={styles.sectionTitle}>功能特色</Text>
             <View style={styles.featureItem}>
-              <Ionicons name="brain" size={24} color="#EA580C" />
+              <FontAwesome6 name="brain" size={24} color="#EA580C" />
               <View style={styles.featureContent}>
                 <Text style={styles.featureTitle}>AI情绪分析</Text>
                 <Text style={styles.featureDescription}>智能识别情绪状态，提供个性化建议</Text>
               </View>
             </View>
             <View style={styles.featureItem}>
-              <Ionicons name="pen-to-square" size={24} color="#EA580C" />
+              <FontAwesome6 name="pen-to-square" size={24} color="#EA580C" />
               <View style={styles.featureContent}>
                 <Text style={styles.featureTitle}>智能写作助手</Text>
                 <Text style={styles.featureDescription}>AI伴写、润色、续写，提升写作体验</Text>
               </View>
             </View>
             <View style={styles.featureItem}>
-              <Ionicons name="stats-chart" size={24} color="#EA580C" />
+              <FontAwesome6 name="chart-line" size={24} color="#EA580C" />
               <View style={styles.featureContent}>
                 <Text style={styles.featureTitle}>情绪趋势追踪</Text>
                 <Text style={styles.featureDescription}>可视化展示情绪变化，助你了解自己</Text>
               </View>
             </View>
             <View style={styles.featureItem}>
-              <Ionicons name="robot" size={24} color="#EA580C" />
+              <FontAwesome6 name="robot" size={24} color="#EA580C" />
               <View style={styles.featureContent}>
                 <Text style={styles.featureTitle}>AI智能对话</Text>
                 <Text style={styles.featureDescription}>24小时在线陪伴，倾听你的心声</Text>
