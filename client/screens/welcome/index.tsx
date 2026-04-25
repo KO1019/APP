@@ -56,7 +56,7 @@ export default function WelcomeScreen() {
   ];
 
   const handleGetStarted = () => {
-    router.replace('/diaries');
+    router.replace('/');
   };
 
   return (

@@ -87,11 +87,14 @@ export default function RootLayout() {
                 headerShown: false
               }}
             >
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="splash" options={{ headerShown: false, gestureEnabled: false }} />
               <Stack.Screen name="login" options={{ headerShown: false }} />
               <Stack.Screen name="register" options={{ headerShown: false }} />
               <Stack.Screen name="welcome" options={{ headerShown: false, gestureEnabled: false }} />
               <Stack.Screen name="lock-screen" options={{ headerShown: false, gestureEnabled: false }} />
               <Stack.Screen name="setup-password" options={{ headerShown: false }} />
+              <Stack.Screen name="download" options={{ headerShown: false }} />
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="write-diary" options={{ headerShown: false }} />
               <Stack.Screen name="diary-detail" options={{ headerShown: false }} />
