@@ -6,7 +6,6 @@ import { Input } from '@/components/Input';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCSSVariable } from 'uniwind';
 import Toast from 'react-native-toast-message';
-import { Ionicons } from '@expo/vector-icons';
 
 export default function RegisterScreen() {
   const [username, setUsername] = useState('');
@@ -14,8 +13,6 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [email, setEmail] = useState('');
   const [nickname, setNickname] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const router = useSafeRouter();
@@ -142,50 +139,22 @@ export default function RegisterScreen() {
 
             <View style={styles.inputContainer}>
               <Text style={[styles.label, { color: foreground }]}>密码 *</Text>
-              <View style={styles.passwordContainer}>
-                <Input
-                  placeholder="至少6个字符"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  style={styles.passwordField}
-                />
-                <TouchableOpacity
-                  style={styles.eyeButton}
-                  onPress={() => setShowPassword(!showPassword)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons
-                    name={showPassword ? 'eye-off' : 'eye'}
-                    size={20}
-                    color={muted}
-                  />
-                </TouchableOpacity>
-              </View>
+              <Input
+                placeholder="至少6个字符"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
             </View>
 
             <View style={styles.inputContainer}>
               <Text style={[styles.label, { color: foreground }]}>确认密码 *</Text>
-              <View style={styles.passwordContainer}>
-                <Input
-                  placeholder="再次输入密码"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry={!showConfirmPassword}
-                  style={styles.passwordField}
-                />
-                <TouchableOpacity
-                  style={styles.eyeButton}
-                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons
-                    name={showConfirmPassword ? 'eye-off' : 'eye'}
-                    size={20}
-                    color={muted}
-                  />
-                </TouchableOpacity>
-              </View>
+              <Input
+                placeholder="再次输入密码"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+              />
             </View>
 
             <View style={styles.inputContainer}>
@@ -263,27 +232,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-  },
-  passwordInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  passwordInput: {
-    flex: 1,
-    borderTopLeftRadius: 12,
-    borderBottomLeftRadius: 12,
-    borderTopRightRadius: 0,
-    borderBottomRightRadius: 0,
-  },
-  passwordToggle: {
-    height: 48,
-    width: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderTopRightRadius: 12,
-    borderBottomRightRadius: 12,
-    borderWidth: 1,
-    borderLeftWidth: 0,
   },
   registerButton: {
     borderRadius: 12,

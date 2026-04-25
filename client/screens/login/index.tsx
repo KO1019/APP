@@ -6,12 +6,10 @@ import { Input } from '@/components/Input';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCSSVariable } from 'uniwind';
 import Toast from 'react-native-toast-message';
-import { Ionicons } from '@expo/vector-icons';
 
 export default function LoginScreen() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const router = useSafeRouter();
@@ -117,26 +115,12 @@ export default function LoginScreen() {
 
             <View style={styles.inputContainer}>
               <Text style={[styles.label, { color: foreground }]}>密码</Text>
-              <View style={styles.passwordContainer}>
-                <Input
-                  placeholder="请输入密码"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  style={styles.passwordField}
-                />
-                <TouchableOpacity
-                  style={styles.eyeButton}
-                  onPress={() => setShowPassword(!showPassword)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons
-                    name={showPassword ? 'eye-off' : 'eye'}
-                    size={20}
-                    color={muted}
-                  />
-                </TouchableOpacity>
-              </View>
+              <Input
+                placeholder="请输入密码"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
             </View>
 
             <TouchableOpacity
@@ -194,21 +178,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-  },
-  passwordContainer: {
-    position: 'relative',
-  },
-  passwordField: {
-    paddingRight: 48,
-  },
-  eyeButton: {
-    position: 'absolute',
-    right: 12,
-    top: 14,
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   loginButton: {
     borderRadius: 12,
