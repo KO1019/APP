@@ -16,7 +16,7 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
   ]) as string[];
 
   // 延迟变星号逻辑
-  const [isShowingLastChar, setIsShowingLastChar] = useState(false);
+  const [isShowingPlainText, setIsShowingPlainText] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 清理定时器
@@ -31,18 +31,18 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
   const handleChangeText = (text: string) => {
     // 只有当启用了delayedSecure且当前处于隐藏模式（secureTextEntry=true）时才处理
     if (delayedSecure && secureTextEntry) {
-      // 输入时短暂显示最后一个字符
-      setIsShowingLastChar(true);
+      // 正在输入时，短暂显示明文
+      setIsShowingPlainText(true);
 
       // 取消之前的定时器
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
 
-      // 延迟0.5秒后变成星号
+      // 延迟0.8秒后变成星号
       timeoutRef.current = setTimeout(() => {
-        setIsShowingLastChar(false);
-      }, 500);
+        setIsShowingPlainText(false);
+      }, 800);
 
       // 调用原始的onChangeText
       if (onChangeText) {
@@ -56,22 +56,9 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
     }
   };
 
-  // 处理显示内容和secureTextEntry
-  let displayValue = value;
-  let shouldSecure = secureTextEntry;
-
-  if (delayedSecure && secureTextEntry) {
-    if (isShowingLastChar && value && value.length > 0) {
-      // 显示"星号+最后一个字符"
-      const bullets = '\u2022'.repeat(value.length - 1);  // 使用圆点字符
-      displayValue = bullets + value[value.length - 1];
-      shouldSecure = false;  // 手动控制显示
-    } else {
-      // 全部显示星号
-      displayValue = value;
-      shouldSecure = true;
-    }
-  }
+  // 确定显示内容和是否使用secureTextEntry
+  // 当delayedSecure和secureTextEntry都为true时，根据isShowingPlainText决定是否显示明文
+  const shouldSecure = secureTextEntry && delayedSecure ? !isShowingPlainText : secureTextEntry;
 
   return (
     <View>
@@ -86,7 +73,7 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
           style,
         ]}
         placeholderTextColor={muted}
-        value={displayValue}
+        value={value}
         onChangeText={handleChangeText}
         secureTextEntry={shouldSecure}
         {...props}
