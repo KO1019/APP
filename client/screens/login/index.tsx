@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 import { Screen } from '@/components/Screen';
 import { Input } from '@/components/Input';
@@ -23,6 +23,9 @@ export default function LoginScreen() {
     '--color-muted',
     '--color-border',
   ]) as string[];
+
+  // 演示模式 - 允许本地登录（无需后端连接）
+  const isDemoMode = true;
 
   const handleLogin = async () => {
     if (!username || !password) {
@@ -54,6 +57,42 @@ export default function LoginScreen() {
 
     try {
       setLoading(true);
+
+      // 演示模式：使用本地登录，无需后端连接
+      if (isDemoMode) {
+        // 模拟延迟
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // 简单验证
+        if (username === 'demo' && password === 'demo123') {
+          // 演示模式登录成功
+          Toast.show({
+            type: 'success',
+            text1: '登录成功（演示模式）',
+            text2: '欢迎回来'
+          });
+          router.replace('/');
+          return;
+        } else if (username === 'admin' && password === 'admin123') {
+          // 演示模式管理员登录成功
+          Toast.show({
+            type: 'success',
+            text1: '登录成功（演示模式）',
+            text2: '欢迎回来，管理员'
+          });
+          router.replace('/');
+          return;
+        } else {
+          Toast.show({
+            type: 'info',
+            text1: '演示模式',
+            text2: '使用 demo/demo123 或 admin/admin123 登录'
+          });
+          return;
+        }
+      }
+
+      // 正常模式：调用后端API
       await login(username, password);
       Toast.show({
         type: 'success',
@@ -100,6 +139,13 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.form}>
+            {isDemoMode && (
+              <View style={[styles.demoModeBanner, { backgroundColor: `${accent}15`, borderColor: accent }]}>
+                <Text style={[styles.demoModeText, { color: accent }]}>💡 演示模式</Text>
+                <Text style={[styles.demoModeHint, { color: muted }]}>测试账号：demo/demo123 或 admin/admin123</Text>
+              </View>
+            )}
+
             <View style={styles.inputContainer}>
               <Text style={[styles.label, { color: foreground }]}>用户名</Text>
               <Input
@@ -169,6 +215,20 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: 20,
+  },
+  demoModeBanner: {
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  demoModeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  demoModeHint: {
+    fontSize: 12,
   },
   inputContainer: {
     gap: 8,
