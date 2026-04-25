@@ -28,11 +28,10 @@ export const API_CONFIG = {
   baseUrl: (() => {
     const envUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
 
-    if (isDevelopment) {
-      debug.info('[API_CONFIG] 环境变量 EXPO_PUBLIC_BACKEND_BASE_URL:');
-      debug.info(envUrl || '未设置');
-      debug.info('[API_CONFIG] process.env keys:', Object.keys(process.env).filter(k => k.startsWith('EXPO_PUBLIC')));
-    }
+    // 总是记录到调试面板，包括APK环境
+    debug.info('[API_CONFIG] 环境变量 EXPO_PUBLIC_BACKEND_BASE_URL:');
+    debug.info(envUrl || '未设置');
+    debug.info('[API_CONFIG] process.env.EXPO_PUBLIC keys:', Object.keys(process.env).filter(k => k.startsWith('EXPO_PUBLIC')));
 
     console.log('[API_CONFIG] 环境变量 EXPO_PUBLIC_BACKEND_BASE_URL:', envUrl);
     console.log('[API_CONFIG] process.env:', process.env);

@@ -26,6 +26,13 @@ export default function LoginScreen() {
     '--color-border',
   ]) as string[];
 
+  // 记录当前配置信息到调试面板
+  debug.info('==================== 登录页面配置信息 ====================');
+  debug.info(`后端URL: ${API_CONFIG.baseUrl}`);
+  debug.info(`环境变量: ${process.env.EXPO_PUBLIC_BACKEND_BASE_URL || '未设置'}`);
+  debug.info(`平台: ${Platform.OS}`);
+  debug.info('============================================================');
+
   const handleLogin = async () => {
     debug.info('[Login] 开始登录流程');
     debug.info(`[Login] 用户名: ${username}`);

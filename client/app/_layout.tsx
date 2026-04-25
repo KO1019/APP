@@ -113,8 +113,8 @@ export default function RootLayout() {
               <Stack.Screen name="about" options={{ headerShown: false }} />
             </Stack>
             <Toast config={toastConfig} />
-            {/* 开发模式下显示调试面板 */}
-            {typeof __DEV__ !== 'undefined' && __DEV__ && <DebugPanel />}
+            {/* 调试面板 - 在开发模式和APK中都显示 */}
+            <DebugPanel />
           </Provider>
         </AppLockProvider>
       </PasswordProvider>
