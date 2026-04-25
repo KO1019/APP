@@ -19,7 +19,7 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
   const [isShowingLastChar, setIsShowingLastChar] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [selection, setSelection] = useState<{ start: number; end: number } | undefined>(undefined);
-  const isTypingRef = useRef(false);  // 跟踪是否正在输入
+  const prevValueRef = useRef(value);  // 记录上一次的值，用于判断是新增还是删除
 
   // 清理定时器
   useEffect(() => {
@@ -35,30 +35,18 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
     // 如果切换到明文模式或关闭延迟显示，重置状态
     if (!secureTextEntry || !delayedSecure) {
       setIsShowingLastChar(false);
-      isTypingRef.current = false;
       setSelection(undefined);
     }
   }, [secureTextEntry, delayedSecure]);
 
-  // 当不在延迟显示模式时，清除光标控制
+  // 当显示模式改变时，设置光标到最后
   useEffect(() => {
-    if (!delayedSecure || !secureTextEntry || !isShowingLastChar) {
-      if (!isTypingRef.current) {
-        setSelection(undefined);
-      }
-    }
-  }, [delayedSecure, secureTextEntry, isShowingLastChar]);
-
-  // 当显示模式改变时，只有在正在输入时才设置光标到最后
-  useEffect(() => {
-    // 只有在正在输入且处于延迟显示模式时，才设置光标到最后
-    if (delayedSecure && secureTextEntry && isShowingLastChar && isTypingRef.current && value && value.length > 0) {
+    if (delayedSecure && secureTextEntry && isShowingLastChar && value && value.length > 0) {
       // 显示模式是星号+最后一个字符，光标应该在最后
       const stars = '•'.repeat(value.length - 1);
       const finalValue = stars + value[value.length - 1];
       setSelection({ start: finalValue.length, end: finalValue.length });
     }
-    // 不要在这里重置 isTypingRef，让它在下一次handleChangeText时自然重置
   }, [isShowingLastChar, value, delayedSecure, secureTextEntry]);
 
   const handleChangeText = (text: string) => {
@@ -69,27 +57,34 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
 
     // 只有当启用了delayedSecure且当前处于隐藏模式（secureTextEntry=true）时才处理
     if (delayedSecure && secureTextEntry) {
-      // 先重置之前的typing状态
-      isTypingRef.current = false;
+      // 判断是新增字符还是删除/修改
+      const prevLength = prevValueRef.current?.length || 0;
+      const currentLength = text.length;
 
-      // 标记正在输入
-      isTypingRef.current = true;
+      // 只有在新增字符时才触发延迟显示
+      if (currentLength > prevLength) {
+        // 正在输入新字符，短暂显示最后一个字符
+        setIsShowingLastChar(true);
 
-      // 正在输入时，短暂显示最后一个字符
-      setIsShowingLastChar(true);
+        // 取消之前的定时器
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
 
-      // 取消之前的定时器
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+        // 延迟0.8秒后变成星号
+        timeoutRef.current = setTimeout(() => {
+          setIsShowingLastChar(false);
+        }, 800);
+      } else {
+        // 删除或修改字符，不显示最后字符
+        setIsShowingLastChar(false);
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
       }
 
-      // 延迟0.8秒后变成星号
-      timeoutRef.current = setTimeout(() => {
-        setIsShowingLastChar(false);
-      }, 800);
-    } else {
-      // 非密码输入框或明文模式，清除typing状态
-      isTypingRef.current = false;
+      // 更新上一次的值
+      prevValueRef.current = text;
     }
   };
 
