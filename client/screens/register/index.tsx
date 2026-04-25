@@ -151,7 +151,7 @@ export default function RegisterScreen() {
                   style={styles.passwordInput}
                 />
                 <TouchableOpacity
-                  style={styles.passwordToggle}
+                  style={[styles.passwordToggle, { backgroundColor: background, borderColor: border }]}
                   onPress={() => setShowPassword(!showPassword)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
@@ -175,7 +175,7 @@ export default function RegisterScreen() {
                   style={styles.passwordInput}
                 />
                 <TouchableOpacity
-                  style={styles.passwordToggle}
+                  style={[styles.passwordToggle, { backgroundColor: background, borderColor: border }]}
                   onPress={() => setShowConfirmPassword(!showConfirmPassword)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
@@ -270,7 +270,6 @@ const styles = StyleSheet.create({
   },
   passwordInput: {
     flex: 1,
-    height: 48,
     borderTopLeftRadius: 12,
     borderBottomLeftRadius: 12,
     borderTopRightRadius: 0,
@@ -285,7 +284,6 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 12,
     borderWidth: 1,
     borderLeftWidth: 0,
-    borderColor: border,
   },
   registerButton: {
     borderRadius: 12,
