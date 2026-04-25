@@ -30,8 +30,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#EA580C",
-        "monochromeImage": null
+        "backgroundColor": "#EA580C"  // 暖橙色主题背景
       },
       "package": APP_CONFIG.bundleId,
       "permissions": [
