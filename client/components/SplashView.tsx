@@ -90,7 +90,7 @@ export default function SplashView() {
     );
 
     // 闪光效果
-    const animateSparkle = (scale, opacity, delay) => {
+    const animateSparkle = (scale: any, opacity: any, delay: number) => {
       scale.value = withDelay(delay,
         withRepeat(
           withSequence(
