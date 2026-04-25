@@ -39,10 +39,10 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
         clearTimeout(timeoutRef.current);
       }
 
-      // 延迟1.5秒后变成星号
+      // 延迟0.8秒后变成星号
       timeoutRef.current = setTimeout(() => {
         setIsShowingPlainText(false);
-      }, 1500);
+      }, 800);
 
       // 调用原始的onChangeText
       if (onChangeText) {
