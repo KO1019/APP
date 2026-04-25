@@ -18,7 +18,7 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
   // 延迟变星号逻辑
   const [isShowingLastChar, setIsShowingLastChar] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [cursorPosition, setCursorPosition] = useState<number | undefined>(undefined);
+  const [selection, setSelection] = useState<{ start: number; end: number } | undefined>(undefined);
 
   // 清理定时器
   useEffect(() => {
@@ -28,6 +28,19 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
       }
     };
   }, []);
+
+  // 当显示模式改变时，确保光标在最后
+  useEffect(() => {
+    if (delayedSecure && secureTextEntry && isShowingLastChar && value && value.length > 0) {
+      // 显示模式是星号+最后一个字符，光标应该在最后
+      const stars = '•'.repeat(value.length - 1);
+      const finalValue = stars + value[value.length - 1];
+      setSelection({ start: finalValue.length, end: finalValue.length });
+    } else {
+      // 清除selection，让TextInput自己管理光标
+      setSelection(undefined);
+    }
+  }, [isShowingLastChar, value, delayedSecure, secureTextEntry]);
 
   const handleChangeText = (text: string) => {
     // 只有当启用了delayedSecure且当前处于隐藏模式（secureTextEntry=true）时才处理
@@ -49,9 +62,6 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
       if (onChangeText) {
         onChangeText(text);
       }
-
-      // 设置光标到末尾
-      setCursorPosition(text.length);
     } else {
       // 普通输入框或显示密码模式
       if (onChangeText) {
@@ -93,11 +103,7 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
         value={finalValue}
         onChangeText={handleChangeText}
         secureTextEntry={shouldSecure}
-        selection={
-          cursorPosition !== undefined
-            ? { start: cursorPosition, end: cursorPosition }
-            : undefined
-        }
+        selection={selection}
         {...props}
       />
       {error && <Text style={styles.error}>{error}</Text>}
