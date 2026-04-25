@@ -303,10 +303,11 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: width * 0.95, // 增加宽度到95%
-    maxHeight: height * 0.75, // 增加高度到75%
+    height: height * 0.75, // 改为固定高度，而不是maxHeight
     backgroundColor: '#1F2937',
     borderRadius: 16,
     overflow: 'hidden',
+    flexDirection: 'column', // 明确使用列布局
   },
   modalHeader: {
     flexDirection: 'row',
@@ -379,6 +380,7 @@ const styles = StyleSheet.create({
   logContainer: {
     flex: 1,
     padding: 12,
+    minHeight: 100, // 确保最小高度
   },
   emptyText: {
     textAlign: 'center',
@@ -419,6 +421,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#374151',
     borderTopWidth: 1,
     borderTopColor: '#4B5563',
+    flexShrink: 0, // 防止被压缩
   },
   configLabel: {
     fontSize: 12,
