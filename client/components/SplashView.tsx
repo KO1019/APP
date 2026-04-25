@@ -14,7 +14,6 @@ import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
-import { Ionicons } from '@expo/vector-icons';
 
 // 防止原生启动屏自动隐藏
 SplashScreen.preventAutoHideAsync();
@@ -214,7 +213,7 @@ export default function SplashView() {
           <Animated.View style={[styles.bookContainer, bookStyle]}>
             <View style={styles.bookCover}>
               <Animated.View style={[styles.heartBadge, heartStyle]}>
-                <Ionicons name="heart" size={28} color="#FFFFFF" />
+                <Text style={styles.heartEmoji}>❤</Text>
               </Animated.View>
             </View>
             <View style={styles.bookPages} />
@@ -235,16 +234,16 @@ export default function SplashView() {
         {/* 闪光装饰 */}
         <View style={styles.sparkles}>
           <Animated.View style={[styles.sparkle, sparkleStyle1, { top: 20, left: 30 }]}>
-            <Ionicons name="star" size={24} color="#FFFFFF" />
+            <Text style={styles.sparkleEmoji}>✦</Text>
           </Animated.View>
           <Animated.View style={[styles.sparkle, sparkleStyle2, { top: 40, right: 40 }]}>
-            <Ionicons name="star-outline" size={20} color="#FFFFFF" />
+            <Text style={styles.sparkleEmoji}>✧</Text>
           </Animated.View>
           <Animated.View style={[styles.sparkle, sparkleStyle3, { top: 80, left: 50 }]}>
-            <Ionicons name="star" size={18} color="#FFFFFF" />
+            <Text style={styles.sparkleEmoji}>✦</Text>
           </Animated.View>
           <Animated.View style={[styles.sparkle, sparkleStyle4, { top: 60, right: 60 }]}>
-            <Ionicons name="star-outline" size={22} color="#FFFFFF" />
+            <Text style={styles.sparkleEmoji}>✧</Text>
           </Animated.View>
         </View>
       </View>
@@ -514,6 +513,16 @@ const styles = StyleSheet.create({
 
   sparkle: {
     position: 'absolute',
+  },
+
+  heartEmoji: {
+    fontSize: 28,
+    color: '#FFFFFF',
+  },
+
+  sparkleEmoji: {
+    fontSize: 24,
+    color: '#FFFFFF',
   },
 
   version: {
