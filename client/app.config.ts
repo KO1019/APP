@@ -29,10 +29,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/adaptive-icon-safe.png",
         "backgroundColor": "#EA580C",
-        "monochromeImage": "./assets/images/icon.png"
+        "monochromeImage": "./assets/images/icon-safe.png"
       },
+      "icon": "./assets/images/icon-safe.png",
       "package": APP_CONFIG.bundleId,
       "permissions": [
         'INTERNET',
