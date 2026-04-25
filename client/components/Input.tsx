@@ -18,7 +18,7 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
   // 延迟变星号逻辑
   const [isShowingLastChar, setIsShowingLastChar] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const textInputRef = useRef<TextInput>(null);
+  const [cursorPosition, setCursorPosition] = useState<number | undefined>(undefined);
 
   // 清理定时器
   useEffect(() => {
@@ -50,12 +50,8 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
         onChangeText(text);
       }
 
-      // 延迟设置光标到末尾，确保渲染完成后再设置
-      setTimeout(() => {
-        textInputRef.current?.setNativeProps({
-          selection: { start: text.length, end: text.length }
-        });
-      }, 0);
+      // 设置光标到末尾
+      setCursorPosition(text.length);
     } else {
       // 普通输入框或显示密码模式
       if (onChangeText) {
@@ -84,7 +80,6 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
   return (
     <View>
       <TextInput
-        ref={textInputRef}
         style={[
           styles.input,
           {
@@ -98,6 +93,11 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
         value={finalValue}
         onChangeText={handleChangeText}
         secureTextEntry={shouldSecure}
+        selection={
+          cursorPosition !== undefined
+            ? { start: cursorPosition, end: cursorPosition }
+            : undefined
+        }
         {...props}
       />
       {error && <Text style={styles.error}>{error}</Text>}
