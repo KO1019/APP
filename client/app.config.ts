@@ -1,5 +1,8 @@
 import { ExpoConfig, ConfigContext } from 'expo/config';
 
+// 导入插件（使用require，因为app.config在Node.js环境中运行）
+const withAndroidAppName = require('./plugins/withAndroidAppName');
+
 // 直接定义配置（避免在Node.js环境下加载复杂模块）
 const APP_CONFIG = {
   name: 'emotion-diary', // 编译用，必须英文！
@@ -34,7 +37,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       "supportsTablet": true,
       "bundleIdentifier": APP_CONFIG.bundleId,
       "backgroundColor": "#EA580C",
-      "displayName": APP_DISPLAY_NAME, // iOS应用显示名（中文）
+      "infoPlist": {
+        "CFBundleDisplayName": APP_DISPLAY_NAME, // iOS应用显示名（中文）
+      },
     },
     "android": {
       "adaptiveIcon": {
@@ -45,7 +50,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       "icon": "./assets/images/icon-safe.png",
       "package": APP_CONFIG.bundleId,
       "backgroundColor": "#EA580C",
-      "displayName": APP_DISPLAY_NAME, // Android应用显示名（中文）
       "permissions": [
         'INTERNET',
         'ACCESS_NETWORK_STATE',
@@ -68,6 +72,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     "plugins": [
       "expo-updates",
       "expo-router",
+      withAndroidAppName, // 设置Android应用显示名为中文
       [
         "expo-image-picker",
         {
