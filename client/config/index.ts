@@ -24,7 +24,14 @@ export const APP_CONFIG = {
  */
 export const API_CONFIG = {
   // 后端API基础URL - 必须从环境变量读取
-  baseUrl: process.env.EXPO_PUBLIC_BACKEND_BASE_URL || '',
+  baseUrl: (() => {
+    const envUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
+    
+    console.log('[API_CONFIG] 环境变量 EXPO_PUBLIC_BACKEND_BASE_URL:', envUrl);
+    console.log('[API_CONFIG] process.env:', process.env);
+    
+    return envUrl || '';
+  })(),
 
   // API超时时间（毫秒）
   timeout: parseInt(process.env.EXPO_PUBLIC_API_TIMEOUT || '30000', 10),
