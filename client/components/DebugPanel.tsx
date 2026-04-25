@@ -72,7 +72,7 @@ export const debug = {
   info: (message: string) => {
     const log: DebugLog = {
       timestamp: new Date().toLocaleTimeString(),
-      message: message.substring(0, 500),
+      message: message, // 移除500字符限制
       type: 'info'
     };
     logs = [log, ...logs].slice(0, maxLogs);
@@ -80,7 +80,7 @@ export const debug = {
   warn: (message: string) => {
     const log: DebugLog = {
       timestamp: new Date().toLocaleTimeString(),
-      message: message.substring(0, 500),
+      message: message, // 移除500字符限制
       type: 'warn'
     };
     logs = [log, ...logs].slice(0, maxLogs);
@@ -88,7 +88,7 @@ export const debug = {
   error: (message: string) => {
     const log: DebugLog = {
       timestamp: new Date().toLocaleTimeString(),
-      message: message.substring(0, 500),
+      message: message, // 移除500字符限制
       type: 'error'
     };
     logs = [log, ...logs].slice(0, maxLogs);

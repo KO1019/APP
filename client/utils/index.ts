@@ -73,7 +73,7 @@ export const buildApiUrl = (path: string): string => {
     finalUrl: url
   };
 
-  debug.info('[buildApiUrl] 构建URL:', JSON.stringify(logInfo, null, 2));
+  debug.info(`[buildApiUrl] 构建URL: ${JSON.stringify(logInfo, null, 2)}`);
   console.log('[buildApiUrl] 详细信息:', logInfo);
 
   return url;
