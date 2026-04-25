@@ -3,11 +3,12 @@ import { ExpoConfig, ConfigContext } from 'expo/config';
 // 直接定义配置（避免在Node.js环境下加载复杂模块）
 const APP_CONFIG = {
   name: 'emotion-diary', // 编译用，必须英文！
-  displayName: 'AI情绪日记', // 显示用，可以中文
   version: process.env.EXPO_PUBLIC_APP_VERSION || '1.0.0',
   bundleId: process.env.EXPO_PUBLIC_APP_BUNDLE_ID || 'com.emotiondiary.app',
   scheme: process.env.EXPO_PUBLIC_APP_SCHEME || 'emotiondiary',
 } as const;
+
+const APP_DISPLAY_NAME = 'AI情绪日记'; // APP显示名，用于权限提示
 
 const projectId = process.env.COZE_PROJECT_ID || process.env.EXPO_PUBLIC_COZE_PROJECT_ID;
 const slugAppName = projectId ? `app${projectId}` : 'emotion-diary-app';
@@ -16,7 +17,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   return {
     ...config,
     "name": APP_CONFIG.name, // 英文工程名
-    "displayName": APP_CONFIG.displayName, // 中文显示名
     "slug": slugAppName,
     "version": APP_CONFIG.version,
     "orientation": "portrait",
@@ -69,21 +69,21 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       [
         "expo-image-picker",
         {
-          "photosPermission": `允许${projectName}访问您的相册，以便您上传或保存图片。`,
-          "cameraPermission": `允许${projectName}使用您的相机，以便您直接拍摄照片上传。`,
-          "microphonePermission": `允许${projectName}访问您的麦克风，以便您拍摄带有声音的视频。`
+          "photosPermission": `允许${APP_DISPLAY_NAME}访问您的相册，以便您上传或保存图片。`,
+          "cameraPermission": `允许${APP_DISPLAY_NAME}使用您的相机，以便您直接拍摄照片上传。`,
+          "microphonePermission": `允许${APP_DISPLAY_NAME}访问您的麦克风，以便您拍摄带有声音的视频。`
         }
       ],
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": `${projectName}需要访问您的位置以提供周边服务及导航功能。`
+          "locationWhenInUsePermission": `${APP_DISPLAY_NAME}需要访问您的位置以提供周边服务及导航功能。`
         }
       ],
       [
         "expo-av",
         {
-          "microphonePermission": `允许${projectName}使用麦克风以进行录音。`,
+          "microphonePermission": `允许${APP_DISPLAY_NAME}使用麦克风以进行录音。`,
         }
       ]
     ],
