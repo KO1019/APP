@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, Image } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -13,6 +13,8 @@ import Animated, {
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
+
+const iconTransparent = require('@/assets/images/icon-transparent.png');
 
 const { width, height } = Dimensions.get('window');
 
@@ -181,25 +183,13 @@ export default function SplashView() {
       <View style={styles.content}>
         {/* 机器人和日记 */}
         <View style={styles.iconContainer}>
-          {/* 机器人 */}
+          {/* 机器人图片 */}
           <Animated.View style={[styles.robotContainer, robotStyle]}>
-            <View style={styles.robotBody}>
-              <View style={styles.robotHead}>
-                <View style={styles.robotAntenna} />
-                <View style={styles.robotAntennaBall} />
-              </View>
-              <View style={styles.robotFace}>
-                <View style={styles.eyesContainer}>
-                  <View style={styles.eye} />
-                  <View style={styles.eye} />
-                </View>
-                <View style={styles.cheeksContainer}>
-                  <View style={styles.cheek} />
-                  <View style={styles.cheek} />
-                </View>
-                <View style={styles.mouth} />
-              </View>
-            </View>
+            <Image
+              source={iconTransparent}
+              style={styles.robotImage}
+              resizeMode="contain"
+            />
           </Animated.View>
 
           {/* 日记本 */}
@@ -310,113 +300,21 @@ const styles = StyleSheet.create({
 
   robotContainer: {
     position: 'absolute',
-    left: 0,
-    top: 20,
-  },
-
-  robotBody: {
-    width: 140,
+    left: -20,
+    top: 0,
+    width: 180,
     height: 180,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 70,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 12,
   },
 
-  robotHead: {
-    position: 'absolute',
-    top: -20,
-    left: 10,
-    right: 10,
-    height: 60,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 30,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-
-  robotAntenna: {
-    position: 'absolute',
-    top: -18,
-    width: 8,
-    height: 22,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 4,
-  },
-
-  robotAntennaBall: {
-    position: 'absolute',
-    top: -8,
-    left: '50%',
-    marginLeft: -6,
-    width: 12,
-    height: 12,
-    backgroundColor: '#EA580C',
-    borderRadius: 6,
-  },
-
-  robotFace: {
-    flex: 1,
-    marginTop: 10,
-    alignItems: 'center',
-  },
-
-  eyesContainer: {
-    flexDirection: 'row',
-    gap: 25,
-    marginTop: 15,
-  },
-
-  eye: {
-    width: 28,
-    height: 28,
-    backgroundColor: '#4B5563',
-    borderRadius: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-
-  cheeksContainer: {
-    flexDirection: 'row',
-    gap: 55,
-    marginTop: 8,
-  },
-
-  cheek: {
-    width: 16,
-    height: 10,
-    backgroundColor: 'rgba(249, 115, 22, 0.5)',
-    borderRadius: 8,
-  },
-
-  mouth: {
-    marginTop: 12,
-    width: 30,
-    height: 15,
-    borderBottomWidth: 4,
-    borderBottomColor: '#EA580C',
-    borderRadius: 15,
+  robotImage: {
+    width: '100%',
+    height: '100%',
   },
 
   bookContainer: {
     position: 'absolute',
-    right: 10,
-    bottom: 0,
+    right: -10,
+    bottom: -20,
   },
 
   bookCover: {

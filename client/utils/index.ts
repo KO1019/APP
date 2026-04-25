@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { API_CONFIG } from '@/config';
+import { debug } from '@/components/DebugPanel';
 dayjs.extend(utc);
 
 // 使用统一的API配置，从环境变量读取后端地址
@@ -17,6 +18,7 @@ export const buildApiUrl = (path: string): string => {
   // 检查后端URL是否已配置
   if (!API_CONFIG.baseUrl) {
     const errorMessage = '[buildApiUrl] 后端URL未配置，请在 .env 文件中设置 EXPO_PUBLIC_BACKEND_BASE_URL';
+    debug.error(errorMessage);
     console.error(errorMessage);
     console.error('[buildApiUrl] 当前配置:', {
       baseUrl: API_CONFIG.baseUrl,
@@ -40,13 +42,16 @@ export const buildApiUrl = (path: string): string => {
 
   // 构建最终URL
   url = `${baseUrl}${path}`;
-  
-  console.log('[buildApiUrl] 构建URL:', {
+
+  const logInfo = {
     platform: Platform.OS,
     baseUrl: API_CONFIG.baseUrl,
     originalPath: path,
     finalUrl: url
-  });
+  };
+
+  debug.info('[buildApiUrl] 构建URL:', JSON.stringify(logInfo));
+  console.log('[buildApiUrl] 构建URL:', logInfo);
 
   return url;
 };

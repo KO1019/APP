@@ -9,14 +9,21 @@ import { PasswordProvider } from '@/contexts/PasswordContext';
 import { AppLockProvider } from '@/components/AppLockProvider';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { API_CONFIG, validateConfig } from '@/config';
+import DebugPanel from '@/components/DebugPanel';
+import { debug } from '@/components/DebugPanel';
 
 import '../global.css';
 
 // 在应用启动时验证配置
 if (!validateConfig()) {
-  console.error('[App] 配置验证失败，请检查 .env 文件');
+  const errorMsg = '[App] 配置验证失败，请检查 .env 文件';
+  debug.error(errorMsg);
+  console.error(errorMsg);
   console.error('[App] 当前后端URL:', API_CONFIG.baseUrl);
   console.error('[App] 请确保已设置 EXPO_PUBLIC_BACKEND_BASE_URL 环境变量');
+} else {
+  debug.info('[App] 配置验证通过');
+  debug.info(`[App] 后端URL: ${API_CONFIG.baseUrl}`);
 }
 
 // 忽略特定的警告
@@ -106,6 +113,8 @@ export default function RootLayout() {
               <Stack.Screen name="about" options={{ headerShown: false }} />
             </Stack>
             <Toast config={toastConfig} />
+            {/* 开发模式下显示调试面板 */}
+            {typeof __DEV__ !== 'undefined' && __DEV__ && <DebugPanel />}
           </Provider>
         </AppLockProvider>
       </PasswordProvider>

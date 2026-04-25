@@ -6,6 +6,8 @@ import { Input } from '@/components/Input';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCSSVariable } from 'uniwind';
 import Toast from 'react-native-toast-message';
+import { debug } from '@/components/DebugPanel';
+import { API_CONFIG } from '@/config';
 
 export default function LoginScreen() {
   const [username, setUsername] = useState('');
@@ -25,6 +27,9 @@ export default function LoginScreen() {
   ]) as string[];
 
   const handleLogin = async () => {
+    debug.info('[Login] 开始登录流程');
+    debug.info(`[Login] 用户名: ${username}`);
+
     if (!username || !password) {
       Toast.show({
         type: 'error',
@@ -55,8 +60,11 @@ export default function LoginScreen() {
     try {
       setLoading(true);
 
+      debug.info('[Login] 当前后端URL:', API_CONFIG.baseUrl);
+
       // 调用后端API进行登录
       await login(username, password);
+      debug.info('[Login] 登录成功');
       Toast.show({
         type: 'success',
         text1: '登录成功',
@@ -65,6 +73,7 @@ export default function LoginScreen() {
       // 直接跳转到首页
       router.replace('/');
     } catch (error: any) {
+      debug.error('[Login] 登录失败:', error.message);
       let errorMessage = '登录失败，请稍后重试';
       let errorTitle = '登录失败';
 
@@ -74,7 +83,7 @@ export default function LoginScreen() {
       } else if (error.message?.includes('Failed to fetch') || error.message?.includes('后端URL未配置')) {
         errorTitle = '连接服务器失败';
         errorMessage = '无法连接到服务器，请检查网络或联系管理员';
-        console.error('[Login] 网络错误:', error);
+        debug.error('[Login] 网络错误:', error);
       } else if (error.message) {
         errorMessage = error.message;
       }

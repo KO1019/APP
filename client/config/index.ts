@@ -4,6 +4,7 @@
  */
 
 import { Platform } from 'react-native';
+import { debug } from '@/components/DebugPanel';
 
 // 环境判断（兼容 Node.js 和浏览器环境）
 const isDevelopment = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
@@ -26,10 +27,16 @@ export const API_CONFIG = {
   // 后端API基础URL - 必须从环境变量读取
   baseUrl: (() => {
     const envUrl = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
-    
+
+    if (isDevelopment) {
+      debug.info('[API_CONFIG] 环境变量 EXPO_PUBLIC_BACKEND_BASE_URL:');
+      debug.info(envUrl || '未设置');
+      debug.info('[API_CONFIG] process.env keys:', Object.keys(process.env).filter(k => k.startsWith('EXPO_PUBLIC')));
+    }
+
     console.log('[API_CONFIG] 环境变量 EXPO_PUBLIC_BACKEND_BASE_URL:', envUrl);
     console.log('[API_CONFIG] process.env:', process.env);
-    
+
     return envUrl || '';
   })(),
 
@@ -142,9 +149,14 @@ export const CONFIG = {
 export const validateConfig = (): boolean => {
   const errors: string[] = [];
 
+  debug.info('[Config] 开始配置验证...');
+
   // 验证API配置
   if (!API_CONFIG.baseUrl) {
     errors.push('API基础URL未配置');
+    debug.error('[Config] API基础URL未配置');
+  } else {
+    debug.info(`[Config] API基础URL已配置: ${API_CONFIG.baseUrl}`);
   }
 
   // 验证功能配置
@@ -161,11 +173,15 @@ export const validateConfig = (): boolean => {
   }
 
   if (errors.length > 0) {
-    console.error('[Config] 配置验证失败:', errors);
+    const errorMsg = '[Config] 配置验证失败: ' + errors.join(', ');
+    debug.error(errorMsg);
+    console.error(errorMsg);
     return false;
   }
 
-  console.log('[Config] 配置验证通过');
+  const successMsg = '[Config] 配置验证通过';
+  debug.info(successMsg);
+  console.log(successMsg);
   return true;
 };
 
