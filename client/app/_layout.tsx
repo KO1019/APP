@@ -8,8 +8,22 @@ import { Provider } from '@/components/Provider';
 import { PasswordProvider } from '@/contexts/PasswordContext';
 import { AppLockProvider } from '@/components/AppLockProvider';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { API_CONFIG, validateConfig } from '@/config';
 
 import '../global.css';
+
+// 在应用启动时验证配置
+if (!validateConfig()) {
+  console.error('[App] 配置验证失败，请检查 .env 文件');
+  console.error('[App] 当前后端URL:', API_CONFIG.baseUrl);
+  console.error('[App] 请确保已设置 EXPO_PUBLIC_BACKEND_BASE_URL 环境变量');
+}
+
+// 忽略特定的警告
+LogBox.ignoreLogs([
+  'Warning: ...',
+  'Remote debugger is in a background tab',
+]);
 
 // 自定义Toast样式
 const toastConfig = {

@@ -69,6 +69,10 @@ export default function LoginScreen() {
       if (error.message?.includes('Invalid username or password')) {
         errorTitle = '登录信息错误';
         errorMessage = '用户名或密码错误，请检查后重试';
+      } else if (error.message?.includes('Failed to fetch') || error.message?.includes('后端URL未配置')) {
+        errorTitle = '连接服务器失败';
+        errorMessage = '无法连接到服务器，请检查网络或联系管理员';
+        console.error('[Login] 网络错误:', error);
       } else if (error.message) {
         errorMessage = error.message;
       }

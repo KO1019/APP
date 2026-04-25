@@ -11,26 +11,42 @@ const API_BASE = API_CONFIG.baseUrl.replace(/\/$/, '');
  * 构建API URL
  * @param path API路径，如 '/api/v1/auth/me'
  * @returns 完整的API URL
+ * @throws Error 如果后端URL未配置
  */
 export const buildApiUrl = (path: string): string => {
-  let url: string;
-
-  // 在Web环境下，检查是否在 dev.coze.site 域名下
-  if (Platform.OS === 'web') {
-    // 如果在 dev.coze.site 域名下，使用配置的后端 URL
-    if (typeof window !== 'undefined' && window.location.hostname.includes('dev.coze.site')) {
-      url = `${API_CONFIG.baseUrl}${path}`;
-      console.log('[buildApiUrl] Web environment (dev.coze.site):', url);
-    } else {
-      // 如果在本地开发，使用配置的后端URL
-      url = `${API_CONFIG.baseUrl}${path}`;
-      console.log('[buildApiUrl] Web environment (local):', url);
-    }
-  } else {
-    // 在移动端（Android/iOS）使用配置的后端URL
-    url = `${API_CONFIG.baseUrl}${path}`;
-    console.log('[buildApiUrl] Mobile environment:', url);
+  // 检查后端URL是否已配置
+  if (!API_CONFIG.baseUrl) {
+    const errorMessage = '[buildApiUrl] 后端URL未配置，请在 .env 文件中设置 EXPO_PUBLIC_BACKEND_BASE_URL';
+    console.error(errorMessage);
+    console.error('[buildApiUrl] 当前配置:', {
+      baseUrl: API_CONFIG.baseUrl,
+      envBackendUrl: process.env.EXPO_PUBLIC_BACKEND_BASE_URL,
+    });
+    throw new Error('后端URL未配置，请检查环境变量');
   }
+
+  let url: string;
+  let baseUrl = API_CONFIG.baseUrl;
+
+  // 智能处理：如果baseUrl已经以/api结尾，则去掉path中的/api前缀
+  if (baseUrl.endsWith('/api')) {
+    // 如果path以/api开头，则去掉path的/api部分
+    if (path.startsWith('/api')) {
+      path = path.substring(4); // 去掉 '/api'
+    }
+    // 确保baseUrl不以斜杠结尾
+    baseUrl = baseUrl.replace(/\/$/, '');
+  }
+
+  // 构建最终URL
+  url = `${baseUrl}${path}`;
+  
+  console.log('[buildApiUrl] 构建URL:', {
+    platform: Platform.OS,
+    baseUrl: API_CONFIG.baseUrl,
+    originalPath: path,
+    finalUrl: url
+  });
 
   return url;
 };
