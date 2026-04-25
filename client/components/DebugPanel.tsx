@@ -119,10 +119,10 @@ export default function DebugPanel() {
     setTestingConnection(true);
     try {
       const healthUrl = buildApiUrl('/api/v1/health');
-      debug.info('==================== 测试后端连接 ====================');
-      debug.info('目标URL:', healthUrl);
-      debug.info('API配置:', JSON.stringify(API_CONFIG, null, 2));
-      debug.info('环境变量:', process.env.EXPO_PUBLIC_BACKEND_BASE_URL);
+      console.log('==================== 测试后端连接 ====================');
+      console.log('目标URL:', healthUrl);
+      console.log('API配置:', JSON.stringify(API_CONFIG, null, 2));
+      console.log('环境变量:', process.env.EXPO_PUBLIC_BACKEND_BASE_URL);
 
       const response = await fetch(healthUrl, {
         method: 'GET',
@@ -131,23 +131,25 @@ export default function DebugPanel() {
         },
       });
 
-      debug.info('响应状态:', response.status);
-      debug.info('响应类型:', response.type);
+      console.log('响应状态:', response.status);
+      console.log('响应类型:', response.type);
 
       if (response.ok) {
         const data = await response.json();
-        debug.info('连接成功！响应数据:', JSON.stringify(data, null, 2));
+        console.log('连接成功！响应数据:', JSON.stringify(data, null, 2));
         Alert.alert('连接测试', '✅ 后端连接成功！');
       } else {
         const text = await response.text();
-        debug.error('连接失败！状态码:', response.status);
-        debug.error('错误响应:', text);
+        console.error('连接失败！状态码:', response.status);
+        console.error('错误响应:', text);
         Alert.alert('连接测试', `❌ 后端连接失败\n状态码: ${response.status}\n错误: ${text}`);
       }
-      debug.info('====================================================');
+      console.log('====================================================');
     } catch (error: any) {
-      debug.error('连接异常！', error.message);
-      debug.error('错误详情:', error.toString());
+      console.error('连接异常！', error.message);
+      console.error('错误类型:', error.constructor.name);
+      console.error('错误详情:', error.toString());
+      console.error('错误堆栈:', error.stack);
       Alert.alert('连接测试', `❌ 连接异常\n错误: ${error.message}`);
     } finally {
       setCurrentLogs([...logs]);
@@ -236,7 +238,7 @@ export default function DebugPanel() {
                     log.type === 'warn' && styles.logWarn
                   ]}>
                     <Text style={styles.logTimestamp}>{log.timestamp}</Text>
-                    <Text style={styles.logMessage} numberOfLines={2}>
+                    <Text style={styles.logMessage}>
                       {log.message}
                     </Text>
                   </View>
