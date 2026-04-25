@@ -132,7 +132,7 @@ export default function LoginScreen() {
                 >
                   <Ionicons
                     name={showPassword ? 'eye-off' : 'eye'}
-                    size={24}
+                    size={20}
                     color={muted}
                   />
                 </TouchableOpacity>
@@ -196,16 +196,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   passwordInputWrapper: {
-    position: 'relative',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   passwordInput: {
-    paddingRight: 50,
+    flex: 1,
+    height: 48,
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
   },
   passwordToggle: {
-    position: 'absolute',
-    right: 12,
-    top: 12,
-    padding: 8,
+    height: 48,
+    width: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
+    borderWidth: 1,
+    borderLeftWidth: 0,
+    borderColor: border,
   },
   loginButton: {
     borderRadius: 12,
