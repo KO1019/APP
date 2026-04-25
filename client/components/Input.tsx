@@ -18,6 +18,7 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
   // 延迟变星号逻辑
   const [isShowingLastChar, setIsShowingLastChar] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const textInputRef = useRef<TextInput>(null);
 
   // 清理定时器
   useEffect(() => {
@@ -48,6 +49,13 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
       if (onChangeText) {
         onChangeText(text);
       }
+
+      // 延迟设置光标到末尾，确保渲染完成后再设置
+      setTimeout(() => {
+        textInputRef.current?.setNativeProps({
+          selection: { start: text.length, end: text.length }
+        });
+      }, 0);
     } else {
       // 普通输入框或显示密码模式
       if (onChangeText) {
@@ -59,7 +67,6 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
   // 确定显示内容和是否使用secureTextEntry
   let finalValue = value;
   let shouldSecure = secureTextEntry;
-  let selection: { start: number; end: number } | undefined = undefined;
 
   if (delayedSecure && secureTextEntry) {
     if (isShowingLastChar && value && value.length > 0) {
@@ -67,8 +74,6 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
       const stars = '•'.repeat(value.length - 1);
       finalValue = stars + value[value.length - 1];
       shouldSecure = false;  // 不使用secureTextEntry，我们手动构建显示内容
-      // 确保光标在最后
-      selection = { start: finalValue.length, end: finalValue.length };
     } else {
       // 完全隐藏模式：使用secureTextEntry显示星号
       finalValue = value;
@@ -79,6 +84,7 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
   return (
     <View>
       <TextInput
+        ref={textInputRef}
         style={[
           styles.input,
           {
@@ -92,7 +98,6 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
         value={finalValue}
         onChangeText={handleChangeText}
         secureTextEntry={shouldSecure}
-        selection={selection}
         {...props}
       />
       {error && <Text style={styles.error}>{error}</Text>}
