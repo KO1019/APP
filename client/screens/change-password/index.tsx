@@ -7,7 +7,6 @@ import { useCSSVariable } from 'uniwind';
 import Toast from 'react-native-toast-message';
 import { buildApiUrl } from '@/utils';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
-import { SecureInput } from '@/components/SecureInput';
 
 export default function ChangePasswordScreen() {
   const { user, token } = useAuth();
@@ -119,45 +118,45 @@ export default function ChangePasswordScreen() {
 
           {/* 旧密码输入 */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: foreground }]}>旧密码</Text>
-            <View style={styles.inputWrapper}>
+            <View style={[styles.inputWrapper, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
               <FontAwesome6 name="lock" size={20} color={muted} style={styles.inputIcon} />
-              <SecureInput
-                style={styles.secureInput}
+              <TextInput
+                style={[styles.input, { color: foreground }]}
+                placeholder="旧密码"
+                placeholderTextColor={muted}
+                secureTextEntry
                 value={oldPassword}
                 onChangeText={setOldPassword}
-                placeholderTextColor={muted}
-                placeholder="请输入旧密码"
               />
             </View>
           </View>
 
           {/* 新密码输入 */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: foreground }]}>新密码（至少6个字符）</Text>
-            <View style={styles.inputWrapper}>
+            <View style={[styles.inputWrapper, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
               <FontAwesome6 name="lock" size={20} color={muted} style={styles.inputIcon} />
-              <SecureInput
-                style={styles.secureInput}
+              <TextInput
+                style={[styles.input, { color: foreground }]}
+                placeholder="新密码（至少6个字符）"
+                placeholderTextColor={muted}
+                secureTextEntry
                 value={newPassword}
                 onChangeText={setNewPassword}
-                placeholderTextColor={muted}
-                placeholder="请再次输入新密码"
               />
             </View>
           </View>
 
           {/* 确认密码输入 */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: foreground }]}>确认新密码</Text>
-            <View style={styles.inputWrapper}>
+            <View style={[styles.inputWrapper, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
               <FontAwesome6 name="lock" size={20} color={muted} style={styles.inputIcon} />
-              <SecureInput
-                style={styles.secureInput}
+              <TextInput
+                style={[styles.input, { color: foreground }]}
+                placeholder="确认新密码"
+                placeholderTextColor={muted}
+                secureTextEntry
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
-                placeholderTextColor={muted}
-                placeholder="请再次输入新密码"
               />
             </View>
           </View>
@@ -227,15 +226,9 @@ const styles = StyleSheet.create({
   inputGroup: {
     marginBottom: 20,
   },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 56,
@@ -243,7 +236,7 @@ const styles = StyleSheet.create({
   inputIcon: {
     marginRight: 12,
   },
-  secureInput: {
+  input: {
     flex: 1,
     fontSize: 16,
   },
