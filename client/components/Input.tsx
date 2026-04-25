@@ -29,6 +29,17 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
     };
   }, []);
 
+  // 当 secureTextEntry 改变时，清除延迟显示状态
+  useEffect(() => {
+    if (!secureTextEntry) {
+      // 切换到明文模式，清除延迟显示
+      setIsShowingLastChar(false);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    }
+  }, [secureTextEntry]);
+
   // 当显示最后一个字符时，短暂设置光标到最后
   useEffect(() => {
     if (isShowingLastChar && value && value.length > 0) {
@@ -65,12 +76,6 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
       timeoutRef.current = setTimeout(() => {
         setIsShowingLastChar(false);
       }, 800);
-    } else {
-      // 明文模式，取消延迟显示
-      setIsShowingLastChar(false);
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
     }
   };
 
