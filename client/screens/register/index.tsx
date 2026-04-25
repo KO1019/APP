@@ -142,16 +142,16 @@ export default function RegisterScreen() {
 
             <View style={styles.inputContainer}>
               <Text style={[styles.label, { color: foreground }]}>密码 *</Text>
-              <View style={styles.passwordInputWrapper}>
+              <View style={styles.passwordContainer}>
                 <Input
                   placeholder="至少6个字符"
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
-                  style={styles.passwordInput}
+                  style={styles.passwordField}
                 />
                 <TouchableOpacity
-                  style={[styles.passwordToggle, { backgroundColor: background, borderColor: border }]}
+                  style={styles.eyeButton}
                   onPress={() => setShowPassword(!showPassword)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
@@ -166,16 +166,16 @@ export default function RegisterScreen() {
 
             <View style={styles.inputContainer}>
               <Text style={[styles.label, { color: foreground }]}>确认密码 *</Text>
-              <View style={styles.passwordInputWrapper}>
+              <View style={styles.passwordContainer}>
                 <Input
                   placeholder="再次输入密码"
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry={!showConfirmPassword}
-                  style={styles.passwordInput}
+                  style={styles.passwordField}
                 />
                 <TouchableOpacity
-                  style={[styles.passwordToggle, { backgroundColor: background, borderColor: border }]}
+                  style={styles.eyeButton}
                   onPress={() => setShowConfirmPassword(!showConfirmPassword)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >

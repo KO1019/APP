@@ -117,16 +117,16 @@ export default function LoginScreen() {
 
             <View style={styles.inputContainer}>
               <Text style={[styles.label, { color: foreground }]}>密码</Text>
-              <View style={styles.passwordInputWrapper}>
+              <View style={styles.passwordContainer}>
                 <Input
                   placeholder="请输入密码"
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
-                  style={styles.passwordInput}
+                  style={styles.passwordField}
                 />
                 <TouchableOpacity
-                  style={[styles.passwordToggle, { backgroundColor: background, borderColor: border }]}
+                  style={styles.eyeButton}
                   onPress={() => setShowPassword(!showPassword)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
@@ -195,26 +195,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  passwordInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  passwordContainer: {
+    position: 'relative',
   },
-  passwordInput: {
-    flex: 1,
-    borderTopLeftRadius: 12,
-    borderBottomLeftRadius: 12,
-    borderTopRightRadius: 0,
-    borderBottomRightRadius: 0,
+  passwordField: {
+    paddingRight: 48,
   },
-  passwordToggle: {
-    height: 48,
-    width: 48,
+  eyeButton: {
+    position: 'absolute',
+    right: 12,
+    top: 14,
+    width: 32,
+    height: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    borderTopRightRadius: 12,
-    borderBottomRightRadius: 12,
-    borderWidth: 1,
-    borderLeftWidth: 0,
   },
   loginButton: {
     borderRadius: 12,
