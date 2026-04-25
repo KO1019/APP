@@ -58,14 +58,14 @@ export default function SetupPasswordScreen() {
       <View style={[styles.container, { backgroundColor: background }]}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
-            <FontAwesome6 name="arrow-left" size={24} color={foreground} />
+            <Ionicons name="arrow-back" size={24} color={foreground} />
           </TouchableOpacity>
           <Text style={[styles.title, { color: foreground }]}>设置密码</Text>
           <View style={{ width: 24 }} />
         </View>
 
         <View style={styles.content}>
-          <FontAwesome6 name="shield-halved" size={80} color={accent} style={styles.icon} />
+          <Ionicons name="shield-halved" size={80} color={accent} style={styles.icon} />
 
           <Text style={[styles.subtitle, { color: foreground }]}>
             {step === 1 ? '请输入您的密码' : '请再次输入密码'}
@@ -85,10 +85,10 @@ export default function SetupPasswordScreen() {
                 ]}
               >
                 {step === 1 && password.length > index && (
-                  <FontAwesome6 name="circle" size={16} color={accent} />
+                  <Ionicons name="circle" size={16} color={accent} />
                 )}
                 {step === 2 && confirmPassword.length > index && (
-                  <FontAwesome6 name="circle" size={16} color={accent} />
+                  <Ionicons name="circle" size={16} color={accent} />
                 )}
               </View>
             ))}

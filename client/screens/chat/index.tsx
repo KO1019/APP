@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Screen } from '@/components/Screen';
-import { FontAwesome6 } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
 import RNSSE from 'react-native-sse';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
@@ -506,7 +506,7 @@ export default function ChatScreen() {
           ]}
         >
           {!isUser && (
-            <FontAwesome6 name="robot" size={16} color={accent} style={styles.messageIcon} />
+            <Ionicons name="options" size={16} color={accent} style={styles.messageIcon} />
           )}
           <Text
             style={[
@@ -571,13 +571,13 @@ export default function ChatScreen() {
           <View style={styles.headerLeft}>
             {(messages.length > 0 || params.conversationId) && (
               <TouchableOpacity onPress={handleBackToHome} style={styles.backButton}>
-                <FontAwesome6 name="arrow-left" size={24} color={foreground} />
+                <Ionicons name="arrow-back" size={24} color={foreground} />
               </TouchableOpacity>
             )}
           </View>
 
           <View style={styles.headerCenter}>
-            <FontAwesome6 name="comments" size={24} color={accent} style={styles.headerIcon} />
+            <Ionicons name="chatbubbles" size={24} color={accent} style={styles.headerIcon} />
             <View>
               <Text style={[styles.title, { color: foreground }]}>AI 陪伴</Text>
               <Text style={[styles.subtitle, { color: muted }]}>温暖倾听，用心陪伴</Text>
@@ -586,13 +586,13 @@ export default function ChatScreen() {
 
           <View style={styles.headerRight}>
             <TouchableOpacity onPress={handleNewChat} style={styles.headerButton}>
-              <FontAwesome6 name="plus" size={20} color={foreground} />
+              <Ionicons name="add" size={20} color={foreground} />
             </TouchableOpacity>
             <TouchableOpacity onPress={handleViewHistory} style={styles.headerButton}>
-              <FontAwesome6 name="clock-rotate-left" size={20} color={foreground} />
+              <Ionicons name="time-outline" size={20} color={foreground} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => router.push('/voice-chat-realtime')} style={styles.voiceButton}>
-              <FontAwesome6 name="microphone" size={20} color={foreground} />
+              <Ionicons name="mic" size={20} color={foreground} />
             </TouchableOpacity>
           </View>
         </View>
@@ -604,7 +604,7 @@ export default function ChatScreen() {
         >
             {!apiConfigured && (
               <View style={[styles.configWarning, { backgroundColor: '#FFF3CD', borderColor: '#FFC107', borderWidth: 1 }]}>
-                <FontAwesome6 name="triangle-exclamation" size={16} color="#856404" />
+                <Ionicons name="warning" size={16} color="#856404" />
                 <Text style={[styles.configWarningText, { color: '#856404' }]}>
                   AI 功能需要配置 API Key 才能使用
                 </Text>
@@ -612,7 +612,7 @@ export default function ChatScreen() {
             )}
             {messages.length === 0 ? (
               <View style={styles.welcomeContainer}>
-                <FontAwesome6 name="heart" size={48} color={accent} style={styles.welcomeIcon} />
+                <Ionicons name="heart" size={48} color={accent} style={styles.welcomeIcon} />
                 <Text style={[styles.welcomeTitle, { color: foreground }]}>你好！我是你的情绪陪伴助手</Text>
                 <Text style={[styles.welcomeText, { color: muted }]}>
                   随时和我聊聊你的心情，我会在这里倾听和陪伴你
@@ -696,7 +696,7 @@ export default function ChatScreen() {
               }}
               activeOpacity={0.7}
             >
-              <FontAwesome6 name="book-journal-whills" size={16} color={accent} />
+              <Ionicons name="book-outline" size={16} color={accent} />
               <Text style={[styles.saveDiaryButtonText, { color: foreground }]}>保存为日记</Text>
             </TouchableOpacity>
           )}
@@ -719,7 +719,7 @@ export default function ChatScreen() {
               onPress={sendMessage}
               disabled={!inputText.trim() || loading}
             >
-              <FontAwesome6 name="paper-plane" size={18} color="#FFFFFF" />
+              <Ionicons name="send" size={18} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         </View>

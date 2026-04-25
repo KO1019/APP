@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import dayjs from 'dayjs';
-import { FontAwesome6 } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 
 // 暖橙色主题配色
@@ -136,7 +136,7 @@ export const SmartDateInput = ({
   };
 
   // 根据 mode 选择图标
-  const iconName = mode === 'time' ? 'clock' : 'calendar';
+  const iconName = mode === 'time' ? 'time-outline' : 'calendar-outline';
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -154,7 +154,7 @@ export const SmartDateInput = ({
             onChangeText={handleWebInputChange}
             maxLength={10}
           />
-          <FontAwesome6
+          <Ionicons
             name={iconName}
             size={iconSize}
             color={iconColor || (value ? THEME.accent : THEME.muted)}
@@ -187,7 +187,7 @@ export const SmartDateInput = ({
               {displayString || placeholder}
             </Text>
 
-            <FontAwesome6
+            <Ionicons
               name={iconName}
               size={iconSize}
               color={iconColor || (value ? THEME.accent : THEME.muted)}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Screen } from '@/components/Screen';
-import { FontAwesome6 } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useCSSVariable } from 'uniwind';
 import { buildApiUrl } from '@/utils';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
@@ -64,7 +64,7 @@ export default function AboutScreen() {
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <FontAwesome6 name="arrow-left" size={24} color={foreground} />
+          <Ionicons name="arrow-back" size={24} color={foreground} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: foreground }]}>关于</Text>
         <View style={styles.headerSpacer} />
@@ -81,7 +81,7 @@ export default function AboutScreen() {
             {/* Logo和标题 */}
             <View style={styles.header}>
               <View style={[styles.logoContainer, { backgroundColor: `${accent}20` }]}>
-                <FontAwesome6 name="book-journal-whills" size={64} color={accent} />
+                <Ionicons name="book-journal-whills" size={64} color={accent} />
               </View>
               <Text style={[styles.appName, { color: foreground }]}>{aboutInfo.app_name}</Text>
               <Text style={[styles.version, { color: muted }]}>版本 {aboutInfo.version}</Text>
@@ -95,7 +95,7 @@ export default function AboutScreen() {
               <Text style={[styles.sectionTitle, { color: foreground }]}>主要功能</Text>
               {aboutInfo.features.map((feature, index) => (
                 <View key={index} style={styles.featureItem}>
-                  <FontAwesome6 name="circle-check" size={20} color={accent} />
+                  <Ionicons name="checkmark-circle" size={20} color={accent} />
                   <Text style={[styles.featureText, { color: foreground }]}>{feature}</Text>
                 </View>
               ))}
@@ -115,7 +115,7 @@ export default function AboutScreen() {
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: foreground }]}>联系我们</Text>
               <View style={[styles.contactBox, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
-                <FontAwesome6 name="envelope" size={20} color={accent} style={styles.contactIcon} />
+                <Ionicons name="envelope" size={20} color={accent} style={styles.contactIcon} />
                 <Text style={[styles.contactText, { color: foreground }]}>{aboutInfo.contact}</Text>
               </View>
             </View>
@@ -129,7 +129,7 @@ export default function AboutScreen() {
           </>
         ) : (
           <View style={styles.error}>
-            <FontAwesome6 name="triangle-exclamation" size={48} color={muted} />
+            <Ionicons name="triangle-exclamation" size={48} color={muted} />
             <Text style={[styles.errorText, { color: muted }]}>加载失败</Text>
             <TouchableOpacity style={[styles.retryButton, { backgroundColor: accent }]} onPress={fetchAboutInfo}>
               <Text style={styles.retryButtonText}>重试</Text>

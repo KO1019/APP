@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Switch } from 'react-native';
 import { Screen } from '@/components/Screen';
-import { FontAwesome6 } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCSSVariable } from 'uniwind';
 import Toast from 'react-native-toast-message';
@@ -132,7 +132,7 @@ export default function PrivacySettingsScreen() {
             onPress={() => router.back()}
             activeOpacity={0.7}
           >
-            <FontAwesome6 name="arrow-left" size={24} color={foreground} />
+            <Ionicons name="arrow-back" size={24} color={foreground} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: foreground }]}>隐私设置</Text>
           <View style={styles.headerSpacer} />
@@ -153,7 +153,7 @@ export default function PrivacySettingsScreen() {
               {/* 云端同步 */}
               <View style={[styles.settingItem, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
                 <View style={styles.settingContent}>
-                  <FontAwesome6 name="cloud" size={24} color={accent} style={styles.settingIcon} />
+                  <Ionicons name="cloud" size={24} color={accent} style={styles.settingIcon} />
                   <View style={styles.settingText}>
                     <Text style={[styles.settingTitle, { color: foreground }]}>云端同步</Text>
                     <Text style={[styles.settingDesc, { color: muted }]}>
@@ -171,7 +171,7 @@ export default function PrivacySettingsScreen() {
               {/* 数据加密 */}
               <View style={[styles.settingItem, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
                 <View style={styles.settingContent}>
-                  <FontAwesome6 name="lock" size={24} color={accent} style={styles.settingIcon} />
+                  <Ionicons name="lock" size={24} color={accent} style={styles.settingIcon} />
                   <View style={styles.settingText}>
                     <Text style={[styles.settingTitle, { color: foreground }]}>数据加密</Text>
                     <Text style={[styles.settingDesc, { color: muted }]}>
@@ -189,7 +189,7 @@ export default function PrivacySettingsScreen() {
               {/* 匿名分析 */}
               <View style={[styles.settingItem, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
                 <View style={styles.settingContent}>
-                  <FontAwesome6 name="chart-line" size={24} color={accent} style={styles.settingIcon} />
+                  <Ionicons name="stats-chart" size={24} color={accent} style={styles.settingIcon} />
                   <View style={styles.settingText}>
                     <Text style={[styles.settingTitle, { color: foreground }]}>匿名分析</Text>
                     <Text style={[styles.settingDesc, { color: muted }]}>

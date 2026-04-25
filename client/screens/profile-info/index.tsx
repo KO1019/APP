@@ -237,7 +237,7 @@ export default function ProfileInfoScreen() {
               style={styles.backButton}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <FontAwesome6 name="arrow-left" size={24} color={foreground} />
+              <Ionicons name="arrow-back" size={24} color={foreground} />
             </TouchableOpacity>
             <Text style={[styles.headerTitle, { color: foreground }]}>个人信息</Text>
             <TouchableOpacity onPress={handleSaveNickname} style={styles.saveButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -257,11 +257,11 @@ export default function ProfileInfoScreen() {
                   <Image source={{ uri: avatar }} style={styles.avatarImage} />
                 ) : (
                   <View style={[styles.avatarPlaceholder, { backgroundColor: `${accent}20` }]}>
-                    <FontAwesome6 name="user" size={40} color={accent} />
+                    <Ionicons name="person" size={40} color={accent} />
                   </View>
                 )}
                 <View style={[styles.cameraBadge, { backgroundColor: accent }]}>
-                  <FontAwesome6 name="camera" size={16} color="#FFFFFF" />
+                  <Ionicons name="camera" size={16} color="#FFFFFF" />
                 </View>
                 {uploadingAvatar && (
                   <View style={[styles.uploadingOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
@@ -300,12 +300,12 @@ export default function ProfileInfoScreen() {
               onPress={() => setShowPasswordForm(!showPasswordForm)}
               activeOpacity={0.7}
             >
-              <FontAwesome6 name="key" size={20} color={accent} style={styles.buttonIcon} />
+              <Ionicons name="key" size={20} color={accent} style={styles.buttonIcon} />
               <View style={styles.buttonContent}>
                 <Text style={[styles.buttonTitle, { color: foreground }]}>修改账号密码</Text>
                 <Text style={[styles.buttonSubtitle, { color: muted }]}>用于登录账户的密码</Text>
               </View>
-              <FontAwesome6 name={showPasswordForm ? "chevron-up" : "chevron-right"} size={16} color={muted} />
+              <Ionicons name={showPasswordForm ? "chevron-up" : "chevron-right"} size={16} color={muted} />
             </TouchableOpacity>
 
             {/* 修改密码表单 */}
@@ -367,7 +367,7 @@ export default function ProfileInfoScreen() {
 
             {/* 提示信息 */}
             <View style={[styles.tipCard, { backgroundColor: `${accent}10`, borderColor: `${accent}30`, borderWidth: 1 }]}>
-              <FontAwesome6 name="circle-info" size={16} color={accent} style={styles.tipIcon} />
+              <Ionicons name="circle-info" size={16} color={accent} style={styles.tipIcon} />
               <Text style={[styles.tipText, { color: foreground }]}>
                 账号密码用于登录系统，与应用锁密码不同
               </Text>

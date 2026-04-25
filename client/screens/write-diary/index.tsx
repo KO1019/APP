@@ -732,7 +732,7 @@ ${content}
             }}
             activeOpacity={0.6}
           >
-            <FontAwesome6 name="xmark" size={24} color={foreground} />
+            <Ionicons name="xmark" size={24} color={foreground} />
           </TouchableOpacity>
 
           <View style={styles.headerCenter}>
@@ -747,7 +747,7 @@ ${content}
                     ? (TEMPLATES.find(t => t.id === selectedTemplate)?.title || '模板')
                     : '选择模板'}
                 </Text>
-                <FontAwesome6 name="chevron-down" size={12} color={muted} />
+                <Ionicons name="chevron-down" size={12} color={muted} />
               </TouchableOpacity>
             )}
           </View>
@@ -814,7 +814,7 @@ ${content}
               onPress={handleOpenWeather}
               activeOpacity={0.7}
             >
-              <FontAwesome6
+              <Ionicons
                 name={selectedWeather ? (WEATHERS.find(w => w.id === selectedWeather)?.icon as any || 'cloud-sun') : 'cloud-sun'}
                 size={18}
                 color={selectedWeather ? accent : muted}
@@ -829,7 +829,7 @@ ${content}
               onPress={handleOpenMood}
               activeOpacity={0.7}
             >
-              <FontAwesome6
+              <Ionicons
                 name={selectedMood ? (MOODS.find(m => m.id === selectedMood)?.icon as any || 'face-smile') : 'face-smile'}
                 size={18}
                 color={selectedMood ? accent : muted}
@@ -864,7 +864,7 @@ ${content}
           {/* 标签输入 */}
           <View style={styles.tagInputSection}>
             <View style={[styles.tagInputRow, { backgroundColor: `${surface}50` }]}>
-              <FontAwesome6 name="tags" size={14} color={muted} style={styles.tagInputIcon} />
+              <Ionicons name="tags" size={14} color={muted} style={styles.tagInputIcon} />
               <TextInput
                 style={[styles.tagInput, { color: foreground }]}
                 placeholder="添加标签（按回车添加）"
@@ -878,7 +878,7 @@ ${content}
                 onPress={handleAddTag}
                 activeOpacity={0.7}
               >
-                <FontAwesome6 name="plus" size={14} color={accent} />
+                <Ionicons name="add" size={14} color={accent} />
               </TouchableOpacity>
             </View>
           </View>
@@ -894,7 +894,7 @@ ${content}
                     onPress={() => handleRemoveTag(tag)}
                     activeOpacity={0.7}
                   >
-                    <FontAwesome6 name="xmark" size={10} color={accent} />
+                    <Ionicons name="xmark" size={10} color={accent} />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -915,7 +915,7 @@ ${content}
                       style={styles.removeImageBtn}
                       onPress={() => handleRemoveImage(index)}
                     >
-                      <FontAwesome6 name="xmark" size={14} color="#FFFFFF" />
+                      <Ionicons name="xmark" size={14} color="#FFFFFF" />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -926,7 +926,7 @@ ${content}
           {/* 位置信息 */}
           {location && typeof location.latitude === 'number' && typeof location.longitude === 'number' && (
             <View style={styles.locationSection}>
-              <FontAwesome6 name="location-dot" size={14} color={muted} />
+              <Ionicons name="location-dot" size={14} color={muted} />
               <Text style={[styles.locationText, { color: muted }]}>
                 {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
               </Text>
@@ -937,7 +937,7 @@ ${content}
           {(aiSuggestionLoading || aiSuggestion) && (
             <View style={[styles.aiSuggestionBox, { backgroundColor: `${accent}05`, borderColor: `${accent}20`, borderWidth: 1 }]}>
               <View style={styles.aiSuggestionHeader}>
-                <FontAwesome6 name="robot" size={16} color={accent} />
+                <Ionicons name="robot" size={16} color={accent} />
                 <Text style={[styles.aiSuggestionTitle, { color: accent }]}>
                   {aiActionType === 'continue' && 'AI续写建议'}
                   {aiActionType === 'inspiration' && '写作灵感'}
@@ -945,7 +945,7 @@ ${content}
                   {aiActionType === 'analyze' && '情绪分析'}
                 </Text>
                 <TouchableOpacity onPress={() => setAiSuggestion('')} activeOpacity={0.6}>
-                  <FontAwesome6 name="xmark" size={16} color={muted} />
+                  <Ionicons name="xmark" size={16} color={muted} />
                 </TouchableOpacity>
               </View>
 
@@ -966,7 +966,7 @@ ${content}
                       onPress={handleApplySuggestion}
                       activeOpacity={0.7}
                     >
-                      <FontAwesome6 name="check" size={16} color="#FFFFFF" />
+                      <Ionicons name="check" size={16} color="#FFFFFF" />
                       <Text style={styles.aiSuggestionApplyBtnText}>
                         {aiActionType === 'continue' ? '接受续写' : '应用润色'}
                       </Text>
@@ -987,7 +987,7 @@ ${content}
             onPress={handleGetLocation}
             activeOpacity={0.7}
           >
-            <FontAwesome6
+            <Ionicons
               name={location ? 'location-dot' : 'location'}
               size={20}
               color={location ? accent : muted}
@@ -999,7 +999,7 @@ ${content}
             onPress={handlePickImage}
             activeOpacity={0.7}
           >
-            <FontAwesome6 name="image" size={20} color={accent} />
+            <Ionicons name="image" size={20} color={accent} />
             {images.length > 0 && (
               <View style={[styles.badge, { backgroundColor: accent }]}>
                 <Text style={styles.badgeText}>{images.length}</Text>
@@ -1015,7 +1015,7 @@ ${content}
             disabled={aiSuggestionLoading}
             activeOpacity={0.7}
           >
-            <FontAwesome6 name="pen-fancy" size={20} color={accent} />
+            <Ionicons name="pen-fancy" size={20} color={accent} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -1024,7 +1024,7 @@ ${content}
             disabled={aiSuggestionLoading}
             activeOpacity={0.7}
           >
-            <FontAwesome6 name="lightbulb" size={20} color={accent} />
+            <Ionicons name="lightbulb" size={20} color={accent} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -1033,7 +1033,7 @@ ${content}
             disabled={aiSuggestionLoading}
             activeOpacity={0.7}
           >
-            <FontAwesome6 name="wand-magic-sparkles" size={20} color={accent} />
+            <Ionicons name="wand-magic-sparkles" size={20} color={accent} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -1042,7 +1042,7 @@ ${content}
             disabled={aiSuggestionLoading}
             activeOpacity={0.7}
           >
-            <FontAwesome6 name="heart-pulse" size={20} color={accent} />
+            <Ionicons name="heart-pulse" size={20} color={accent} />
           </TouchableOpacity>
         </View>
       </View>
@@ -1054,7 +1054,7 @@ ${content}
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: foreground }]}>选择模板</Text>
               <TouchableOpacity onPress={() => setShowTemplateModal(false)}>
-                <FontAwesome6 name="xmark" size={24} color={foreground} />
+                <Ionicons name="xmark" size={24} color={foreground} />
               </TouchableOpacity>
             </View>
             <ScrollView>
@@ -1111,7 +1111,7 @@ ${content}
                   onPress={() => handleSelectWeather(weather.id)}
                   activeOpacity={0.7}
                 >
-                  <FontAwesome6 name={weather.icon as any} size={32} color={accent} />
+                  <Ionicons name={weather.icon as any} size={32} color={accent} />
                   <Text style={[styles.weatherLabel, { color: foreground }]}>{weather.label}</Text>
                 </TouchableOpacity>
               ))}
@@ -1150,7 +1150,7 @@ ${content}
                   onPress={() => handleSelectMood(mood.id)}
                   activeOpacity={0.7}
                 >
-                  <FontAwesome6
+                  <Ionicons
                     name={mood.icon as any}
                     size={32}
                     color={selectedMood === mood.id ? '#FFFFFF' : mood.color}
@@ -1183,7 +1183,7 @@ ${content}
           onPress={() => setShowBackConfirmDialog(false)}
         >
           <View style={[styles.confirmDialog, { backgroundColor: surface }]}>
-            <FontAwesome6 name="triangle-exclamation" size={40} color={accent} />
+            <Ionicons name="triangle-exclamation" size={40} color={accent} />
             <Text style={[styles.confirmDialogTitle, { color: foreground }]}>确认离开</Text>
             <Text style={[styles.confirmDialogText, { color: muted }]}>
               您有未保存的内容，确定要离开吗？

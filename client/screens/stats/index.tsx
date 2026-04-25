@@ -287,7 +287,7 @@ export default function StatsScreen() {
     color: string
   ) => (
     <View style={styles.miniStat}>
-      <FontAwesome6 name={icon as any} size={14} color={color} style={styles.miniStatIcon} />
+      <Ionicons name={icon as any} size={14} color={color} style={styles.miniStatIcon} />
       <Text style={[styles.miniStatLabel, { color: muted }]}>{label}</Text>
       <Text style={[styles.miniStatValue, { color: foreground }]}>{value}</Text>
     </View>
@@ -320,7 +320,7 @@ export default function StatsScreen() {
         <View style={[styles.heroCard, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
           <View style={styles.heroLeft}>
             <View style={[styles.heroIcon, { backgroundColor: `${success}20` }]}>
-              <FontAwesome6 name="fire" size={32} color={success} />
+              <Ionicons name="fire" size={32} color={success} />
             </View>
             <View>
               <Text style={[styles.heroValue, { color: foreground }]}>{stats.streakDays}</Text>
@@ -342,7 +342,7 @@ export default function StatsScreen() {
         <View style={[styles.section, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
           <View style={styles.sectionHeader}>
             <View style={[styles.sectionIcon, { backgroundColor: `${accent}20` }]}>
-              <FontAwesome6 name="pen-nib" size={18} color={accent} />
+              <Ionicons name="pen-nib" size={18} color={accent} />
             </View>
             <Text style={[styles.sectionTitle, { color: foreground }]}>写作统计</Text>
           </View>
@@ -380,7 +380,7 @@ export default function StatsScreen() {
         <View style={[styles.section, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
           <View style={styles.sectionHeader}>
             <View style={[styles.sectionIcon, { backgroundColor: `${success}20` }]}>
-              <FontAwesome6 name="face-smile" size={18} color={success} />
+              <Ionicons name="face-smile" size={18} color={success} />
             </View>
             <Text style={[styles.sectionTitle, { color: foreground }]}>情绪分析</Text>
           </View>
@@ -461,14 +461,14 @@ export default function StatsScreen() {
           <View style={[styles.section, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
             <View style={styles.sectionHeader}>
               <View style={[styles.sectionIcon, { backgroundColor: `${warning}20` }]}>
-                <FontAwesome6 name="tags" size={18} color={warning} />
+                <Ionicons name="tags" size={18} color={warning} />
               </View>
               <Text style={[styles.sectionTitle, { color: foreground }]}>常用标签</Text>
             </View>
             <View style={styles.tagsContainer}>
               {stats.topTags.map(([tag, count]) => (
                 <View key={tag} style={[styles.tagBadge, { backgroundColor: `${warning}10`, borderColor: `${warning}30`, borderWidth: 1 }]}>
-                  <FontAwesome6 name="hashtag" size={12} color={warning} style={styles.tagIcon} />
+                  <Ionicons name="hashtag" size={12} color={warning} style={styles.tagIcon} />
                   <Text style={[styles.tagName, { color: foreground }]}>{tag}</Text>
                   <Text style={[styles.tagCount, { color: muted }]}>{count}</Text>
                 </View>
@@ -479,7 +479,7 @@ export default function StatsScreen() {
 
         {/* 提示信息 */}
         <View style={[styles.tipsSection, { backgroundColor: `${info}10`, borderColor: `${info}30`, borderWidth: 1 }]}>
-          <FontAwesome6 name="lightbulb" size={20} color={info} style={styles.tipsIcon} />
+          <Ionicons name="lightbulb" size={20} color={info} style={styles.tipsIcon} />
           <Text style={[styles.tipsText, { color: foreground }]}>
             记录日记可以帮助你更好地了解自己的情绪模式。坚持记录，你会发现自己的情绪变化规律，从而更好地管理自己的心理健康。
           </Text>

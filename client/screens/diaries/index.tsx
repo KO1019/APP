@@ -377,7 +377,7 @@ export default function DiariesScreen() {
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
-      <FontAwesome6 name="book-open" size={64} color={muted} style={styles.emptyIcon} />
+      <Ionicons name="book-outline" size={64} color={muted} style={styles.emptyIcon} />
       <Text style={[styles.emptyText, { color: muted }]}>
         {startDate || endDate ? '没有符合条件的日记' : '还没有日记'}
       </Text>
@@ -397,7 +397,7 @@ export default function DiariesScreen() {
               style={[styles.filterButton, { borderColor: border }]}
               onPress={() => setShowFilterModal(true)}
             >
-              <FontAwesome6 name="filter" size={16} color={startDate || endDate || selectedMood || keyword ? accent : muted} />
+              <Ionicons name="filter" size={16} color={startDate || endDate || selectedMood || keyword ? accent : muted} />
               <Text style={[styles.filterButtonText, { color: startDate || endDate || selectedMood || keyword ? accent : muted }]}>
                 {startDate || endDate || selectedMood || keyword ? '筛选中' : '筛选'}
               </Text>
@@ -435,7 +435,7 @@ export default function DiariesScreen() {
           style={[styles.fab, { backgroundColor: accent }]}
           onPress={() => router.push('/write-diary')}
         >
-          <FontAwesome6 name="plus" size={24} color="#FFFFFF" />
+          <Ionicons name="add" size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
@@ -455,7 +455,7 @@ export default function DiariesScreen() {
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: foreground }]}>筛选日记</Text>
               <TouchableOpacity onPress={() => setShowFilterModal(false)}>
-                <FontAwesome6 name="xmark" size={20} color={muted} />
+                <Ionicons name="xmark" size={20} color={muted} />
               </TouchableOpacity>
             </View>
 
@@ -465,7 +465,7 @@ export default function DiariesScreen() {
                 <Text style={[styles.filterLabel, { color: foreground }]}>关键字搜索</Text>
                 <View style={styles.searchBoxWrapper}>
                   <View style={styles.searchBox}>
-                    <FontAwesome6 name="search" size={16} color={muted} />
+                    <Ionicons name="search" size={16} color={muted} />
                     <TextInput
                       style={styles.searchInput}
                       placeholder="搜索标题、内容或标签"
@@ -475,7 +475,7 @@ export default function DiariesScreen() {
                     />
                     {keyword && (
                       <TouchableOpacity onPress={() => setKeyword('')} style={styles.clearButton}>
-                        <FontAwesome6 name="xmark" size={14} color={muted} />
+                        <Ionicons name="xmark" size={14} color={muted} />
                       </TouchableOpacity>
                     )}
                   </View>

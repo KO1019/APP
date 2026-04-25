@@ -101,7 +101,7 @@ export default function ChangePasswordScreen() {
             onPress={() => router.back()}
             activeOpacity={0.7}
           >
-            <FontAwesome6 name="arrow-left" size={24} color={foreground} />
+            <Ionicons name="arrow-back" size={24} color={foreground} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: foreground }]}>修改密码</Text>
           <View style={styles.headerSpacer} />
@@ -110,7 +110,7 @@ export default function ChangePasswordScreen() {
         <View style={styles.form}>
           {/* 提示图标 */}
           <View style={styles.iconContainer}>
-            <FontAwesome6 name="key" size={48} color={accent} />
+            <Ionicons name="key" size={48} color={accent} />
           </View>
           <Text style={[styles.pageSubtitle, { color: muted }]}>
             为了您的账户安全，建议定期更换密码
@@ -119,7 +119,7 @@ export default function ChangePasswordScreen() {
           {/* 旧密码输入 */}
           <View style={styles.inputGroup}>
             <View style={[styles.inputWrapper, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
-              <FontAwesome6 name="lock" size={20} color={muted} style={styles.inputIcon} />
+              <Ionicons name="lock" size={20} color={muted} style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, { color: foreground }]}
                 placeholder="旧密码"
@@ -134,7 +134,7 @@ export default function ChangePasswordScreen() {
           {/* 新密码输入 */}
           <View style={styles.inputGroup}>
             <View style={[styles.inputWrapper, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
-              <FontAwesome6 name="lock" size={20} color={muted} style={styles.inputIcon} />
+              <Ionicons name="lock" size={20} color={muted} style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, { color: foreground }]}
                 placeholder="新密码（至少6个字符）"
@@ -149,7 +149,7 @@ export default function ChangePasswordScreen() {
           {/* 确认密码输入 */}
           <View style={styles.inputGroup}>
             <View style={[styles.inputWrapper, { backgroundColor: surface, borderColor: border, borderWidth: 1 }]}>
-              <FontAwesome6 name="lock" size={20} color={muted} style={styles.inputIcon} />
+              <Ionicons name="lock" size={20} color={muted} style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, { color: foreground }]}
                 placeholder="确认新密码"
@@ -177,7 +177,7 @@ export default function ChangePasswordScreen() {
 
           {/* 提示信息 */}
           <View style={[styles.tipBox, { backgroundColor: `${accent}10`, borderColor: accent, borderWidth: 1 }]}>
-            <FontAwesome6 name="circle-info" size={16} color={accent} style={styles.tipIcon} />
+            <Ionicons name="circle-info" size={16} color={accent} style={styles.tipIcon} />
             <Text style={[styles.tipText, { color: foreground }]}>
               密码修改后，您需要使用新密码重新登录
             </Text>
