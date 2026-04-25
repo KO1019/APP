@@ -8,23 +8,16 @@ module.exports = function withAndroidAppName(config) {
   config = withAndroidManifest(config, (config) => {
     const androidManifest = config.modResults;
 
-    // 找到主Activity并设置label
+    // 找到application节点
     if (androidManifest.manifest.application) {
       const app = androidManifest.manifest.application;
 
-      // 确保activities数组存在
-      if (!app.activity || !Array.isArray(app.activity)) {
-        app.activity = [];
+      // 确保application的$属性存在
+      if (!app.$) {
+        app.$ = {};
       }
 
-      // 为所有Activity设置label
-      app.activity.forEach((activity) => {
-        if (activity.$ && activity.$['android:name']?.includes('.MainActivity')) {
-          activity.$['android:label'] = 'AI情绪日记';
-        }
-      });
-
-      // 也可以在application级别设置
+      // 设置应用名称
       app.$['android:label'] = 'AI情绪日记';
     }
 
