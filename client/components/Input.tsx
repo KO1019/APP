@@ -30,21 +30,35 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
     };
   }, []);
 
-  // 当显示模式改变时，只有在正在输入时才设置光标到最后
+  // 当 secureTextEntry 变化时，重置显示状态和光标
   useEffect(() => {
-    if (isTypingRef.current && delayedSecure && secureTextEntry && isShowingLastChar && value && value.length > 0) {
-      // 显示模式是星号+最后一个字符，光标应该在最后
-      const stars = '•'.repeat(value.length - 1);
-      const finalValue = stars + value[value.length - 1];
-      setSelection({ start: finalValue.length, end: finalValue.length });
-      // 重置输入状态
+    // 如果切换到明文模式或关闭延迟显示，重置状态
+    if (!secureTextEntry || !delayedSecure) {
+      setIsShowingLastChar(false);
       isTypingRef.current = false;
-    } else {
-      // 清除selection，让TextInput自己管理光标
+      setSelection(undefined);
+    }
+  }, [secureTextEntry, delayedSecure]);
+
+  // 当不在延迟显示模式时，清除光标控制
+  useEffect(() => {
+    if (!delayedSecure || !secureTextEntry || !isShowingLastChar) {
       if (!isTypingRef.current) {
         setSelection(undefined);
       }
     }
+  }, [delayedSecure, secureTextEntry, isShowingLastChar]);
+
+  // 当显示模式改变时，只有在正在输入时才设置光标到最后
+  useEffect(() => {
+    // 只有在正在输入且处于延迟显示模式时，才设置光标到最后
+    if (delayedSecure && secureTextEntry && isShowingLastChar && isTypingRef.current && value && value.length > 0) {
+      // 显示模式是星号+最后一个字符，光标应该在最后
+      const stars = '•'.repeat(value.length - 1);
+      const finalValue = stars + value[value.length - 1];
+      setSelection({ start: finalValue.length, end: finalValue.length });
+    }
+    // 不要在这里重置 isTypingRef，让它在下一次handleChangeText时自然重置
   }, [isShowingLastChar, value, delayedSecure, secureTextEntry]);
 
   const handleChangeText = (text: string) => {
@@ -55,6 +69,9 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
 
     // 只有当启用了delayedSecure且当前处于隐藏模式（secureTextEntry=true）时才处理
     if (delayedSecure && secureTextEntry) {
+      // 先重置之前的typing状态
+      isTypingRef.current = false;
+
       // 标记正在输入
       isTypingRef.current = true;
 
@@ -70,6 +87,9 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
       timeoutRef.current = setTimeout(() => {
         setIsShowingLastChar(false);
       }, 800);
+    } else {
+      // 非密码输入框或明文模式，清除typing状态
+      isTypingRef.current = false;
     }
   };
 
