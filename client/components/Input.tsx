@@ -19,7 +19,6 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
   const [isShowingLastChar, setIsShowingLastChar] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [selection, setSelection] = useState<{ start: number; end: number } | undefined>(undefined);
-  const isTypingRef = useRef(false);  // 跟踪是否正在输入
 
   // 清理定时器
   useEffect(() => {
@@ -30,22 +29,21 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
     };
   }, []);
 
-  // 当显示模式改变时，只有在正在输入时才设置光标到最后
+  // 当显示最后一个字符时，短暂设置光标到最后
   useEffect(() => {
-    if (isTypingRef.current && delayedSecure && secureTextEntry && isShowingLastChar && value && value.length > 0) {
-      // 显示模式是星号+最后一个字符，光标应该在最后
+    if (isShowingLastChar && value && value.length > 0) {
       const stars = '•'.repeat(value.length - 1);
       const finalValue = stars + value[value.length - 1];
       setSelection({ start: finalValue.length, end: finalValue.length });
-      // 重置输入状态
-      isTypingRef.current = false;
-    } else {
-      // 清除selection，让TextInput自己管理光标
-      if (!isTypingRef.current) {
+
+      // 50ms 后清除 selection，让 TextInput 自己管理光标
+      const timer = setTimeout(() => {
         setSelection(undefined);
-      }
+      }, 50);
+
+      return () => clearTimeout(timer);
     }
-  }, [isShowingLastChar, value, delayedSecure, secureTextEntry]);
+  }, [isShowingLastChar, value]);
 
   const handleChangeText = (text: string) => {
     // 调用原始的onChangeText
@@ -53,11 +51,8 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
       onChangeText(text);
     }
 
-    // 只有当启用了delayedSecure且当前处于隐藏模式（secureTextEntry=true）时才处理
+    // 只有当启用delayedSecure且当前处于隐藏模式时才处理
     if (delayedSecure && secureTextEntry) {
-      // 标记正在输入
-      isTypingRef.current = true;
-
       // 正在输入时，短暂显示最后一个字符
       setIsShowingLastChar(true);
 
@@ -70,6 +65,12 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
       timeoutRef.current = setTimeout(() => {
         setIsShowingLastChar(false);
       }, 800);
+    } else {
+      // 明文模式，取消延迟显示
+      setIsShowingLastChar(false);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
     }
   };
 
@@ -78,7 +79,7 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
   let shouldSecure = secureTextEntry;
 
   // 只有在启用delayedSecure且secureTextEntry为true时才使用延迟显示逻辑
-  // 如果secureTextEntry为false（用户点击眼睛显示密码），则直接显示明文
+  // 当 secureTextEntry=false 时（用户点击眼睛），直接显示明文
   if (delayedSecure && secureTextEntry) {
     if (isShowingLastChar && value && value.length > 0) {
       // 短暂显示模式：显示星号+最后一个字符
