@@ -34,6 +34,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       "supportsTablet": true,
       "bundleIdentifier": APP_CONFIG.bundleId,
       "backgroundColor": "#EA580C",
+      "displayName": APP_DISPLAY_NAME, // iOS应用显示名（中文）
     },
     "android": {
       "adaptiveIcon": {
@@ -44,6 +45,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       "icon": "./assets/images/icon-safe.png",
       "package": APP_CONFIG.bundleId,
       "backgroundColor": "#EA580C",
+      "displayName": APP_DISPLAY_NAME, // Android应用显示名（中文）
       "permissions": [
         'INTERNET',
         'ACCESS_NETWORK_STATE',
