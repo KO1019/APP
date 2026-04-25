@@ -31,7 +31,7 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
   const handleChangeText = (text: string) => {
     // 只有当启用了delayedSecure且当前处于隐藏模式（secureTextEntry=true）时才处理
     if (delayedSecure && secureTextEntry) {
-      // 正在输入时，短暂显示最后一个字符
+      // 输入时短暂显示最后一个字符
       setIsShowingLastChar(true);
 
       // 取消之前的定时器
@@ -39,10 +39,10 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
         clearTimeout(timeoutRef.current);
       }
 
-      // 延迟0.8秒后变成星号
+      // 延迟0.5秒后变成星号
       timeoutRef.current = setTimeout(() => {
         setIsShowingLastChar(false);
-      }, 800);
+      }, 500);
 
       // 调用原始的onChangeText
       if (onChangeText) {
@@ -56,19 +56,19 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
     }
   };
 
-  // 确定显示内容和是否使用secureTextEntry
-  let finalValue = value;
+  // 处理显示内容和secureTextEntry
+  let displayValue = value;
   let shouldSecure = secureTextEntry;
 
   if (delayedSecure && secureTextEntry) {
     if (isShowingLastChar && value && value.length > 0) {
-      // 短暂显示模式：显示星号+最后一个字符
-      const stars = '•'.repeat(value.length - 1);
-      finalValue = stars + value[value.length - 1];
-      shouldSecure = false;  // 不使用secureTextEntry，我们手动构建显示内容
+      // 显示"星号+最后一个字符"
+      const bullets = '\u2022'.repeat(value.length - 1);  // 使用圆点字符
+      displayValue = bullets + value[value.length - 1];
+      shouldSecure = false;  // 手动控制显示
     } else {
-      // 完全隐藏模式：使用secureTextEntry显示星号
-      finalValue = value;
+      // 全部显示星号
+      displayValue = value;
       shouldSecure = true;
     }
   }
@@ -86,7 +86,7 @@ export function Input({ style, error, delayedSecure, secureTextEntry, onChangeTe
           style,
         ]}
         placeholderTextColor={muted}
-        value={value}
+        value={displayValue}
         onChangeText={handleChangeText}
         secureTextEntry={shouldSecure}
         {...props}
