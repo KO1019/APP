@@ -35,69 +35,76 @@ config.resolver.blockList = [
 // 后端地址从环境变量读取（仅用于开发代理）
 const BACKEND_TARGET = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || '';
 
-const apiProxy = createProxyMiddleware({
-  target: BACKEND_TARGET,
-  changeOrigin: true,
-  logLevel: 'debug',
-  proxyTimeout: 86400000,
-  onProxyReq: (proxyReq, req) => {
-    const accept = req.headers.accept || '';
-    if (accept.includes('text/event-stream')) {
-      proxyReq.setHeader('accept-encoding', 'identity');
-    }
-  },
-  onProxyRes: (proxyRes, req, res) => {
-    const contentType = proxyRes.headers['content-type'] || '';
-    if (contentType.includes('text/event-stream') || contentType.includes('application/stream')) {
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.setHeader('X-Accel-Buffering', 'no');
-      if (typeof res.flushHeaders === 'function') {
-        try { res.flushHeaders(); } catch {}
-      }
-    }
-  },
-});
+// 只有在开发环境且配置了后端地址时才创建代理
+let apiProxy = null;
+let streamProxy = null;
 
-const streamProxy = createProxyMiddleware({
-  target: BACKEND_TARGET,
-  changeOrigin: true,
-  logLevel: 'debug',
-  ws: true,
-  proxyTimeout: 86400000,
-  onProxyReq: (proxyReq, req) => {
-    console.log('[Stream Proxy] Proxying request:', req.url, 'Headers:', JSON.stringify(req.headers));
-    const upgrade = req.headers.upgrade;
-    const accept = req.headers.accept || '';
-    if (upgrade && upgrade.toLowerCase() === 'websocket') {
-      proxyReq.setHeader('Connection', 'upgrade');
-      proxyReq.setHeader('Upgrade', req.headers.upgrade);
-      console.log('[Stream Proxy] WebSocket upgrade request');
-    } else if (accept.includes('text/event-stream')) {
-      proxyReq.setHeader('accept-encoding', 'identity');
-      proxyReq.setHeader('Connection', 'keep-alive');
-      console.log('[Stream Proxy] SSE request');
-    }
-  },
-  onError: (err, req, res) => {
-    console.error('[Stream Proxy] Error:', err);
-  },
-  onProxyRes: (proxyRes, req, res) => {
-    console.log('[Stream Proxy] Response status:', proxyRes.statusCode);
-    const contentType = proxyRes.headers['content-type'] || '';
-    if (contentType.includes('text/event-stream') || contentType.includes('application/stream')) {
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.setHeader('X-Accel-Buffering', 'no');
-      if (typeof res.flushHeaders === 'function') {
-        try { res.flushHeaders(); } catch {}
+if (BACKEND_TARGET && process.env.NODE_ENV !== 'production') {
+  apiProxy = createProxyMiddleware({
+    target: BACKEND_TARGET,
+    changeOrigin: true,
+    logLevel: 'debug',
+    proxyTimeout: 86400000,
+    onProxyReq: (proxyReq, req) => {
+      const accept = req.headers.accept || '';
+      if (accept.includes('text/event-stream')) {
+        proxyReq.setHeader('accept-encoding', 'identity');
       }
-    }
-  },
-});
+    },
+    onProxyRes: (proxyRes, req, res) => {
+      const contentType = proxyRes.headers['content-type'] || '';
+      if (contentType.includes('text/event-stream') || contentType.includes('application/stream')) {
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no');
+        if (typeof res.flushHeaders === 'function') {
+          try { res.flushHeaders(); } catch {}
+        }
+      }
+    },
+  });
+
+  streamProxy = createProxyMiddleware({
+    target: BACKEND_TARGET,
+    changeOrigin: true,
+    logLevel: 'debug',
+    ws: true,
+    proxyTimeout: 86400000,
+    onProxyReq: (proxyReq, req) => {
+      console.log('[Stream Proxy] Proxying request:', req.url, 'Headers:', JSON.stringify(req.headers));
+      const upgrade = req.headers.upgrade;
+      const accept = req.headers.accept || '';
+      if (upgrade && upgrade.toLowerCase() === 'websocket') {
+        proxyReq.setHeader('Connection', 'upgrade');
+        proxyReq.setHeader('Upgrade', req.headers.upgrade);
+        console.log('[Stream Proxy] WebSocket upgrade request');
+      } else if (accept.includes('text/event-stream')) {
+        proxyReq.setHeader('accept-encoding', 'identity');
+        proxyReq.setHeader('Connection', 'keep-alive');
+        console.log('[Stream Proxy] SSE request');
+      }
+    },
+    onError: (err, req, res) => {
+      console.error('[Stream Proxy] Error:', err);
+    },
+    onProxyRes: (proxyRes, req, res) => {
+      console.log('[Stream Proxy] Response status:', proxyRes.statusCode);
+      const contentType = proxyRes.headers['content-type'] || '';
+      if (contentType.includes('text/event-stream') || contentType.includes('application/stream')) {
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no');
+        if (typeof res.flushHeaders === 'function') {
+          try { res.flushHeaders(); } catch {}
+        }
+      }
+    },
+  });
+}
 
 const shouldProxyToBackend = (url) => {
   if (!url) return false;
+  if (!apiProxy || !streamProxy) return false;
   // 打印所有请求 URL 以便调试
   console.log('[Proxy Check] URL:', url, 'Pattern:', /^\/api\/v\d+\//.test(url));
   if (/^\/api\/v\d+\//.test(url)) {
