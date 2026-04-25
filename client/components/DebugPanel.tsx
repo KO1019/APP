@@ -20,23 +20,49 @@ const originalConsoleLog = console.log;
 
 if (typeof __DEV__ !== 'undefined' && __DEV__) {
   console.error = (...args: any[]) => {
+    // 先调用原始console输出
     originalConsoleError.apply(console, args);
-    debug.error(args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' '));
+    // 然后记录到日志数组
+    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+    const log: DebugLog = {
+      timestamp: new Date().toLocaleTimeString(),
+      message: message.substring(0, 500), // 限制长度
+      type: 'error'
+    };
+    logs = [log, ...logs].slice(0, maxLogs);
   };
 
   console.warn = (...args: any[]) => {
     originalConsoleWarn.apply(console, args);
-    debug.warn(args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' '));
+    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+    const log: DebugLog = {
+      timestamp: new Date().toLocaleTimeString(),
+      message: message.substring(0, 500),
+      type: 'warn'
+    };
+    logs = [log, ...logs].slice(0, maxLogs);
   };
 
   console.info = (...args: any[]) => {
     originalConsoleInfo.apply(console, args);
-    debug.info(args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' '));
+    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+    const log: DebugLog = {
+      timestamp: new Date().toLocaleTimeString(),
+      message: message.substring(0, 500),
+      type: 'info'
+    };
+    logs = [log, ...logs].slice(0, maxLogs);
   };
 
   console.log = (...args: any[]) => {
     originalConsoleLog.apply(console, args);
-    debug.info(args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' '));
+    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+    const log: DebugLog = {
+      timestamp: new Date().toLocaleTimeString(),
+      message: message.substring(0, 500),
+      type: 'info'
+    };
+    logs = [log, ...logs].slice(0, maxLogs);
   };
 }
 
@@ -44,29 +70,26 @@ export const debug = {
   info: (message: string) => {
     const log: DebugLog = {
       timestamp: new Date().toLocaleTimeString(),
-      message,
+      message: message.substring(0, 500),
       type: 'info'
     };
     logs = [log, ...logs].slice(0, maxLogs);
-    console.log('[Debug]', message);
   },
   warn: (message: string) => {
     const log: DebugLog = {
       timestamp: new Date().toLocaleTimeString(),
-      message,
+      message: message.substring(0, 500),
       type: 'warn'
     };
     logs = [log, ...logs].slice(0, maxLogs);
-    console.warn('[Debug]', message);
   },
   error: (message: string) => {
     const log: DebugLog = {
       timestamp: new Date().toLocaleTimeString(),
-      message,
+      message: message.substring(0, 500),
       type: 'error'
     };
     logs = [log, ...logs].slice(0, maxLogs);
-    console.error('[Debug]', message);
   },
   getLogs: () => logs,
   clearLogs: () => {
