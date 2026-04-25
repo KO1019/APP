@@ -1,13 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React from 'react';
 import { TextInput, View, StyleSheet, TextInputProps, Text } from 'react-native';
 import { useCSSVariable } from 'uniwind';
 
 interface InputProps extends TextInputProps {
   error?: string;
-  showPassword?: boolean;
 }
 
-export function Input({ style, error, showPassword, ...props }: InputProps) {
+export function Input({ style, error, ...props }: InputProps) {
   const [background, border, foreground, muted] = useCSSVariable([
     '--color-background',
     '--color-border',
@@ -28,7 +27,6 @@ export function Input({ style, error, showPassword, ...props }: InputProps) {
           style,
         ]}
         placeholderTextColor={muted}
-        secureTextEntry={props.secureTextEntry && !showPassword}
         {...props}
       />
       {error && <Text style={styles.error}>{error}</Text>}
