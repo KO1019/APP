@@ -237,16 +237,20 @@ export default function WriteDiaryScreen() {
   const triggerAIContinue = async () => {
     if (!content || content.trim().length < 20) return;
 
+    // 检查是否登录
+    if (!token) {
+      return;
+    }
+
+    // 检查是否离线模式
+    if (isOfflineMode) {
+      return;
+    }
+
     setAiSuggestionLoading(true);
     setAiActionType('continue');
 
     try {
-      const authToken = await AsyncStorage.getItem('authToken');
-      if (!authToken) {
-        setAiSuggestionLoading(false);
-        return;
-      }
-
       const prompt = `请根据以下日记内容，帮我续写2-3句话，保持原有的写作风格和情绪：
 
 ${content}
@@ -261,7 +265,7 @@ ${content}
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           messages: [
@@ -300,8 +304,8 @@ ${content}
     setAiSuggestion('');
 
     try {
-      const authToken = await AsyncStorage.getItem('authToken');
-      if (!authToken) {
+      // 检查是否登录（使用AuthContext中的token）
+      if (!token) {
         Alert.alert(
           '提示',
           'AI功能需要登录后使用。\n\n您可以：\n1. 先保存日记到本地\n2. 登录后再使用AI功能进行润色和分析',
@@ -310,6 +314,15 @@ ${content}
         return;
       }
 
+      // 检查是否离线模式
+      if (isOfflineMode) {
+        Alert.alert(
+          '提示',
+          '离线模式下不可使用AI功能\n\n您可以：\n1. 先保存日记到本地\n2. 切换到在线模式后再使用AI功能',
+          [{ text: '确定' }]
+        );
+        return;
+      }
 
       // 根据不同操作类型构建不同的prompt
       let prompt = '';
@@ -364,7 +377,7 @@ ${content}
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           messages: [

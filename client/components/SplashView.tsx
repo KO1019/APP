@@ -55,7 +55,7 @@ export default function SplashView() {
       // 如果有token和user信息，说明已经登录，跳转到首页
       if (storedToken && storedUser) {
         console.log('[Splash] 检测到已登录用户，跳转到首页');
-        router.replace('/');
+        router.replace('/(tabs)');
       } else {
         console.log('[Splash] 未检测到登录信息，跳转到登录页');
         router.replace('/login');
