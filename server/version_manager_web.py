@@ -1836,6 +1836,7 @@ HTML_TEMPLATE = """
         // 自动填充表单字段
         function autoFillFormFields(file) {
             const fileName = file.name;
+            const fileExt = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
 
             // 1. 从文件名提取版本号（支持格式：appname-v1.0.1.apk 或 appname_1.0.1.apk）
             let version = '';
@@ -1936,21 +1937,6 @@ HTML_TEMPLATE = """
                 }, 300);
             }, 3000);
         }
-                    if (file.size > maxSize) {
-                        alert('文件大小不能超过500MB');
-                        fileInput.value = '';
-                        return;
-                    }
-
-                    // 自动上传文件
-                    try {
-                        await uploadFile(file);
-                    } catch (error) {
-                        console.error('文件上传失败:', error);
-                    }
-                });
-            }
-        });
 
         // 创建版本
         async function createVersion(event) {
