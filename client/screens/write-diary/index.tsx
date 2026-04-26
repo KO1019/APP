@@ -724,7 +724,15 @@ ${content}
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => {
-              if (content.trim() || images.length > 0) {
+              // 检查是否有未保存的内容
+              const hasContent = content.trim().length > 0;
+              const hasImages = images.length > 0;
+              const hasMood = selectedMood !== null;
+              const hasWeather = selectedWeather !== null;
+              const hasTags = tags.length > 0;
+
+              // 只要有任何内容，就提示用户保存
+              if (hasContent || hasImages || hasMood || hasWeather || hasTags) {
                 setShowBackConfirmDialog(true);
               } else {
                 router.back();

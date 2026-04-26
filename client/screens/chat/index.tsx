@@ -140,17 +140,19 @@ export default function ChatScreen() {
 
   const fetchRecentConversations = useCallback(async () => {
     try {
-      if (!token) {
+      // 离线模式或未登录，不获取云端对话
+      if (!token || isOfflineMode) {
         setRecentConversations([]);
         return;
       }
 
       /**
-       * 服务端文件：server/src/index.ts
+       * 服务端文件：server/main.py
        * 接口：GET /api/v1/conversations
+       * Query 参数：limit?: number
        * Headers: Authorization: Bearer {token}
        */
-      const response = await fetch(buildApiUrl('/api/v1/conversations'), {
+      const response = await fetch(buildApiUrl('/api/v1/conversations?limit=2'), {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -167,7 +169,7 @@ export default function ChatScreen() {
       console.error('Error fetching recent conversations:', error);
       setRecentConversations([]);
     }
-  }, [token]);
+  }, [token, isOfflineMode]);
 
   const sendMessage = async () => {
     if (!inputText.trim() || loading) {

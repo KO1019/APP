@@ -206,8 +206,8 @@ export default function ConversationHistoryScreen() {
       // 1. 先删除本地数据
       await deleteLocalChatMessage(conversationId);
 
-      // 2. 如果是在线模式且已登录，同时删除云端数据
-      if (!isOfflineMode && token) {
+      // 2. 如果开启了云端同步且是在线模式，同时删除云端数据
+      if (user?.cloud_sync_enabled && !isOfflineMode && token) {
         try {
           /**
            * 服务端文件：server/main.py
