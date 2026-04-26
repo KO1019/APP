@@ -3,8 +3,14 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 import { Screen } from '@/components/Screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '@/contexts/AuthContext';
 
 const { width, height } = Dimensions.get('window');
+
+const STORAGE_KEYS = {
+  TOKEN: '@ai_diary_token',
+  USER: '@ai_diary_user',
+};
 
 // 暖橙色主题配色
 const THEME = {
@@ -17,12 +23,13 @@ const THEME = {
 
 export default function WelcomeScreen() {
   const router = useSafeRouter();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     const checkUser = async () => {
       try {
-        const token = await AsyncStorage.getItem('userToken');
-        if (!token) {
+        const token = await AsyncStorage.getItem(STORAGE_KEYS.TOKEN);
+        if (!token || !isAuthenticated) {
           router.replace('/login');
         }
       } catch (error) {
@@ -30,7 +37,7 @@ export default function WelcomeScreen() {
       }
     };
     checkUser();
-  }, [router]);
+  }, [router, isAuthenticated]);
 
   const features = [
     {
@@ -56,7 +63,7 @@ export default function WelcomeScreen() {
   ];
 
   const handleGetStarted = () => {
-    router.replace('/');
+    router.replace('/(tabs)');
   };
 
   return (

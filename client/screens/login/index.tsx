@@ -77,8 +77,8 @@ export default function LoginScreen() {
         text1: '登录成功',
         text2: '欢迎回来'
       });
-      // 直接跳转到首页
-      router.replace('/');
+      // 跳转到首页（tabs）
+      router.replace('/(tabs)');
     } catch (error: any) {
       debug.error('[Login] 登录失败:', error.message);
       let errorMessage = '登录失败，请稍后重试';
