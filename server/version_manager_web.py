@@ -1753,69 +1753,80 @@ HTML_TEMPLATE = """
             uploadProgress.style.display = 'block';
             uploadSuccess.style.display = 'none';
             uploadError.style.display = 'none';
-            uploadStatus.textContent = '正在上传...';
+            uploadStatus.textContent = '正在上传 0%';
             progressBar.style.width = '0%';
             createBtn.disabled = true;
 
-            try {
-                const response = await fetch(`${API_BASE}/files/upload`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    },
-                    body: formData
+            // 使用 XMLHttpRequest 实现上传进度
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+
+                // 监听上传进度
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percentComplete = Math.round((e.loaded / e.total) * 100);
+                        progressBar.style.width = percentComplete + '%';
+                        uploadStatus.textContent = `正在上传 ${percentComplete}%`;
+                    }
                 });
 
-                if (!response.ok) {
-                    const contentType = response.headers.get('content-type');
-                    let errorMessage = '上传失败';
+                // 监听上传完成
+                xhr.addEventListener('load', () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        // 上传成功
+                        const data = JSON.parse(xhr.responseText);
 
-                    if (contentType && contentType.includes('application/json')) {
-                        // 如果返回的是JSON，解析错误信息
-                        try {
-                            const error = await response.json();
-                            errorMessage = error.detail || '上传失败';
-                        } catch (e) {
-                            console.error('Failed to parse error response:', e);
-                            // 解析失败时显示原始响应文本
-                            const text = await response.text();
-                            errorMessage = `上传失败 (HTTP ${response.status}): ${text.substring(0, 200)}`;
-                        }
+                        progressBar.style.width = '100%';
+                        uploadStatus.textContent = '上传成功！';
+
+                        // 显示成功消息
+                        uploadSuccess.style.display = 'block';
+                        uploadProgress.style.display = 'none';
+
+                        // 设置隐藏字段的值
+                        document.getElementById('uploaded_file_url').value = data.url;
+                        document.getElementById('uploaded_file_size').value = file.size;
+
+                        // 启用创建按钮
+                        createBtn.disabled = false;
+                        createBtn.textContent = '创建版本';
+
+                        resolve(data);
                     } else {
-                        // 如果返回的是HTML或其他格式，使用状态码
-                        errorMessage = `上传失败 (HTTP ${response.status})`;
+                        // 上传失败
+                        let errorMessage = '上传失败';
+                        try {
+                            const error = JSON.parse(xhr.responseText);
+                            errorMessage = error.detail || errorMessage;
+                        } catch (e) {
+                            errorMessage = `上传失败 (HTTP ${xhr.status})`;
+                        }
+
+                        uploadError.style.display = 'block';
+                        uploadError.textContent = '✗ ' + errorMessage;
+                        uploadProgress.style.display = 'none';
+                        createBtn.disabled = false;
+                        createBtn.textContent = '创建版本';
+
+                        reject(new Error(errorMessage));
                     }
+                });
 
-                    throw new Error(errorMessage);
-                }
+                // 监听错误
+                xhr.addEventListener('error', () => {
+                    uploadError.style.display = 'block';
+                    uploadError.textContent = '✗ 上传失败，网络错误';
+                    uploadProgress.style.display = 'none';
+                    createBtn.disabled = false;
+                    createBtn.textContent = '创建版本';
+                    reject(new Error('网络错误'));
+                });
 
-                const data = await response.json();
-
-                // 更新进度条
-                progressBar.style.width = '100%';
-                uploadStatus.textContent = '上传成功！';
-
-                // 显示成功消息
-                uploadSuccess.style.display = 'block';
-                uploadProgress.style.display = 'none';
-
-                // 设置隐藏字段的值
-                document.getElementById('uploaded_file_url').value = data.url;
-                document.getElementById('uploaded_file_size').value = file.size;
-
-                // 启用创建按钮
-                createBtn.disabled = false;
-                createBtn.textContent = '创建版本';
-
-                return data;
-            } catch (error) {
-                uploadError.style.display = 'block';
-                uploadError.textContent = '✗ ' + error.message;
-                uploadProgress.style.display = 'none';
-                createBtn.disabled = false;
-                createBtn.textContent = '创建版本';
-                throw error;
-            }
+                // 发送请求
+                xhr.open('POST', `${API_BASE}/files/upload`);
+                xhr.setRequestHeader('Authorization', `Bearer ${authToken}`);
+                xhr.send(formData);
+            });
         }
 
         // 监听文件选择
@@ -1847,7 +1858,11 @@ HTML_TEMPLATE = """
                     autoFillFormFields(file);
 
                     // 开始上传
-                    await uploadFile(file);
+                    try {
+                        await uploadFile(file);
+                    } catch (error) {
+                        console.error('上传失败:', error);
+                    }
                 });
             }
 
