@@ -2,6 +2,7 @@ import { ExpoConfig, ConfigContext } from 'expo/config';
 
 // 导入插件（使用require，因为app.config在Node.js环境中运行）
 const withAndroidAppName = require('./plugins/withAndroidAppName');
+const withAndroidCleartextTraffic = require('./plugins/withAndroidCleartextTraffic');
 
 // 直接定义配置（避免在Node.js环境下加载复杂模块）
 const APP_CONFIG = {
@@ -73,6 +74,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       "expo-updates",
       "expo-router",
       withAndroidAppName, // 设置Android应用显示名为中文
+      withAndroidCleartextTraffic, // 允许Android应用使用HTTP明文流量
       [
         "expo-image-picker",
         {
