@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Dimensions, Image } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -19,8 +19,14 @@ const iconTransparent = require('@/assets/images/icon-transparent.png');
 
 const { width } = Dimensions.get('window');
 
+const STORAGE_KEYS = {
+  TOKEN: '@ai_diary_token',
+  USER: '@ai_diary_user',
+};
+
 export default function SplashView() {
   const router = useSafeRouter();
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   // 动画值 - 必须在组件顶部声明
   const iconScale = useSharedValue(0.4);
@@ -42,10 +48,20 @@ export default function SplashView() {
 
   const navigateToNext = async () => {
     try {
-      // 直接跳转到登录页面，只保留一个启动页面（splash）
-      router.replace('/login');
+      // 检查本地是否有登录信息
+      const storedToken = await AsyncStorage.getItem(STORAGE_KEYS.TOKEN);
+      const storedUser = await AsyncStorage.getItem(STORAGE_KEYS.USER);
+
+      // 如果有token和user信息，说明已经登录，跳转到首页
+      if (storedToken && storedUser) {
+        console.log('[Splash] 检测到已登录用户，跳转到首页');
+        router.replace('/');
+      } else {
+        console.log('[Splash] 未检测到登录信息，跳转到登录页');
+        router.replace('/login');
+      }
     } catch (error) {
-      console.error('启动页跳转失败:', error);
+      console.error('[Splash] 启动页跳转失败:', error);
       router.replace('/login');
     }
   };
@@ -102,7 +118,6 @@ export default function SplashView() {
     }, 2500);
 
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 动画样式 - 必须在组件顶部定义

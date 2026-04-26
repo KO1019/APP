@@ -15,58 +15,59 @@ interface DebugLog {
 let logs: DebugLog[] = [];
 let maxLogs = 200; // 增加日志数量限制
 
-// 重写console方法，同步输出到调试面板（包括APK环境）
-const originalConsoleError = console.error;
-const originalConsoleWarn = console.warn;
-const originalConsoleInfo = console.info;
-const originalConsoleLog = console.log;
+// 只在开发环境（__DEV__）重写console方法
+if (__DEV__) {
+  const originalConsoleError = console.error;
+  const originalConsoleWarn = console.warn;
+  const originalConsoleInfo = console.info;
+  const originalConsoleLog = console.log;
 
-// 始终重写console方法，在APK中也生效
-console.error = (...args: any[]) => {
-  // 先调用原始console输出
-  originalConsoleError.apply(console, args);
-  // 然后记录到日志数组
-  const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
-  const log: DebugLog = {
-    timestamp: new Date().toLocaleTimeString(),
-    message: message, // 不限制长度
-    type: 'error'
+  console.error = (...args: any[]) => {
+    // 先调用原始console输出
+    originalConsoleError.apply(console, args);
+    // 然后记录到日志数组
+    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
+    const log: DebugLog = {
+      timestamp: new Date().toLocaleTimeString(),
+      message: message, // 不限制长度
+      type: 'error'
+    };
+    logs = [log, ...logs].slice(0, maxLogs);
   };
-  logs = [log, ...logs].slice(0, maxLogs);
-};
 
-console.warn = (...args: any[]) => {
-  originalConsoleWarn.apply(console, args);
-  const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
-  const log: DebugLog = {
-    timestamp: new Date().toLocaleTimeString(),
-    message: message, // 不限制长度
-    type: 'warn'
+  console.warn = (...args: any[]) => {
+    originalConsoleWarn.apply(console, args);
+    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
+    const log: DebugLog = {
+      timestamp: new Date().toLocaleTimeString(),
+      message: message, // 不限制长度
+      type: 'warn'
+    };
+    logs = [log, ...logs].slice(0, maxLogs);
   };
-  logs = [log, ...logs].slice(0, maxLogs);
-};
 
-console.info = (...args: any[]) => {
-  originalConsoleInfo.apply(console, args);
-  const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
-  const log: DebugLog = {
-    timestamp: new Date().toLocaleTimeString(),
-    message: message, // 不限制长度
-    type: 'info'
+  console.info = (...args: any[]) => {
+    originalConsoleInfo.apply(console, args);
+    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
+    const log: DebugLog = {
+      timestamp: new Date().toLocaleTimeString(),
+      message: message, // 不限制长度
+      type: 'info'
+    };
+    logs = [log, ...logs].slice(0, maxLogs);
   };
-  logs = [log, ...logs].slice(0, maxLogs);
-};
 
-console.log = (...args: any[]) => {
-  originalConsoleLog.apply(console, args);
-  const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
-  const log: DebugLog = {
-    timestamp: new Date().toLocaleTimeString(),
-    message: message, // 不限制长度
-    type: 'info'
+  console.log = (...args: any[]) => {
+    originalConsoleLog.apply(console, args);
+    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
+    const log: DebugLog = {
+      timestamp: new Date().toLocaleTimeString(),
+      message: message, // 不限制长度
+      type: 'info'
+    };
+    logs = [log, ...logs].slice(0, maxLogs);
   };
-  logs = [log, ...logs].slice(0, maxLogs);
-};
+}
 
 export const debug = {
   info: (message: string) => {
@@ -179,6 +180,11 @@ export default function DebugPanel() {
       Alert.alert('复制失败', error.message);
     }
   };
+
+  // 只在开发环境显示调试面板
+  if (!__DEV__) {
+    return null;
+  }
 
   return (
     <>
