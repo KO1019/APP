@@ -184,6 +184,44 @@ class OSSStorage:
             print(f"[OSS] 删除文件失败: {e}")
             return False, {'error': str(e)}
 
+    def download_file(self, key: str) -> dict:
+        """
+        下载文件（返回二进制内容）
+
+        Args:
+            key: 文件key
+
+        Returns:
+            {
+                'success': bool,
+                'content': bytes,
+                'filename': str,
+                'error': str (如果失败)
+            }
+        """
+        if not self.bucket:
+            return {'success': False, 'error': 'OSS bucket未配置'}
+
+        try:
+            # 从OSS下载文件
+            result = self.bucket.get_object(key)
+            file_content = result.read()
+
+            # 提取文件名
+            filename = os.path.basename(key)
+
+            return {
+                'success': True,
+                'content': file_content,
+                'filename': filename
+            }
+        except oss2.exceptions.NoSuchKey:
+            print(f"[OSS] 文件不存在: {key}")
+            return {'success': False, 'error': '文件不存在'}
+        except Exception as e:
+            print(f"[OSS] 下载文件失败: {e}")
+            return {'success': False, 'error': str(e)}
+
     def get_file_url(self, key: str, expires: int = 3600) -> str:
         """
         获取文件访问URL

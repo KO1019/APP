@@ -5,6 +5,7 @@ AI情绪日记 & 心理状态智能陪伴系统 - Python后端服务
 """
 
 import os
+import io
 import uuid
 import hashlib
 import asyncio
@@ -2712,6 +2713,58 @@ async def upload_avatar(
         "message": "头像上传成功",
         "avatar": result
     }
+
+
+# ========== 文件下载代理（解决OSS防盗链限制）==========
+
+@app.get('/api/v1/files/download/{file_key:path}')
+async def download_file_proxy(file_key: str):
+    """
+    文件下载代理接口
+    通过后端代理下载OSS文件，绕过防盗链限制
+
+    Args:
+        file_key: OSS文件key，如 "versions/app-v1.0.1.apk"
+
+    Returns:
+        StreamingResponse: 文件流
+    """
+    try:
+        # 从OSS下载文件
+        result = oss_storage.download_file(file_key)
+
+        if not result.get('success'):
+            raise HTTPException(status_code=404, detail=f"文件不存在: {file_key}")
+
+        # 获取文件信息
+        file_content = result['content']
+        filename = result.get('filename', os.path.basename(file_key))
+
+        # 设置正确的Content-Type
+        import mimetypes
+        content_type, _ = mimetypes.guess_type(filename)
+        if not content_type:
+            # APK文件的MIME类型
+            content_type = 'application/vnd.android.package-archive'
+            if filename.endswith('.ipa'):
+                content_type = 'application/octet-stream'
+
+        # 返回文件流
+        return StreamingResponse(
+            io.BytesIO(file_content),
+            media_type=content_type,
+            headers={
+                'Content-Disposition': f'attachment; filename="{filename}"',
+                'Content-Length': str(len(file_content)),
+                'Cache-Control': 'public, max-age=31536000',  # 缓存1年
+            }
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[Download Proxy] 下载失败: {e}")
+        raise HTTPException(status_code=500, detail=f"下载失败: {str(e)}")
 
 
 # ========== APP下载页面 ==========

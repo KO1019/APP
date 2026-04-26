@@ -1642,6 +1642,28 @@ HTML_TEMPLATE = """
             // 加载数据
             if (sectionId === 'dashboard') loadDashboard();
             if (sectionId === 'users') loadUsers();
+        }
+
+        // 转换OSS URL为代理URL
+        function getProxyUrl(ossUrl) {
+            if (!ossUrl) return '';
+
+            try {
+                // OSS URL格式: https://bucket-name.oss-region.aliyuncs.com/folder/file.apk
+                // 提取path部分: /folder/file.apk
+                const url = new URL(ossUrl);
+                const path = url.pathname;
+
+                // 去掉开头的 /
+                const fileKey = path.substring(1);
+
+                // 返回代理URL
+                return `${API_BASE}/files/download/${fileKey}`;
+            } catch (e) {
+                console.error('转换URL失败:', e);
+                return ossUrl; // 转换失败返回原URL
+            }
+        }
             if (sectionId === 'models') loadModels();
             if (sectionId === 'welcome') loadWelcomeContents();
             if (sectionId === 'announcements') loadAnnouncements();
@@ -2041,6 +2063,13 @@ HTML_TEMPLATE = """
                     html += `<td>${v.force_update ? '<span class="badge badge-danger">强制</span>' : '<span class="badge badge-info">可选</span>'}</td>`;
                     html += `<td>${new Date(v.release_date).toLocaleDateString('zh-CN')}</td>`;
                     html += '<td>';
+
+                    // 下载按钮
+                    const proxyUrl = getProxyUrl(v.file_url);
+                    if (proxyUrl) {
+                        html += `<a href="${proxyUrl}" target="_blank" class="btn btn-primary btn-small">下载</a> `;
+                    }
+
                     html += `<button onclick="showVersionDetail('${v.id}')" class="btn btn-secondary btn-small">查看</button> `;
                     if (!v.is_active) {
                         html += `<button onclick="activateVersion('${v.id}')" class="btn btn-success btn-small">激活</button> `;
@@ -2077,7 +2106,16 @@ HTML_TEMPLATE = """
                     html += '<div class="info-row"><span class="info-label">构建号:</span><span class="info-value">' + v.build_number + '</span></div>';
                     html += '<div class="info-row"><span class="info-label">类型:</span><span class="info-value">' + (v.force_update ? '强制更新' : '可选更新') + '</span></div>';
                     html += '<div class="info-row"><span class="info-label">激活时间:</span><span class="info-value">' + new Date(v.updated_at).toLocaleString('zh-CN') + '</span></div>';
-                    html += '<div class="info-row"><span class="info-label">下载链接:</span><span class="info-value">' + (v.update_url || '未设置') + '</span></div>';
+
+                    // 下载按钮
+                    const proxyUrl = getProxyUrl(v.file_url);
+                    if (proxyUrl) {
+                        html += '<div class="info-row"><span class="info-label">下载链接:</span>';
+                        html += `<span class="info-value"><a href="${proxyUrl}" target="_blank" class="btn btn-primary btn-small">下载文件</a></span></div>';
+                    } else {
+                        html += '<div class="info-row"><span class="info-label">下载链接:</span><span class="info-value">未设置</span></div>';
+                    }
+
                     html += '<div class="release-notes"><strong>更新说明:</strong><br>' + v.release_notes.replace(/\\n/g, '<br>') + '</div>';
                     html += '</div>';
                 });
@@ -2102,7 +2140,16 @@ HTML_TEMPLATE = """
                 html += '<div class="info-row"><span class="info-label">状态:</span><span class="info-value">' + (data.is_active ? '已激活' : '未激活') + '</span></div>';
                 html += '<div class="info-row"><span class="info-label">类型:</span><span class="info-value">' + (data.force_update ? '强制更新' : '可选更新') + '</span></div>';
                 html += '<div class="info-row"><span class="info-label">发布日期:</span><span class="info-value">' + new Date(data.release_date).toLocaleString('zh-CN') + '</span></div>';
-                html += '<div class="info-row"><span class="info-label">下载链接:</span><span class="info-value">' + (data.update_url || '未设置') + '</span></div>';
+
+                // 下载按钮
+                const proxyUrl = getProxyUrl(data.file_url);
+                if (proxyUrl) {
+                    html += '<div class="info-row"><span class="info-label">下载链接:</span>';
+                    html += `<span class="info-value"><a href="${proxyUrl}" target="_blank" class="btn btn-primary btn-small">下载文件</a></span></div>`;
+                } else {
+                    html += '<div class="info-row"><span class="info-label">下载链接:</span><span class="info-value">未设置</span></div>';
+                }
+
                 html += '<div class="release-notes"><strong>更新说明:</strong><br>' + data.release_notes.replace(/\\n/g, '<br>') + '</div>';
                 html += '</div>';
                 html += `<button onclick="showSection('list')" class="btn btn-secondary">返回列表</button>`;
