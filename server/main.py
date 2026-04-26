@@ -2588,19 +2588,19 @@ async def upload_file(
     if not check_oss_config():
         raise HTTPException(status_code=500, detail="OSS未配置")
 
-    # 检查文件大小（最大10MB）
-    if len(file) > 10 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="文件大小不能超过10MB")
-
-    # 上传文件
+    # 上传文件（移除文件大小限制）
     success, result = oss_storage.upload_file(file, filename, folder)
 
     if not success:
         raise HTTPException(status_code=500, detail=f"上传失败: {result.get('error')}")
 
+    # 直接返回文件信息，兼容管理后台前端
     return {
         "success": True,
-        "file": result
+        "url": result.get('url'),
+        "key": result.get('key'),
+        "size": result.get('size', len(file)),
+        "filename": filename
     }
 
 

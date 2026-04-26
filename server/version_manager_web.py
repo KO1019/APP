@@ -1687,8 +1687,23 @@ HTML_TEMPLATE = """
                 });
 
                 if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.detail || '上传失败');
+                    const contentType = response.headers.get('content-type');
+                    let errorMessage = '上传失败';
+
+                    if (contentType && contentType.includes('application/json')) {
+                        // 如果返回的是JSON，解析错误信息
+                        try {
+                            const error = await response.json();
+                            errorMessage = error.detail || '上传失败';
+                        } catch (e) {
+                            console.error('Failed to parse error response:', e);
+                        }
+                    } else {
+                        // 如果返回的是HTML或其他格式，使用状态码
+                        errorMessage = `上传失败 (HTTP ${response.status})`;
+                    }
+
+                    throw new Error(errorMessage);
                 }
 
                 const data = await response.json();
