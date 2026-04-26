@@ -2918,19 +2918,27 @@ async def index(request: Request):
 @app.get("/version-manager", response_class=HTMLResponse)
 async def version_manager(request: Request):
     """版本管理Web界面"""
-    # 从 URL 参数获取 API 地址，默认使用配置的地址
+    # 从 URL 参数获取 API 地址
     api_url = request.query_params.get('api_url')
 
-    # 如果没有指定，尝试从请求头推断
+    # 如果没有指定，使用环境变量配置的地址
     if not api_url:
+        api_url = API_BASE_URL
+
+    # 如果环境变量也没有配置，尝试从请求头推断
+    if not api_url or api_url == API_BASE_URL:
         host = request.headers.get('host', 'localhost:9092')
-        # 如果是访问 9092 端口，自动转换为 9091
-        if ':9092' in host:
-            api_url = host.replace(':9092', ':9091')
+        # 如果是访问 9092 端口，自动转换为环境变量配置的地址（如果有）
+        if ':9092' in host and API_BASE_URL and API_BASE_URL != f'http://{host}':
+            # 使用环境变量配置的地址
+            api_url = API_BASE_URL
         else:
-            # 提取主机名，添加 9091 端口
+            # 提取主机名，使用环境变量配置的地址（如果有），否则使用默认的9091端口
             hostname = host.split(':')[0]
-            api_url = f"{hostname}:9091"
+            if API_BASE_URL and hostname in API_BASE_URL:
+                api_url = API_BASE_URL
+            else:
+                api_url = f"{hostname}:9091"
 
     # 检测请求协议（用于解决混合内容错误）
     # 优先使用X-Forwarded-Proto头（nginx等反向代理设置）
@@ -2939,14 +2947,16 @@ async def version_manager(request: Request):
     forwarded_proto = request.headers.get('x-forwarded-proto')
     if forwarded_proto:
         protocol = forwarded_proto
-    elif hasattr(request, 'url') and '://' in request.url:
-        protocol = request.url.split('://')[0]
+    elif hasattr(request, 'url') and '://' in str(request.url):
+        protocol = str(request.url).split('://')[0]
 
-    # 添加协议（如果没有）
-    if not api_url.startswith('http://') and not api_url.startswith('https://'):
-        api_url = f'{protocol}://{api_url}'
+    # 如果api_url已经是完整URL（包含协议），直接使用
+    if api_url.startswith('http://') or api_url.startswith('https://'):
+        api_base = f"{api_url}/api/v1"
+    else:
+        # 添加协议（如果没有）
+        api_base = f'{protocol}://{api_url}/api/v1'
 
-    api_base = f"{api_url}/api/v1"
     return HTML_TEMPLATE.replace('{{ API_BASE }}', api_base)
 
 
