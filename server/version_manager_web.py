@@ -687,6 +687,51 @@ HTML_TEMPLATE = """
             }
         }
 
+        /* 上传模式选择器样式 */
+        .upload-mode-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .upload-mode-label {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 20px;
+            border: 2px solid #E5E7EB;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .upload-mode-label:hover {
+            border-color: #EA580C;
+            background: rgba(234, 88, 12, 0.05);
+        }
+
+        .upload-mode-label.active {
+            border-color: #EA580C;
+            background: rgba(234, 88, 12, 0.1);
+            color: #EA580C;
+        }
+
+        .upload-mode-label input[type="radio"] {
+            display: none;
+        }
+
+        .upload-mode-icon {
+            font-size: 18px;
+        }
+
+        .upload-mode-text {
+            font-size: 14px;
+        }
 
         .btn {
             padding: 12px 24px;
@@ -1098,50 +1143,53 @@ HTML_TEMPLATE = """
                     <div id="create-message"></div>
                     <form id="create-form" onsubmit="createVersion(event)">
                         <div class="form-group">
-                            <label for="version">版本号 *</label>
+                            <label for="version">版本号</label>
                             <input type="text" id="version" name="version" placeholder="例如: 1.0.1" required>
-                            <small>使用语义化版本号 (如 1.0.1, 1.1.0, 2.0.0)</small>
+                            <small>选择文件后自动填充，或手动输入</small>
                         </div>
 
                         <div class="form-group">
-                            <label for="build_number">构建号 *</label>
+                            <label for="build_number">构建号</label>
                             <input type="number" id="build_number" name="build_number" placeholder="例如: 101" required>
-                            <small>递增的整数，每次发布递增1</small>
+                            <small>选择文件后自动生成，或手动输入</small>
                         </div>
 
                         <div class="form-group">
-                            <label for="platform">平台 *</label>
+                            <label for="platform">平台</label>
                             <select id="platform" name="platform" required>
                                 <option value="">请选择平台</option>
                                 <option value="android">Android</option>
                                 <option value="ios">iOS</option>
                             </select>
+                            <small>选择文件后自动检测</small>
                         </div>
 
                         <div class="form-group">
-                            <label for="force_update">更新类型 *</label>
+                            <label for="force_update">更新类型</label>
                             <select id="force_update" name="force_update" required>
-                                <option value="false">可选更新（用户可以选择稍后更新）</option>
+                                <option value="false" selected>可选更新（用户可以选择稍后更新）</option>
                                 <option value="true">强制更新（用户必须更新才能使用）</option>
                             </select>
                         </div>
 
                         <div class="form-group">
-                            <label for="release_notes">更新说明 *</label>
-                            <textarea id="release_notes" name="release_notes" placeholder="请输入更新说明（支持换行）" required></textarea>
+                            <label for="release_notes">更新说明</label>
+                            <textarea id="release_notes" name="release_notes" placeholder="请输入更新说明（支持换行）" required rows="4"></textarea>
                             <small>详细描述本次更新的内容，用户会看到这些说明</small>
                         </div>
 
                         <div class="form-group">
                             <label>上传安装包</label>
-                            <div style="margin-bottom: 10px;">
-                                <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                            <div class="upload-mode-selector">
+                                <label class="upload-mode-label active" id="upload-mode-upload-label">
                                     <input type="radio" id="upload-mode-upload" name="upload-mode" value="upload" checked onchange="toggleUploadMode()">
-                                    <span>直接上传安装包</span>
+                                    <span class="upload-mode-icon">📤</span>
+                                    <span class="upload-mode-text">直接上传</span>
                                 </label>
-                                <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                                <label class="upload-mode-label" id="upload-mode-url-label">
                                     <input type="radio" id="upload-mode-url" name="upload-mode" value="url" onchange="toggleUploadMode()">
-                                    <span>使用外部链接</span>
+                                    <span class="upload-mode-icon">🔗</span>
+                                    <span class="upload-mode-text">外部链接</span>
                                 </label>
                             </div>
                         </div>
@@ -1646,14 +1694,22 @@ HTML_TEMPLATE = """
             const urlGroup = document.getElementById('url-group');
             const fileInput = document.getElementById('file');
 
+            // 更新样式
+            const uploadLabel = document.getElementById('upload-mode-upload-label');
+            const urlLabel = document.getElementById('upload-mode-url-label');
+
             if (uploadMode === 'upload') {
                 fileUploadGroup.style.display = 'block';
                 urlGroup.style.display = 'none';
                 fileInput.required = true;
+                uploadLabel.classList.add('active');
+                urlLabel.classList.remove('active');
             } else {
                 fileUploadGroup.style.display = 'none';
                 urlGroup.style.display = 'block';
                 fileInput.required = false;
+                uploadLabel.classList.remove('active');
+                urlLabel.classList.add('active');
             }
         }
 
@@ -1759,6 +1815,127 @@ HTML_TEMPLATE = """
 
                     // 检查文件大小（最大500MB）
                     const maxSize = 500 * 1024 * 1024;
+                    if (file.size > maxSize) {
+                        alert('文件大小不能超过500MB');
+                        fileInput.value = '';
+                        return;
+                    }
+
+                    // 自动填充表单字段
+                    autoFillFormFields(file);
+
+                    // 开始上传
+                    await uploadFile(file);
+                });
+            }
+
+            // 初始化上传模式
+            toggleUploadMode();
+        });
+
+        // 自动填充表单字段
+        function autoFillFormFields(file) {
+            const fileName = file.name;
+
+            // 1. 从文件名提取版本号（支持格式：appname-v1.0.1.apk 或 appname_1.0.1.apk）
+            let version = '';
+            const versionMatch = fileName.match(/[-_](\d+\.\d+\.\d+)/);
+            if (versionMatch) {
+                version = versionMatch[1];
+                document.getElementById('version').value = version;
+            } else {
+                // 如果文件名中没有版本号，尝试从文件名生成
+                const cleanName = fileName.replace(/\.(apk|ipa)$/i, '').replace(/[-_]/g, '.');
+                const parts = cleanName.split('.');
+                if (parts.length >= 3) {
+                    // 尝试提取三个数字部分作为版本号
+                    const versionParts = [];
+                    for (const part of parts) {
+                        if (/^\d+$/.test(part)) {
+                            versionParts.push(part);
+                        }
+                        if (versionParts.length >= 3) break;
+                    }
+                    if (versionParts.length >= 3) {
+                        version = versionParts.slice(0, 3).join('.');
+                        document.getElementById('version').value = version;
+                    }
+                }
+            }
+
+            // 2. 自动检测平台
+            const platform = fileExt === '.apk' ? 'android' : 'ios';
+            document.getElementById('platform').value = platform;
+
+            // 3. 自动生成构建号（如果已有版本号）
+            if (version) {
+                const versionParts = version.split('.').map(Number);
+                const buildNumber = versionParts[0] * 10000 + versionParts[1] * 100 + versionParts[2];
+                const buildNumberField = document.getElementById('build_number');
+                if (!buildNumberField.value) {
+                    buildNumberField.value = buildNumber;
+                }
+            }
+
+            // 4. 显示自动填充提示
+            showToast('已自动填充版本信息');
+        }
+
+        // 显示提示消息
+        function showToast(message) {
+            // 创建提示元素
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #10B981;
+                color: white;
+                padding: 12px 24px;
+                border-radius: 8px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                z-index: 10000;
+                animation: slideIn 0.3s ease;
+            `;
+
+            // 添加动画样式
+            if (!document.getElementById('toast-style')) {
+                const style = document.createElement('style');
+                style.id = 'toast-style';
+                style.textContent = `
+                    @keyframes slideIn {
+                        from {
+                            transform: translateX(100%);
+                            opacity: 0;
+                        }
+                        to {
+                            transform: translateX(0);
+                            opacity: 1;
+                        }
+                    }
+                    @keyframes fadeOut {
+                        from {
+                            opacity: 1;
+                        }
+                        to {
+                            opacity: 0;
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            document.body.appendChild(toast);
+
+            // 3秒后自动消失
+            setTimeout(() => {
+                toast.style.animation = 'fadeOut 0.3s ease';
+                setTimeout(() => {
+                    document.body.removeChild(toast);
+                }, 300);
+            }, 3000);
+        }
                     if (file.size > maxSize) {
                         alert('文件大小不能超过500MB');
                         fileInput.value = '';
