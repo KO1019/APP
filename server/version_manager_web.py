@@ -1661,6 +1661,8 @@ HTML_TEMPLATE = """
         async function uploadFile(file) {
             const formData = new FormData();
             formData.append('file', file);
+            formData.append('filename', file.name);
+            formData.append('folder', 'uploads');
 
             const progressBar = document.getElementById('upload-progress-bar');
             const uploadStatus = document.getElementById('upload-status');
@@ -1697,6 +1699,9 @@ HTML_TEMPLATE = """
                             errorMessage = error.detail || '上传失败';
                         } catch (e) {
                             console.error('Failed to parse error response:', e);
+                            // 解析失败时显示原始响应文本
+                            const text = await response.text();
+                            errorMessage = `上传失败 (HTTP ${response.status}): ${text.substring(0, 200)}`;
                         }
                     } else {
                         // 如果返回的是HTML或其他格式，使用状态码
