@@ -1663,8 +1663,8 @@ HTML_TEMPLATE = """
                 // 去掉开头的 /
                 const fileKey = path.substring(1);
 
-                // 返回代理URL
-                return `${API_BASE}/files/download/${fileKey}`;
+                // 返回代理URL（使用 /api/v1/download/ 前缀）
+                return `${API_BASE}/download/${fileKey}`;
             } catch (e) {
                 console.error('转换URL失败:', e);
                 return ossUrl; // 转换失败返回原URL
