@@ -2081,7 +2081,7 @@ HTML_TEMPLATE = """
                     // 下载按钮
                     const proxyUrl = getProxyUrl(v.file_url);
                     if (proxyUrl) {
-                        html += `<a href="${proxyUrl}" target="_blank" class="btn btn-primary btn-small">下载</a> `;
+                        html += '<a href="' + proxyUrl + '" target="_blank" class="btn btn-primary btn-small">下载</a> ';
                     }
 
                     html += `<button onclick="showVersionDetail('${v.id}')" class="btn btn-secondary btn-small">查看</button> `;
@@ -2156,10 +2156,12 @@ HTML_TEMPLATE = """
                 html += '<div class="info-row"><span class="info-label">发布日期:</span><span class="info-value">' + new Date(data.release_date).toLocaleString('zh-CN') + '</span></div>';
 
                 // 下载按钮
+                console.log('file_url:', data.file_url);
                 const proxyUrl = getProxyUrl(data.file_url);
+                console.log('proxyUrl:', proxyUrl);
                 if (proxyUrl) {
                     html += '<div class="info-row"><span class="info-label">下载链接:</span>';
-                    html += `<span class="info-value"><a href="${proxyUrl}" target="_blank" class="btn btn-primary btn-small">下载文件</a></span></div>`;
+                    html += '<span class="info-value"><a href="' + proxyUrl + '" target="_blank" class="btn btn-primary btn-small">下载文件</a></span></div>';
                 } else {
                     html += '<div class="info-row"><span class="info-label">下载链接:</span><span class="info-value">未设置</span></div>';
                 }
