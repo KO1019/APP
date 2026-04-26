@@ -2932,9 +2932,19 @@ async def version_manager(request: Request):
             hostname = host.split(':')[0]
             api_url = f"{hostname}:9091"
 
+    # 检测请求协议（用于解决混合内容错误）
+    # 优先使用X-Forwarded-Proto头（nginx等反向代理设置）
+    # 其次使用URL scheme
+    protocol = 'http'
+    forwarded_proto = request.headers.get('x-forwarded-proto')
+    if forwarded_proto:
+        protocol = forwarded_proto
+    elif hasattr(request, 'url') and '://' in request.url:
+        protocol = request.url.split('://')[0]
+
     # 添加协议（如果没有）
     if not api_url.startswith('http://') and not api_url.startswith('https://'):
-        api_url = f'http://{api_url}'
+        api_url = f'{protocol}://{api_url}'
 
     api_base = f"{api_url}/api/v1"
     return HTML_TEMPLATE.replace('{{ API_BASE }}', api_base)
