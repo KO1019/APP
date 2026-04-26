@@ -81,17 +81,6 @@ app.mount("/version-manager", version_manager_web.app)
 security = HTTPBearer()
 
 # 管理员认证依赖
-async def verify_admin_token(request: Request) -> bool:
-    """验证管理员 token"""
-    token = request.cookies.get('admin_token')
-    return token == ADMIN_TOKEN
-
-
-async def get_current_admin(request: Request):
-    """获取当前管理员（依赖项）"""
-    if not await verify_admin_token(request):
-        raise HTTPException(status_code=401, detail="未授权")
-    return True
 
 # 数据库客户端（MySQL适配器，模拟Supabase API）
 # 不再使用 Supabase，改用 MySQL + db_adapter
@@ -1673,10 +1662,13 @@ class UpdateVersion(BaseModel):
 # 管理员认证相关
 def verify_admin_token(request: Request) -> bool:
     """验证管理员 token"""
-    from fastapi import Header
-
-    # 从 cookie 中获取 token
-    token = request.cookies.get('admin_token')
+    # 优先从 Authorization header 中获取 token
+    auth_header = request.headers.get('Authorization')
+    if auth_header and auth_header.startswith('Bearer '):
+        token = auth_header.replace('Bearer ', '')
+    else:
+        # 其次从 cookie 中获取 token
+        token = request.cookies.get('admin_token')
 
     if not token:
         return False
@@ -1712,8 +1704,13 @@ async def admin_login(username: str = Form(...), password: str = Form(...)):
     if not user_data.get('is_admin', False):
         raise HTTPException(status_code=403, detail="无管理员权限，拒绝访问")
 
-    # 登录成功，设置cookie
-    response = JSONResponse({"success": True, "message": "登录成功", "user": {"username": user_data['username'], "nickname": user_data.get('nickname')}})
+    # 登录成功，设置cookie并返回token
+    response = JSONResponse({
+        "success": True,
+        "message": "登录成功",
+        "access_token": ADMIN_TOKEN,
+        "user": {"username": user_data['username'], "nickname": user_data.get('nickname')}
+    })
     response.set_cookie(
         key="admin_token",
         value=ADMIN_TOKEN,
@@ -1742,7 +1739,7 @@ async def check_auth(request: Request):
 async def create_version(version_data: CreateVersion, request: Request):
     """创建新版本"""
     # 验证认证
-    if not await verify_admin_token(request):
+    if not verify_admin_token(request):
         raise HTTPException(status_code=401, detail="未授权")
 
     if not db_client:

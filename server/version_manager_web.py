@@ -1529,10 +1529,10 @@ HTML_TEMPLATE = """
         // 登录
         async function login(username, password) {
             try {
-                const response = await fetch(`${API_BASE}/login`, {
+                const response = await fetch(`${API_BASE}/admin/login`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({username, password})
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
                 });
                 const data = await response.json();
                 if (response.ok) {
