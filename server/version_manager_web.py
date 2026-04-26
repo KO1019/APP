@@ -1642,6 +1642,12 @@ HTML_TEMPLATE = """
             // 加载数据
             if (sectionId === 'dashboard') loadDashboard();
             if (sectionId === 'users') loadUsers();
+            if (sectionId === 'models') loadModels();
+            if (sectionId === 'welcome') loadWelcomeContents();
+            if (sectionId === 'announcements') loadAnnouncements();
+            if (sectionId === 'stats') loadStats();
+            if (sectionId === 'list') loadVersions();
+            if (sectionId === 'active') loadActiveVersions();
         }
 
         // 转换OSS URL为代理URL
@@ -1663,13 +1669,6 @@ HTML_TEMPLATE = """
                 console.error('转换URL失败:', e);
                 return ossUrl; // 转换失败返回原URL
             }
-        }
-            if (sectionId === 'models') loadModels();
-            if (sectionId === 'welcome') loadWelcomeContents();
-            if (sectionId === 'announcements') loadAnnouncements();
-            if (sectionId === 'stats') loadStats();
-            if (sectionId === 'list') loadVersions();
-            if (sectionId === 'active') loadActiveVersions();
         }
 
         // 加载仪表盘
@@ -2126,7 +2125,7 @@ HTML_TEMPLATE = """
                     const proxyUrl = getProxyUrl(v.file_url);
                     if (proxyUrl) {
                         html += '<div class="info-row"><span class="info-label">下载链接:</span>';
-                        html += `<span class="info-value"><a href="${proxyUrl}" target="_blank" class="btn btn-primary btn-small">下载文件</a></span></div>';
+                        html += '<span class="info-value"><a href="' + proxyUrl + '" target="_blank" class="btn btn-primary btn-small">下载文件</a></span></div>';
                     } else {
                         html += '<div class="info-row"><span class="info-label">下载链接:</span><span class="info-value">未设置</span></div>';
                     }
