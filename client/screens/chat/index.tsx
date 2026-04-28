@@ -54,6 +54,18 @@ export default function ChatScreen() {
       // 判断是否为本地ID（以local_开头）
       const isLocalId = params.conversationId.startsWith('local_');
 
+      // 优先从本地存储加载完整对话
+      try {
+        const localConversation = await getLocalConversation(params.conversationId);
+        if (localConversation) {
+          setMessages(localConversation.messages || []);
+          setCurrentConversationId(params.conversationId);
+          return;
+        }
+      } catch (error) {
+        console.error('Error loading conversation from local storage:', error);
+      }
+
       if (!isLocalId && token) {
         try {
           const response = await fetch(buildApiUrl(`/api/v1/conversations/${params.conversationId}`), {

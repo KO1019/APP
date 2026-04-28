@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const STORAGE_KEYS = {
   DIARIES: '@ai_diary_local_diaries',
   CHAT_HISTORY: '@ai_diary_local_chat_history',
+  CONVERSATIONS: '@ai_diary_local_conversations',  // 新：完整的对话记录
   PENDING_UPLOAD: '@ai_diary_pending_upload', // 待上传的数据
 };
 
@@ -24,14 +25,25 @@ export interface LocalDiary {
   is_uploaded?: boolean; // 是否已上传到云端
 }
 
-// 聊天记录类型
+// 聊天记录类型（改进版：保存完整对话历史）
+export interface LocalConversation {
+  id: string;
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  diaryContext: string | null;  // 日记上下文内容
+  relatedDiaryId: string | null;  // 关联的日记ID
+  createdAt: string;
+  updatedAt: string;
+  isUploaded?: boolean;  // 是否已上传到云端
+}
+
+// 保留旧的类型用于兼容
 export interface LocalChatMessage {
   id: string;
   user_message: string;
   ai_message: string;
   related_diary_id?: string;
   created_at: string;
-  is_uploaded?: boolean; // 是否已上传到云端
+  is_uploaded?: boolean;
 }
 
 // ===== 工具函数 =====
@@ -134,6 +146,91 @@ export async function markDiaryAsUploaded(id: string): Promise<void> {
 }
 
 // ===== 聊天记录操作 =====
+
+/**
+ * 保存或更新完整对话（新版本）
+ * @param conversationId 对话ID
+ * @param messages 完整的消息数组
+ * @param diaryContext 日记上下文内容
+ * @param relatedDiaryId 关联的日记ID
+ */
+export async function saveConversationLocally(
+  conversationId: string,
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+  diaryContext: string | null = null,
+  relatedDiaryId: string | null = null
+): Promise<void> {
+  try {
+    const conversations = await getLocalConversations();
+    const now = new Date().toISOString();
+
+    const existingIndex = conversations.findIndex(c => c.id === conversationId);
+
+    const conversationData: LocalConversation = {
+      id: conversationId,
+      messages,
+      diaryContext,
+      relatedDiaryId,
+      createdAt: existingIndex >= 0 ? conversations[existingIndex].createdAt : now,
+      updatedAt: now,
+      isUploaded: false,
+    };
+
+    if (existingIndex >= 0) {
+      conversations[existingIndex] = conversationData;
+    } else {
+      conversations.push(conversationData);
+    }
+
+    await AsyncStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(conversations));
+  } catch (error) {
+    console.error('Error saving conversation:', error);
+    throw error;
+  }
+}
+
+/**
+ * 获取所有本地对话
+ */
+export async function getLocalConversations(): Promise<LocalConversation[]> {
+  try {
+    const data = await AsyncStorage.getItem(STORAGE_KEYS.CONVERSATIONS);
+    if (!data) return [];
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error getting local conversations:', error);
+    return [];
+  }
+}
+
+/**
+ * 获取指定对话
+ */
+export async function getLocalConversation(conversationId: string): Promise<LocalConversation | null> {
+  try {
+    const conversations = await getLocalConversations();
+    return conversations.find(c => c.id === conversationId) || null;
+  } catch (error) {
+    console.error('Error getting local conversation:', error);
+    return null;
+  }
+}
+
+/**
+ * 删除本地对话
+ */
+export async function deleteLocalConversation(conversationId: string): Promise<void> {
+  try {
+    const conversations = await getLocalConversations();
+    const updated = conversations.filter(c => c.id !== conversationId);
+    await AsyncStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(updated));
+  } catch (error) {
+    console.error('Error deleting conversation:', error);
+    throw error;
+  }
+}
+
+// ===== 旧版聊天消息操作（兼容）=====
 
 /**
  * 保存聊天消息到本地（完整对话）
