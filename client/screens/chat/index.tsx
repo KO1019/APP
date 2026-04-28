@@ -12,6 +12,7 @@ import {
   saveChatMessageLocally,
   generateLocalId,
   getLocalChatMessage,
+  getLocalDiaryById,
 } from '@/utils/localStorage';
 
 interface Message {
@@ -171,6 +172,39 @@ export default function ChatScreen() {
     }
   }, [token, isOfflineMode]);
 
+  // 获取日记上下文内容
+  const fetchDiaryContext = useCallback(async (diaryId: string | undefined): Promise<string | null> => {
+    if (!diaryId) return null;
+
+    try {
+      // 先尝试从本地获取
+      const localDiary = await getLocalDiaryById(diaryId);
+      if (localDiary && localDiary.content) {
+        return localDiary.content;
+      }
+
+      // 如果本地没有且已登录，尝试从云端获取
+      if (token && !isOfflineMode) {
+        const response = await fetch(buildApiUrl(`/api/v1/diaries/${diaryId}`), {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.content) {
+            return data.content;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching diary context:', error);
+    }
+
+    return null;
+  }, [token, isOfflineMode]);
+
   const sendMessage = async () => {
     if (!inputText.trim() || loading) {
       return;
@@ -192,6 +226,9 @@ export default function ChatScreen() {
       if (!isOfflineMode && token) {
         const chatUrl = buildApiUrl('/api/v1/chat');
 
+        // 获取日记上下文
+        const diaryContext = await fetchDiaryContext(params.relatedDiaryId);
+
         // 在Web环境下，使用fetch API实现流式响应
         if (Platform.OS === 'web') {
 
@@ -206,8 +243,9 @@ export default function ChatScreen() {
             },
             body: JSON.stringify({
               message: userMessage,
-              conversation_id: params.conversationId,
-              diaryId: params.relatedDiaryId || null,
+              conversationId: params.conversationId || conversationId,
+              diaryContext: diaryContext,
+              conversationHistory: messages.map(m => ({ role: m.role, content: m.content })),
             }),
           }).then(async (response) => {
 
@@ -283,8 +321,9 @@ export default function ChatScreen() {
             },
             body: JSON.stringify({
               message: userMessage,
-              conversation_id: params.conversationId,
-              diaryId: params.relatedDiaryId || null,
+              conversationId: params.conversationId || conversationId,
+              diaryContext: diaryContext,
+              conversationHistory: messages.map(m => ({ role: m.role, content: m.content })),
             }),
           });
 
@@ -446,8 +485,9 @@ export default function ChatScreen() {
             headers,
             body: JSON.stringify({
               message: initMessage,
-              conversation_id: null,
-              diaryId: params.relatedDiaryId,
+              conversationId: null,
+              diaryId: params.relatedDiaryId ? await fetchDiaryContext(params.relatedDiaryId) : null,
+              conversationHistory: [],
             }),
           });
 

@@ -123,7 +123,8 @@ class DiaryCreate(BaseModel):
 class ChatMessage(BaseModel):
     message: str
     conversationId: Optional[str] = None
-    diaryId: Optional[str] = None
+    diaryContext: Optional[str] = None  # 日记上下文，由前端传递
+    conversationHistory: Optional[list] = None  # 对话历史，由前端传递
 
 
 class TextInput(BaseModel):
@@ -913,7 +914,12 @@ async def generate_diary_from_chat(data: GenerateDiaryFromChat, user_id: str = D
 
 @app.post('/api/v1/chat')
 async def chat_stream(chat: ChatMessage, user_id: str = Depends(get_user_id)):
-    """AI对话（流式响应）"""
+    """AI对话（流式响应）
+
+    Args:
+        chat: ChatMessage 包含message、conversationId、diaryContext等
+        user_id: 当前用户ID
+    """
 
     async def generate():
         full_response = ""
@@ -927,81 +933,37 @@ async def chat_stream(chat: ChatMessage, user_id: str = Depends(get_user_id)):
         # 构建对话历史
         messages = []
 
-        # 检查用户是否在询问日记相关内容
-        diary_keywords = ['日记', '今天写', '今天的日记', '记录', '写日记', '写过什么']
-        is_asking_about_diary = any(keyword in chat.message for keyword in diary_keywords)
-
-        if chat.diaryId:
-            # 获取关联的日记
-            if db_client:
-                diary_result = db_client.table('diaries').select('content').eq('id', chat.diaryId).maybe_single().execute()
-                if diary_result.data:
-                    messages.append({
-                        "role": "system",
-                        "content": f"你是一位温暖、专业的心理陪伴助手。用户刚刚写了一篇日记，内容如下：\n\n{diary_result.data['content']}\n\n请以共情的方式回应用户，帮助他们理解自己的情绪。"
-                    })
-        elif is_asking_about_diary and db_client:
-            # 用户询问日记相关内容，自动获取今天的日记
-            try:
-                from datetime import datetime, timedelta
-                today = datetime.now().date()
-                tomorrow = today + timedelta(days=1)
-
-                # 获取今天的所有日记
-                diaries_result = db_client.table('diaries')\
-                    .select('id, content, mood, created_at')\
-                    .gte('created_at', today.isoformat())\
-                    .lt('created_at', tomorrow.isoformat())\
-                    .order('created_at', desc=True)\
-                    .execute()
-
-                if diaries_result.data:
-                    # 构建日记摘要
-                    diary_summaries = []
-                    for diary in diaries_result.data:
-                        mood_emoji = {
-                            '开心': '😊', '兴奋': '🤩', '平静': '😌', '中性': '😐',
-                            '焦虑': '😰', '悲伤': '😢', '愤怒': '😠', '疲惫': '😫'
-                        }
-                        emoji = mood_emoji.get(diary.get('mood', '中性'), '😐')
-                        diary_summaries.append(f"{emoji} {diary['content']}")
-
-                    diary_text = "\n\n".join(diary_summaries)
-                    messages.append({
-                        "role": "system",
-                        "content": f"你是一位温暖、专业的心理陪伴助手。用户在询问他今天写的日记。以下是用户今天写的内容：\n\n{diary_text}\n\n请以共情的方式回应用户，帮助他们理解和表达自己的感受。"
-                    })
-                else:
-                    # 今天没有写日记
-                    messages.append({
-                        "role": "system",
-                        "content": "你是一位温暖、专业的心理陪伴助手。用户询问今天的日记，但他今天还没有写日记。请温柔地提醒用户，鼓励他们记录今天的感受和经历。"
-                    })
-            except Exception as e:
-                print(f"Error fetching today's diaries: {e}")
-                # 获取失败时使用默认提示
-                messages.append({
-                    "role": "system",
-                    "content": "你是一位温暖、专业的心理陪伴助手。用户询问日记相关内容，但获取日记时出现了问题。请以共情的方式回应用户。"
-                })
+        # 如果前端传递了日记上下文，使用它
+        if chat.diaryContext:
+            diary_content = chat.diaryContext
+            messages.append({
+                "role": "system",
+                "content": f"你是一位温暖、专业的心理陪伴助手。用户正在与你讨论他/她的日记，内容如下：\n\n{diary_content}\n\n请以共情的方式回应用户，帮助他们理解自己的情绪和感受。注意：你需要基于这篇日记的内容来回应用户，不要臆造日记中没有的信息。"
+            })
+        else:
+            # 没有日记上下文，使用通用提示
+            messages.append({
+                "role": "system",
+                "content": "你是一位温暖、专业的心理陪伴助手，擅长倾听和共情。请以理解和支持的态度回应用户，帮助他们探索自己的情绪和想法。"
+            })
 
         # 获取最近对话历史
         if db_client:
             try:
                 import json
                 conv_result = db_client.table('conversations').select('messages').order('created_at', desc=True).range(0, 4).execute()
-                if conv_result.data:
-                    for conv in reversed(conv_result.data):
-                        messages_str = conv.get('messages')
-                        if messages_str:
-                            try:
-                                messages_json = json.loads(messages_str)
-                                if isinstance(messages_json, list):
-                                    for msg in messages_json:
-                                        if msg.get('role') in ['user', 'assistant']:
-                                            messages.append(msg)
-                            except json.JSONDecodeError:
-                                pass
+                    if conv_result.data:
+                        for conv in reversed(conv_result.data):
+                            messages_str = conv.get('messages')
+                            if messages_str:
+                                try:
+                                    messages_json = json.loads(messages_str)
+                                    if isinstance(messages_json, list):
+                                        for msg in messages_json:
+                                            if msg.get('role') in ['user', 'assistant']:
+                                                messages.append(msg)
+                                except json.JSONDecodeError:
+                                    pass
             except Exception as e:
                 print(f"Error fetching conversation history: {e}")
 
