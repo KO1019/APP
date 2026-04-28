@@ -41,7 +41,9 @@ export default function SetupPasswordScreen() {
 
   const handleSetup = async () => {
     try {
+      console.log('开始设置密码...');
       await setupPassword('pin', password);
+      console.log('密码设置成功');
       Alert.alert('成功', '密码设置完成', [
         {
           text: '确定',
@@ -49,7 +51,9 @@ export default function SetupPasswordScreen() {
         },
       ]);
     } catch (error) {
-      Alert.alert('错误', '密码设置失败，请重试');
+      console.error('密码设置失败:', error);
+      const errorMessage = error instanceof Error ? error.message : '密码设置失败，请重试';
+      Alert.alert('错误', errorMessage);
     }
   };
 

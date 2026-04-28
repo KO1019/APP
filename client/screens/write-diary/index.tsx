@@ -237,8 +237,14 @@ export default function WriteDiaryScreen() {
   const triggerAIContinue = async () => {
     if (!content || content.trim().length < 20) return;
 
-    // 检查是否登录
+  // 检查是否登录
     if (!token) {
+      Alert.alert(
+        '需要登录',
+        'AI功能需要登录后使用。\n\n您可以：\n1. 先保存日记到本地\n2. 登录后再使用AI功能进行润色和分析',
+        [{ text: '确定' }]
+      );
+      setAiSuggestionLoading(false);
       return;
     }
 
@@ -284,9 +290,13 @@ ${content}
       const result = await response.json();
       if (result.content) {
         setAiSuggestion(result.content);
+      } else {
+        throw new Error('AI返回了空内容');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error in AI continue:', error);
+      const errorMessage = error instanceof Error ? error.message : 'AI服务暂时不可用，请稍后再试';
+      Alert.alert('提示', `续写失败：${errorMessage}`);
     } finally {
       setAiSuggestionLoading(false);
     }

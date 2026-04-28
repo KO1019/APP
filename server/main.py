@@ -927,6 +927,10 @@ async def chat_stream(chat: ChatMessage, user_id: str = Depends(get_user_id)):
         # 构建对话历史
         messages = []
 
+        # 检查用户是否在询问日记相关内容
+        diary_keywords = ['日记', '今天写', '今天的日记', '记录', '写日记', '写过什么']
+        is_asking_about_diary = any(keyword in chat.message for keyword in diary_keywords)
+
         if chat.diaryId:
             # 获取关联的日记
             if db_client:
@@ -936,6 +940,50 @@ async def chat_stream(chat: ChatMessage, user_id: str = Depends(get_user_id)):
                         "role": "system",
                         "content": f"你是一位温暖、专业的心理陪伴助手。用户刚刚写了一篇日记，内容如下：\n\n{diary_result.data['content']}\n\n请以共情的方式回应用户，帮助他们理解自己的情绪。"
                     })
+        elif is_asking_about_diary and db_client:
+            # 用户询问日记相关内容，自动获取今天的日记
+            try:
+                from datetime import datetime, timedelta
+                today = datetime.now().date()
+                tomorrow = today + timedelta(days=1)
+
+                # 获取今天的所有日记
+                diaries_result = db_client.table('diaries')\
+                    .select('id, content, mood, created_at')\
+                    .gte('created_at', today.isoformat())\
+                    .lt('created_at', tomorrow.isoformat())\
+                    .order('created_at', desc=True)\
+                    .execute()
+
+                if diaries_result.data:
+                    # 构建日记摘要
+                    diary_summaries = []
+                    for diary in diaries_result.data:
+                        mood_emoji = {
+                            '开心': '😊', '兴奋': '🤩', '平静': '😌', '中性': '😐',
+                            '焦虑': '😰', '悲伤': '😢', '愤怒': '😠', '疲惫': '😫'
+                        }
+                        emoji = mood_emoji.get(diary.get('mood', '中性'), '😐')
+                        diary_summaries.append(f"{emoji} {diary['content']}")
+
+                    diary_text = "\n\n".join(diary_summaries)
+                    messages.append({
+                        "role": "system",
+                        "content": f"你是一位温暖、专业的心理陪伴助手。用户在询问他今天写的日记。以下是用户今天写的内容：\n\n{diary_text}\n\n请以共情的方式回应用户，帮助他们理解和表达自己的感受。"
+                    })
+                else:
+                    # 今天没有写日记
+                    messages.append({
+                        "role": "system",
+                        "content": "你是一位温暖、专业的心理陪伴助手。用户询问今天的日记，但他今天还没有写日记。请温柔地提醒用户，鼓励他们记录今天的感受和经历。"
+                    })
+            except Exception as e:
+                print(f"Error fetching today's diaries: {e}")
+                # 获取失败时使用默认提示
+                messages.append({
+                    "role": "system",
+                    "content": "你是一位温暖、专业的心理陪伴助手。用户询问日记相关内容，但获取日记时出现了问题。请以共情的方式回应用户。"
+                })
 
         # 获取最近对话历史
         if db_client:
@@ -2641,9 +2689,10 @@ async def download_file_proxy(file_key: str):
             io.BytesIO(file_content),
             media_type=content_type,
             headers={
-                'Content-Disposition': f'attachment; filename="{filename}"',
+                'Content-Disposition': f'attachment; filename="{filename}"; filename*=UTF-8\'\'{filename}',
                 'Content-Length': str(len(file_content)),
                 'Cache-Control': 'public, max-age=31536000',  # 缓存1年
+                'Accept-Ranges': 'bytes',
             }
         )
 

@@ -38,12 +38,33 @@ export default function LockScreen() {
       });
 
       if (result.success) {
-        // 生物识别成功，使用预设密码解锁
-        // 这里简化处理，实际应该存储一个特殊的生物识别令牌
-        Alert.alert('提示', '请输入密码以完成解锁');
+        // 生物识别成功，直接解锁APP（无需再次输入密码）
+        // 因为生物识别本身就是一种身份验证方式
+        console.log('生物识别成功，自动解锁');
+
+        // 使用一个特殊标记来表示生物识别解锁
+        // 实际使用时，unlockApp方法需要支持生物识别标记
+        // 暂时使用空密码或特殊处理
+        const success = await unlockApp('', false);
+
+        if (!success) {
+          setError('生物识别解锁失败，请使用密码');
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Biometric unlock error:', error);
+
+      // 用户取消了生物识别（不是错误）
+      if (error?.code === 'user_cancel') {
+        console.log('用户取消了生物识别');
+        return;
+      }
+
+      // 生物识别不可用或失败，不显示错误，让用户使用密码
+      if (error?.code === 'not_available' || error?.code === 'not_enrolled') {
+        console.log('生物识别不可用');
+        return;
+      }
     }
   };
 

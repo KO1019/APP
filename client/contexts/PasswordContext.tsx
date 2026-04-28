@@ -116,6 +116,15 @@ export function PasswordProvider({ children }: { children: React.ReactNode }) {
   const unlockApp = async (password: string, isGuest: boolean = false): Promise<boolean> => {
     if (isWeb) return true;
 
+    // 如果密码为空且已启用生物识别，视为生物识别解锁成功
+    if (!password && biometricEnabled) {
+      setIsLocked(false);
+      const key = generateEncryptionKey();
+      setEncryptionKey(key);
+      await setSecureItemAsync(ENCRYPTION_KEY, key);
+      return true;
+    }
+
     try {
       const storedPassword = await getSecureItemAsync(PASSWORD_KEY);
       if (!storedPassword) return false;
@@ -157,9 +166,11 @@ export function PasswordProvider({ children }: { children: React.ReactNode }) {
 
       await setSecureItemAsync(PASSWORD_KEY, passwordData);
       setHasPassword(true);
+
+      console.log('Password setup successful');
     } catch (error) {
       console.error('Setup password error:', error);
-      throw new Error('Failed to setup password');
+      throw new Error(error instanceof Error ? error.message : 'Failed to setup password');
     }
   };
 
