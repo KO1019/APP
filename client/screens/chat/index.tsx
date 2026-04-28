@@ -13,6 +13,8 @@ import {
   generateLocalId,
   getLocalChatMessage,
   getLocalDiaryById,
+  saveConversationLocally,
+  getLocalConversation,
 } from '@/utils/localStorage';
 
 interface Message {
@@ -76,30 +78,18 @@ export default function ChatScreen() {
 
           if (response.ok) {
             const data = await response.json();
-            setMessages([
-              { role: 'user', content: data.user_message },
-              { role: 'assistant', content: data.ai_message },
-            ]);
+	          // 兼容新旧格式
+	          if (data.messages && Array.isArray(data.messages)) {
+	            // 新格式：完整的消息数组
+	            setMessages(data.messages);
+	          } else if (data.user_message && data.ai_message) {
+	            // 旧格式：单条消息
+	            setMessages([
+	              { role: 'user', content: data.user_message },
+	              { role: 'assistant', content: data.ai_message },
+	            ]);
+	          }
             setCurrentConversationId(params.conversationId);
-            return;
-          }
-        } catch (error) {
-          console.error('Error loading conversation from cloud:', error);
-        }
-      }
-
-      // 如果云端加载失败或者是本地ID，尝试从本地存储加载
-      if (isLocalId || !token) {
-        try {
-          const localConversation = await getLocalChatMessage(params.conversationId);
-          if (localConversation) {
-            const newMessages = [
-              { role: 'user', content: localConversation.user_message || localConversation.userMessage },
-              { role: 'assistant', content: localConversation.ai_message || localConversation.aiMessage },
-            ];
-            setMessages(newMessages);
-            setCurrentConversationId(params.conversationId);
-          }
         } catch (error) {
           console.error('Error loading conversation from local storage:', error);
         }
@@ -291,7 +281,13 @@ export default function ChatScreen() {
                   const data = line.slice(6);
                   if (data === '[DONE]') {
                     setLoading(false);
-                    saveChatMessageLocally(conversationId, userMessage, aiResponse, params.relatedDiaryId || null, true);
+                    // 保存完整对话
+                    await saveConversationLocally(
+                      conversationId,
+                      [...messages, { role: 'assistant', content: aiResponse }],
+                      diaryContext,
+                      params.relatedDiaryId || null
+                    );
                     return;
                   }
 
@@ -358,7 +354,13 @@ export default function ChatScreen() {
             if (event.data === '[DONE]') {
               sse.close();
               setLoading(false);
-              saveChatMessageLocally(conversationId, userMessage, aiResponse, params.relatedDiaryId || null, true);
+              // 保存完整对话
+              await saveConversationLocally(
+                conversationId,
+                [...messages, { role: 'assistant', content: aiResponse }],
+                diaryContext,
+                params.relatedDiaryId || null
+              );
               return;
             }
 
