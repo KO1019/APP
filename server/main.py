@@ -952,18 +952,18 @@ async def chat_stream(chat: ChatMessage, user_id: str = Depends(get_user_id)):
             try:
                 import json
                 conv_result = db_client.table('conversations').select('messages').order('created_at', desc=True).range(0, 4).execute()
-                    if conv_result.data:
-                        for conv in reversed(conv_result.data):
-                            messages_str = conv.get('messages')
-                            if messages_str:
-                                try:
-                                    messages_json = json.loads(messages_str)
-                                    if isinstance(messages_json, list):
-                                        for msg in messages_json:
-                                            if msg.get('role') in ['user', 'assistant']:
-                                                messages.append(msg)
-                                except json.JSONDecodeError:
-                                    pass
+                if conv_result.data:
+                    for conv in reversed(conv_result.data):
+                        messages_str = conv.get('messages')
+                        if messages_str:
+                            try:
+                                messages_json = json.loads(messages_str)
+                                if isinstance(messages_json, list):
+                                    for msg in messages_json:
+                                        if msg.get('role') in ['user', 'assistant']:
+                                            messages.append(msg)
+                            except json.JSONDecodeError:
+                                pass
             except Exception as e:
                 print(f"Error fetching conversation history: {e}")
 
@@ -1003,19 +1003,27 @@ async def chat_stream(chat: ChatMessage, user_id: str = Depends(get_user_id)):
                         current_messages.append(user_msg)
                         current_messages.append(ai_msg)
                         import json
-                        db_client.table('conversations').update({
+                        update_data = {
                             'messages': json.dumps(current_messages, ensure_ascii=False),
                             'updated_at': datetime.now().isoformat()
-                        }).eq('id', session_id).execute()
+                        }
+                        # 如果前端传递了diaryContext，保存或更新它
+                        if chat.diaryContext is not None:
+                            update_data['diary_context'] = chat.diaryContext
+                        db_client.table('conversations').update(update_data).eq('id', session_id).execute()
                 else:
                     # 创建新会话
                     import json
-                    db_client.table('conversations').insert({
+                    insert_data = {
                         'id': session_id,
                         'user_id': user_id,
                         'title': chat.message[:50] if len(chat.message) > 50 else chat.message,  # 使用第一条消息作为标题
                         'messages': json.dumps([user_msg, ai_msg], ensure_ascii=False)
-                    }).execute()
+                    }
+                    # 如果前端传递了diaryContext，保存它
+                    if chat.diaryContext:
+                        insert_data['diary_context'] = chat.diaryContext
+                    db_client.table('conversations').insert(insert_data).execute()
             except Exception as e:
                 print(f"Error saving conversation: {e}")
 
@@ -1128,8 +1136,8 @@ async def get_conversation_by_id(conversation_id: str, user_id: str = Depends(ge
 
     return {
         'id': conv_data.get('id'),
-        'user_message': user_message,
-        'ai_message': ai_message,
+        'messages': messages_data if isinstance(messages_data, list) else json.loads(messages_data) if isinstance(messages_data, str) else [],
+        'diaryContext': conv_data.get('diary_context'),
         'created_at': conv_data.get('created_at'),
         'user_id': conv_data.get('user_id'),
         'title': conv_data.get('title', '')
